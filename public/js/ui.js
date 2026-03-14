@@ -156,7 +156,8 @@ var EffectRenderer = {
   init: function() { this.effects = []; },
 
   add: function(x, y, type) {
-    this.effects.push({ x: x, y: y, type: type, timer: 0, maxTime: 0.5 });
+    var maxTime = (type === "bossExplosion") ? 0.8 : 0.5;
+    this.effects.push({ x: x, y: y, type: type, timer: 0, maxTime: maxTime });
   },
 
   update: function(dt) {
@@ -201,6 +202,21 @@ var EffectRenderer = {
         ctx.fillText("\uD83C\uDFF3\uFE0F", sp.x, sp.y - eff.timer * 20);
         ctx.font = FONT.h4;
         ctx.fillText("降伏!", sp.x, sp.y - eff.timer * 20 - 20);
+      } else if (eff.type === "bossExplosion") {
+        // Rockman-style boss explosion: large fire emoji + expanding ring
+        var progress = eff.timer / eff.maxTime;
+        var scale = 1.0 + progress * 0.5;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.font = (Math.floor(40 * scale)) + "px " + FONT_FAMILY;
+        ctx.fillText("\uD83D\uDD25", sp.x, sp.y - eff.timer * 15);
+        // Expanding explosion ring
+        ctx.strokeStyle = "rgba(255,100,20," + (alpha * 0.8) + ")";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, progress * 50, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
       }
     }
   }

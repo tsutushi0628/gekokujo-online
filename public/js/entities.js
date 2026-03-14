@@ -661,7 +661,7 @@ var ParadeController = {
         }
 
         // ボスへの攻撃
-        if (GekokujoSystem.boss && GekokujoSystem.battleActive && m.attackCooldown <= 0) {
+        if (GekokujoSystem.boss && !GekokujoSystem.boss.defeated && GekokujoSystem.battleActive && m.attackCooldown <= 0) {
           var boss = GekokujoSystem.boss;
           var bdx = m.x - boss.x;
           var bdy = m.y - boss.y;
@@ -819,7 +819,7 @@ var ProjectileManager = {
       }
 
       // Hit gekokujo boss
-      if (GekokujoSystem.boss) {
+      if (GekokujoSystem.boss && !GekokujoSystem.boss.defeated) {
         var boss = GekokujoSystem.boss;
         if (i >= 0 && i < this.projectiles.length) {
           var bp = this.projectiles[i];

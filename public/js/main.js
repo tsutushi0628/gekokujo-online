@@ -100,7 +100,7 @@ var IkkiSystem = {
     }
 
     // Damage boss if active
-    if (GekokujoSystem.boss) {
+    if (GekokujoSystem.boss && !GekokujoSystem.boss.defeated) {
       GekokujoSystem.boss.hp -= damageAmount;
       EffectRenderer.add(GekokujoSystem.boss.x, GekokujoSystem.boss.y, "hit");
       if (GekokujoSystem.boss.hp <= 0) { GekokujoSystem.success(); }
@@ -133,6 +133,8 @@ var GekokujoSystem = {
   flashTimer: 0,
   endGamePending: false,
   gekokujoWin: false,
+  defeatTimer: 0,
+  defeatExplosionTimer: 0,
 
   init: function() {
     this.available = true;
@@ -149,6 +151,8 @@ var GekokujoSystem = {
     this.flashTimer = 0;
     this.endGamePending = false;
     this.gekokujoWin = false;
+    this.defeatTimer = 0;
+    this.defeatExplosionTimer = 0;
   },
 
   // Called with raw (unslowed) dt from gameLoop, before dt is multiplied
@@ -158,10 +162,31 @@ var GekokujoSystem = {
       if (this.slowTimer <= 0) {
         this.slowTimer = 0;
         this.slowMultiplier = 1.0;
+        // Clear defeated boss sprite at end of defeat sequence
+        if (this.boss && this.boss.defeated) {
+          // Final big explosion burst
+          for (var fi = 0; fi < 6; fi++) {
+            var fx = (Math.random() - 0.5) * 120;
+            var fy = (Math.random() - 0.5) * 120;
+            EffectRenderer.add(this.boss.x + fx, this.boss.y + fy, "destroy");
+          }
+          this.boss = null;
+        }
         if (this.endGamePending) {
           this.endGamePending = false;
           GameDirector.endGame(this.gekokujoWin);
         }
+      }
+    }
+    // Defeat sequence: staggered explosions every 0.25s during slow-mo
+    if (this.defeatTimer > 0 && this.boss) {
+      this.defeatTimer -= rawDt;
+      this.defeatExplosionTimer -= rawDt;
+      if (this.defeatExplosionTimer <= 0) {
+        this.defeatExplosionTimer = 0.25;
+        var ex = (Math.random() - 0.5) * 100;
+        var ey = (Math.random() - 0.5) * 100;
+        EffectRenderer.add(this.boss.x + ex, this.boss.y + ey, "bossExplosion");
       }
     }
     if (this.flashTimer > 0) {
@@ -248,7 +273,7 @@ var GekokujoSystem = {
     var rIdx = Math.min(ScoreManager.rankIndex + 2, RANKS.length - 1);
     // Parade reduces boss HP
     var hpReduction = ParadeController.getLength() * 3;
-    var bossHp = Math.max(60, (120 + rIdx * 80) - hpReduction);
+    var bossHp = Math.max(45, (90 + rIdx * 60) - hpReduction);
     this.boss = {
       x: MapGenerator.getCastleWorldPos().x,
       y: MapGenerator.getCastleWorldPos().y,
@@ -262,13 +287,17 @@ var GekokujoSystem = {
   },
 
   success: function() {
-    // Save boss position before clearing
-    var bossX = this.boss.x;
-    var bossY = this.boss.y;
+    // Mark boss as defeated (keep for blinking animation)
+    this.boss.defeated = true;
+    this.boss.speed = 0;
 
     // Slow-motion: 2 seconds at 0.05x speed (nearly frozen)
     this.slowTimer = 2.0;
     this.slowMultiplier = 0.05;
+
+    // Defeat sequence timer (staggered explosions for 2s)
+    this.defeatTimer = 2.0;
+    this.defeatExplosionTimer = 0;
 
     // Screen flash: 0.8 second white flash
     this.flashTimer = 0.8;
@@ -276,16 +305,7 @@ var GekokujoSystem = {
     // Announcement
     AnnouncementSystem.add("下克上成就!!");
 
-    // Destroy effects at boss position (3-4 scattered)
-    var destroyCount = 3 + Math.floor(Math.random() * 2);
-    for (var di = 0; di < destroyCount; di++) {
-      var offsetX = (Math.random() - 0.5) * 80;
-      var offsetY = (Math.random() - 0.5) * 80;
-      EffectRenderer.add(bossX + offsetX, bossY + offsetY, "destroy");
-    }
-
     this.battleActive = false;
-    this.boss = null;
     ScoreManager.addRaw(200 + ScoreManager.rankIndex * 100);
     ScoreManager.rankIndex = Math.min(ScoreManager.rankIndex + 2, RANKS.length - 1);
     ScoreManager.recalculate();
@@ -336,22 +356,31 @@ var GekokujoSystem = {
     // Boss
     if (this.boss) {
       var bsp = CameraController.worldToScreen(this.boss.x, this.boss.y);
-      if (spritesLoaded) {
-        var bossFlipH = (this.boss.x < PlayerController.x);
-        drawSpriteCentered(ctx, "tonosama", bsp.x, bsp.y, 140, bossFlipH);
-      } else {
-        ctx.font = FONT.iconLarge;
-        ctx.textAlign = "center";
-        ctx.fillText("\uD83C\uDFEF", bsp.x, bsp.y + 15);
+      // Rockman-style blinking when defeated (toggle every 0.08s)
+      var showBossSprite = true;
+      if (this.boss.defeated) {
+        showBossSprite = (Math.floor(Date.now() / 80) % 2 === 0);
       }
-      ctx.fillStyle = "#ddd";
-      ctx.fillRect(bsp.x - 30, bsp.y - 40, 60, 6);
-      ctx.fillStyle = "#c44";
-      ctx.fillRect(bsp.x - 30, bsp.y - 40, 60 * (this.boss.hp / this.boss.maxHp), 6);
-      ctx.fillStyle = "#1a1a1a";
-      ctx.font = FONT.h4;
-      ctx.textAlign = "center";
-      ctx.fillText("城主", bsp.x, bsp.y - 45);
+      if (showBossSprite) {
+        if (spritesLoaded) {
+          var bossFlipH = (this.boss.x < PlayerController.x);
+          drawSpriteCentered(ctx, "tonosama", bsp.x, bsp.y, 140, bossFlipH);
+        } else {
+          ctx.font = FONT.iconLarge;
+          ctx.textAlign = "center";
+          ctx.fillText("\uD83C\uDFEF", bsp.x, bsp.y + 15);
+        }
+      }
+      if (!this.boss.defeated) {
+        ctx.fillStyle = "#ddd";
+        ctx.fillRect(bsp.x - 30, bsp.y - 40, 60, 6);
+        ctx.fillStyle = "#c44";
+        ctx.fillRect(bsp.x - 30, bsp.y - 40, 60 * (this.boss.hp / this.boss.maxHp), 6);
+        ctx.fillStyle = "#1a1a1a";
+        ctx.font = FONT.h4;
+        ctx.textAlign = "center";
+        ctx.fillText("城主", bsp.x, bsp.y - 45);
+      }
     }
   }
 };
@@ -1201,7 +1230,7 @@ var GameDirector = {
 
     // Gekokujo success flash (white)
     if (GekokujoSystem.flashTimer > 0) {
-      var gFlashAlpha = GekokujoSystem.flashTimer / 0.3;
+      var gFlashAlpha = Math.min(1.0, GekokujoSystem.flashTimer / 0.8);
       ctx.fillStyle = "rgba(255,255,255," + gFlashAlpha + ")";
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     }

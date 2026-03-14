@@ -291,7 +291,7 @@ var TsujigiriSystem = {
       var en = EnemyManager.enemies[i];
       if (en.surrendering) { continue; }
       if (en.name === "野盗" || en.name === "侍") {
-        var chance = 0.05 * this._getTerrainChanceMultiplier();
+        var chance = 0.025 * this._getTerrainChanceMultiplier();
         if (Math.random() < chance) {
           this._startCutin(i);
           return;
@@ -321,19 +321,15 @@ var TsujigiriSystem = {
       ScoreManager.addRaw(100);
       ShoninSystem.addKokuForKill(100);
     } else {
-      // Failure: 50% HP damage
-      var tsujiDamage = Math.floor(PlayerController.maxHp * 0.5);
-      PlayerController.hp -= tsujiDamage;
+      // Failure: instant death
+      PlayerController.hp = 0;
       EffectRenderer.add(PlayerController.x, PlayerController.y, "playerHit");
-      AnnouncementSystem.add("辻斬りを受けた! (-" + tsujiDamage + "HP)");
-      if (PlayerController.hp <= 0) {
-        PlayerController.hp = 0;
-        gameState.paused = false;
-        gameState.phase = "result";
-        skullScreen.classList.add("active");
-        this.phase = "idle";
-        return;
-      }
+      AnnouncementSystem.add("辻斬りに斬られた!");
+      gameState.paused = false;
+      gameState.phase = "result";
+      skullScreen.classList.add("active");
+      this.phase = "idle";
+      return;
     }
   },
 
