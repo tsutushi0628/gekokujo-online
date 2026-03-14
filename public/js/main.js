@@ -661,14 +661,8 @@ var GameDirector = {
         }
       }
 
-      // Terrain-specific overlays
-      if (bl.type === TERRAIN_TYPES.GRASSLAND) {
-        ctx.fillStyle = "rgba(120, 180, 80, 0.2)";
-        ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
-      } else if (bl.type === TERRAIN_TYPES.VILLAGE) {
-        ctx.fillStyle = "rgba(120, 180, 80, 0.12)";
-        ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
-      } else if (bl.type === TERRAIN_TYPES.CASTLE) {
+      // Terrain-specific overlays (castle/castle_town only)
+      if (bl.type === TERRAIN_TYPES.CASTLE) {
         // Cobblestone pattern for castle area
         ctx.fillStyle = "rgba(140, 135, 125, 0.25)";
         ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
@@ -700,9 +694,6 @@ var GameDirector = {
             ctx.strokeRect(ctsx, cty, ctStoneW, ctStoneH);
           }
         }
-      } else if (bl.type === TERRAIN_TYPES.MOUNTAIN) {
-        ctx.fillStyle = "rgba(140, 130, 100, 0.15)";
-        ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
       }
 
       if (bl.type === TERRAIN_TYPES.CASTLE) {
