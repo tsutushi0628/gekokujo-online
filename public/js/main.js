@@ -248,7 +248,7 @@ var GekokujoSystem = {
     var rIdx = Math.min(ScoreManager.rankIndex + 2, RANKS.length - 1);
     // Parade reduces boss HP
     var hpReduction = ParadeController.getLength() * 3;
-    var bossHp = Math.max(30, 60 + rIdx * 40 - hpReduction);
+    var bossHp = Math.max(60, (120 + rIdx * 80) - hpReduction);
     this.boss = {
       x: MapGenerator.getCastleWorldPos().x,
       y: MapGenerator.getCastleWorldPos().y,
