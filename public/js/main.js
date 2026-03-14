@@ -14,6 +14,7 @@ var dialogTextEl = document.getElementById("dialogText");
 var dialogYesBtn = document.getElementById("dialogYes");
 var dialogNoBtn = document.getElementById("dialogNo");
 var linesCanvas = document.getElementById("linesCanvas");
+var ikkiOverlay = document.getElementById("ikki-overlay");
 
 // ============================================================
 // Shared Game State (minimal globals)
@@ -27,7 +28,8 @@ var gameState = {
   lastTimestamp: 0,
   koku: 0,
   kokuPerSecond: 0,
-  speedMultiplier: 1
+  speedMultiplier: 1,
+  ikkiMode: false
 };
 
 var dialogCallback = null;
@@ -42,7 +44,7 @@ var IkkiSystem = {
   flashTimer: 0,
 
   init: function() {
-    this.available = (gameState.selectedChar === "farmer");
+    this.available = (gameState.selectedChar === "farmer" && gameState.ikkiMode);
     this.active = false;
     this.cooldown = 0;
     this.flashTimer = 0;
@@ -679,8 +681,13 @@ var GameDirector = {
     InputManager.updateWorldMouse();
 
     // Time up
-    var remaining = MAX_TIME - gameState.gameTime;
+    var maxTime = MAX_TIME;
+    if (gameState.ikkiMode) { maxTime = 60; }
+    var remaining = maxTime - gameState.gameTime;
     if (remaining <= 0 && !GekokujoSystem.battleActive) {
+      if (gameState.ikkiMode) {
+        AnnouncementSystem.add("殿様は逃げた...");
+      }
       this.endGame(false);
       return;
     }
@@ -693,9 +700,9 @@ var GameDirector = {
       ParadeChargeSystem.start();
     }
     if (InputManager.consumeQ()) {
-      if (gameState.selectedChar === "farmer") { IkkiSystem.tryActivate(); }
-      else if (gameState.selectedChar === "ashigaru") { KobuSystem.tryActivate(); }
-      else if (gameState.selectedChar === "merchant") { BaishuSystem.tryActivate(); }
+      if (gameState.selectedChar === "farmer" && gameState.ikkiMode) {
+        IkkiSystem.tryActivate();
+      }
     }
 
     // Update all systems
@@ -946,7 +953,9 @@ var GameDirector = {
     EffectRenderer.draw(ctx);
 
     // === HUD (screen space) - washi panel style ===
-    var remaining = Math.max(0, Math.ceil(MAX_TIME - gameState.gameTime));
+    var maxTime = MAX_TIME;
+    if (gameState.ikkiMode) { maxTime = 60; }
+    var remaining = Math.max(0, Math.ceil(maxTime - gameState.gameTime));
     if (GekokujoSystem.battleActive) {
       remaining = Math.max(0, Math.ceil(GekokujoSystem.battleTimer));
     }
@@ -968,6 +977,11 @@ var GameDirector = {
       timerValueColor = "#8b5e14";
       timerBg = "rgba(250, 240, 220, 0.88)";
       timerBorder = "rgba(160, 100, 40, 0.6)";
+    } else if (gameState.ikkiMode && !GekokujoSystem.battleActive) {
+      timerLabel = "一揆";
+      timerLabelColor = "#b03020";
+      timerValueColor = "#b03020";
+      timerBorder = "rgba(180, 80, 60, 0.5)";
     } else if (remaining <= 10) {
       timerLabelColor = "#b07060";
       timerValueColor = "#b03020";
@@ -1029,11 +1043,17 @@ var GameDirector = {
     ctx.fillStyle = "#6b4226";
     ctx.fillText(RankSystem.getCurrentName(), scoreX + scoreW - 10, scoreY + 42);
 
-    // --- Ability bar (bottom center, 2 slots) ---
+    // --- Ability bar (bottom center) ---
     var slotW = 58;
     var slotH = 62;
     var slotGap = 10;
-    var barW = 2 * slotW + slotGap;
+    var showQSlot = (gameState.selectedChar === "farmer" && gameState.ikkiMode);
+    var barW;
+    if (showQSlot) {
+      barW = 2 * slotW + slotGap;
+    } else {
+      barW = slotW;
+    }
     var barStartX = CANVAS_W / 2 - barW / 2;
     var barY = CANVAS_H - slotH - 10;
     var keyBadgeW = 20;
@@ -1102,129 +1122,91 @@ var GameDirector = {
       ctx.fillText("" + Math.ceil(PlayerController.chargeCooldown), barStartX + slotW / 2, barY + slotH - cdOverlayH / 2 + 7);
     }
 
-    // Slot 2: Q ability (character-specific)
-    var qSlotX = barStartX + slotW + slotGap;
-    var qOnCD = false;
-    var qDisabled = false;
-    var qKanji = "";
-    var qName = "";
-    var qCooldownVal = 0;
+    // Slot 2: Q ability (ikki farmer only)
+    if (showQSlot) {
+      var qSlotX = barStartX + slotW + slotGap;
+      var qOnCD = IkkiSystem.cooldown > 0;
+      var qDisabled = ParadeController.getLength() < 1;
+      var qKanji = "揆";
+      var qName = "一揆";
+      var qCooldownVal = IkkiSystem.cooldown;
 
-    if (gameState.selectedChar === "farmer") {
-      qKanji = "揆";
-      qName = "一揆";
-      qOnCD = IkkiSystem.cooldown > 0;
-      qCooldownVal = IkkiSystem.cooldown;
-      qDisabled = ParadeController.getLength() < 1;
-    } else if (gameState.selectedChar === "ashigaru") {
-      qKanji = "鼓";
-      qName = "鼓舞";
-      qOnCD = KobuSystem.cooldown > 0;
-      qCooldownVal = KobuSystem.cooldown;
-      qDisabled = false;
-    } else if (gameState.selectedChar === "merchant") {
-      qKanji = "買";
-      qName = "買収";
-      qOnCD = BaishuSystem.cooldown > 0;
-      qCooldownVal = BaishuSystem.cooldown;
-      qDisabled = gameState.koku < BaishuSystem.cost;
-    }
+      var qReady = !qOnCD && !qDisabled;
+      var qBorderColor = "rgba(160, 150, 130, 0.4)";
+      var qKanjiColor = "#aaa090";
+      var qNameColor = "#b0a090";
+      var qSlotAlpha = 1.0;
 
-    var qReady = !qOnCD && !qDisabled;
-    var qBorderColor = "rgba(160, 150, 130, 0.4)";
-    var qKanjiColor = "#aaa090";
-    var qNameColor = "#b0a090";
-    var qSlotAlpha = 1.0;
-
-    if (qReady) {
-      if (gameState.selectedChar === "farmer") {
+      if (qReady) {
         qBorderColor = "rgba(180, 80, 60, 0.6)";
         qKanjiColor = "#8b3020";
         qNameColor = "#8b3020";
-      } else if (gameState.selectedChar === "ashigaru") {
-        qBorderColor = "rgba(60, 80, 180, 0.6)";
-        qKanjiColor = "#203080";
-        qNameColor = "#203080";
-      } else if (gameState.selectedChar === "merchant") {
-        qBorderColor = "rgba(180, 100, 40, 0.6)";
-        qKanjiColor = "#8b5020";
-        qNameColor = "#8b5020";
+      } else if (qDisabled && !qOnCD) {
+        qSlotAlpha = 0.45;
       }
-    } else if (qDisabled && !qOnCD) {
-      qSlotAlpha = 0.45;
-    }
 
-    ctx.save();
-    ctx.globalAlpha = qSlotAlpha;
-    if (qReady) {
-      ctx.shadowColor = "rgba(200, 160, 60, 0.25)";
-      ctx.shadowBlur = 10;
-    }
-    ctx.fillStyle = "rgba(245, 238, 225, 0.8)";
-    ctx.beginPath();
-    ctx.roundRect(qSlotX, barY, slotW, slotH, 14);
-    ctx.fill();
-    ctx.restore();
-
-    ctx.save();
-    ctx.globalAlpha = qSlotAlpha;
-    ctx.strokeStyle = qBorderColor;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(qSlotX, barY, slotW, slotH, 14);
-    ctx.stroke();
-
-    // Q key badge
-    ctx.textAlign = "center";
-    ctx.font = "10px sans-serif";
-    ctx.fillStyle = "rgba(220, 210, 190, 0.55)";
-    ctx.beginPath();
-    ctx.roundRect(qSlotX + slotW / 2 - keyBadgeW / 2, barY + 4, keyBadgeW, keyBadgeH, 4);
-    ctx.fill();
-    ctx.fillStyle = "#7a6a4a";
-    ctx.fillText("Q", qSlotX + slotW / 2, barY + 14);
-
-    // Q kanji
-    ctx.font = "24px " + FONT_FAMILY;
-    ctx.fillStyle = qKanjiColor;
-    ctx.fillText(qKanji, qSlotX + slotW / 2, barY + 40);
-
-    // Q name
-    ctx.font = "8px " + FONT_FAMILY;
-    ctx.fillStyle = qNameColor;
-    ctx.fillText(qName, qSlotX + slotW / 2, barY + 52);
-    ctx.restore();
-
-    // Q cooldown overlay
-    if (qOnCD) {
-      var qOverlayH = slotH * 0.55;
       ctx.save();
+      ctx.globalAlpha = qSlotAlpha;
+      if (qReady) {
+        ctx.shadowColor = "rgba(200, 160, 60, 0.25)";
+        ctx.shadowBlur = 10;
+      }
+      ctx.fillStyle = "rgba(245, 238, 225, 0.8)";
       ctx.beginPath();
-      ctx.roundRect(qSlotX, barY + slotH - qOverlayH, slotW, qOverlayH, [0, 0, 12, 12]);
-      ctx.clip();
-      ctx.fillStyle = "rgba(200, 190, 170, 0.7)";
-      ctx.fillRect(qSlotX, barY + slotH - qOverlayH, slotW, qOverlayH);
+      ctx.roundRect(qSlotX, barY, slotW, slotH, 14);
+      ctx.fill();
       ctx.restore();
-      ctx.font = "bold 18px " + FONT_FAMILY;
-      ctx.fillStyle = "#5a4a3a";
+
+      ctx.save();
+      ctx.globalAlpha = qSlotAlpha;
+      ctx.strokeStyle = qBorderColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(qSlotX, barY, slotW, slotH, 14);
+      ctx.stroke();
+
+      // Q key badge
       ctx.textAlign = "center";
-      ctx.fillText("" + Math.ceil(qCooldownVal), qSlotX + slotW / 2, barY + slotH - qOverlayH / 2 + 7);
+      ctx.font = "10px sans-serif";
+      ctx.fillStyle = "rgba(220, 210, 190, 0.55)";
+      ctx.beginPath();
+      ctx.roundRect(qSlotX + slotW / 2 - keyBadgeW / 2, barY + 4, keyBadgeW, keyBadgeH, 4);
+      ctx.fill();
+      ctx.fillStyle = "#7a6a4a";
+      ctx.fillText("Q", qSlotX + slotW / 2, barY + 14);
+
+      // Q kanji
+      ctx.font = "24px " + FONT_FAMILY;
+      ctx.fillStyle = qKanjiColor;
+      ctx.fillText(qKanji, qSlotX + slotW / 2, barY + 40);
+
+      // Q name
+      ctx.font = "8px " + FONT_FAMILY;
+      ctx.fillStyle = qNameColor;
+      ctx.fillText(qName, qSlotX + slotW / 2, barY + 52);
+      ctx.restore();
+
+      // Q cooldown overlay
+      if (qOnCD) {
+        var qOverlayH = slotH * 0.55;
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(qSlotX, barY + slotH - qOverlayH, slotW, qOverlayH, [0, 0, 12, 12]);
+        ctx.clip();
+        ctx.fillStyle = "rgba(200, 190, 170, 0.7)";
+        ctx.fillRect(qSlotX, barY + slotH - qOverlayH, slotW, qOverlayH);
+        ctx.restore();
+        ctx.font = "bold 18px " + FONT_FAMILY;
+        ctx.fillStyle = "#5a4a3a";
+        ctx.textAlign = "center";
+        ctx.fillText("" + Math.ceil(qCooldownVal), qSlotX + slotW / 2, barY + slotH - qOverlayH / 2 + 7);
+      }
     }
 
-    // Q ability flash effects
+    // Q ability flash effects (ikki only)
     if (IkkiSystem.flashTimer > 0) {
       var flashAlpha = IkkiSystem.flashTimer / 0.3;
       ctx.fillStyle = "rgba(255,255,255," + (flashAlpha * 0.7) + ")";
-      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-    }
-    if (KobuSystem.flashTimer > 0) {
-      var jFlashAlpha = KobuSystem.flashTimer / 0.3;
-      ctx.fillStyle = "rgba(200,220,255," + (jFlashAlpha * 0.7) + ")";
-      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-    }
-    if (BaishuSystem.flashTimer > 0) {
-      var dFlashAlpha = BaishuSystem.flashTimer / 0.3;
-      ctx.fillStyle = "rgba(255,200,200," + (dFlashAlpha * 0.5) + ")";
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     }
 
@@ -1236,7 +1218,9 @@ var GameDirector = {
     }
 
     // --- End-game countdown (last 5 seconds) ---
-    var normalRemaining = Math.max(0, Math.ceil(MAX_TIME - gameState.gameTime));
+    var countdownMaxTime = MAX_TIME;
+    if (gameState.ikkiMode) { countdownMaxTime = 60; }
+    var normalRemaining = Math.max(0, Math.ceil(countdownMaxTime - gameState.gameTime));
     if (!GekokujoSystem.battleActive && normalRemaining <= 5 && normalRemaining >= 1) {
       var cdR = 58;
       var cdG = 42;
@@ -1358,9 +1342,27 @@ for (var i = 0; i < charCards.length; i++) {
       gameState.speedMultiplier = 1;
     }
     charSelect.classList.remove("active");
-    GameDirector.init();
+
+    if (charKey === "farmer") {
+      ikkiOverlay.classList.add("active");
+    } else {
+      gameState.ikkiMode = false;
+      GameDirector.init();
+    }
   });
 }
+
+document.getElementById("ikkiYes").addEventListener("click", function() {
+  ikkiOverlay.classList.remove("active");
+  gameState.ikkiMode = true;
+  GameDirector.init();
+});
+
+document.getElementById("ikkiNo").addEventListener("click", function() {
+  ikkiOverlay.classList.remove("active");
+  gameState.ikkiMode = false;
+  GameDirector.init();
+});
 
 document.getElementById("replayBtn").addEventListener("click", function() {
   resultScreen.classList.remove("active");

@@ -144,6 +144,60 @@ canvas { display: block; border: var(--border-main); cursor: crosshair; }
 .dialog-btn.yes { border-color: var(--color-primary); color: var(--color-primary); font-weight: bold; }
 .dialog-btn.no { border-color: #999; color: var(--color-gray-dark); }
 
+/* --- Ikki Dialog --- */
+#ikki-overlay { background: var(--color-overlay-dark); z-index: 15; }
+.ikki-dialog {
+  background: var(--color-white);
+  border: var(--border-main);
+  padding: 30px 40px;
+  text-align: center;
+  max-width: 380px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect fill='%23f5eee1' width='4' height='4'/%3E%3C/svg%3E");
+}
+.ikki-speech-bubble {
+  font-size: 28px;
+  font-family: var(--font-main);
+  color: var(--color-primary);
+  border: 2px solid var(--color-primary);
+  border-radius: 16px;
+  padding: 14px 24px;
+  margin-bottom: 16px;
+  position: relative;
+  line-height: 1.6;
+}
+.ikki-speech-bubble::after {
+  content: "";
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 10px solid var(--color-primary);
+}
+.ikki-char-img {
+  display: block;
+  width: 180px;
+  margin: 0 auto 16px auto;
+  image-rendering: pixelated;
+}
+.ikki-buttons { display: flex; gap: 16px; justify-content: center; }
+.ikki-btn {
+  background: var(--color-white);
+  color: var(--color-primary);
+  border: 2px solid var(--color-primary);
+  padding: 10px 30px;
+  border-radius: 40px;
+  font-size: 24px;
+  font-family: inherit;
+  cursor: pointer;
+  letter-spacing: 2px;
+  transition: all 0.2s;
+}
+.ikki-btn:hover { background: #eee; transform: scale(1.05); }
+.ikki-btn.yes { border-color: var(--color-primary); color: var(--color-primary); font-weight: bold; }
+.ikki-btn.no { border-color: #999; color: var(--color-gray-dark); }
+
 /* --- Skull Screen --- */
 #skull-screen { background: var(--color-overlay-skull); }
 #skull-screen .skull-emoji { font-size: 100px; margin-top: 20px; order: 1; }

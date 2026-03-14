@@ -102,7 +102,9 @@ var ScoreManager = {
   },
 
   addRaw: function(amount) {
-    this.rawScore += amount;
+    var multiplier = 1.0;
+    if (gameState.ikkiMode) { multiplier = 1.8; }
+    this.rawScore += Math.floor(amount * multiplier);
     FloatingScoreSystem.show(amount);
     this.recalculate();
     RankSystem.check();

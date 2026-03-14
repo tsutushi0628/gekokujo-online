@@ -424,8 +424,7 @@ var KobuSystem = {
   },
 
   getAttackCooldown: function() {
-    if (this.active) { return 0.3; }
-    return 1.0;
+    return 0.7;
   }
 };
 

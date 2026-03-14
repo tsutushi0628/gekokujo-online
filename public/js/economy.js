@@ -41,7 +41,7 @@ var ShoninSystem = {
     gameState.kokuPerSecond = incomeRate;
     gameState.koku += incomeRate * dt;
     FloatingScoreSystem.bufferTerrainIncome(incomeRate * dt);
-    var upkeepCost = ParadeController.getLength() * 0.3 * dt;
+    var upkeepCost = ParadeController.getLength() * 0.2 * dt;
     gameState.koku -= upkeepCost;
     if (this.removeCooldown > 0) { this.removeCooldown -= dt; }
     if (gameState.koku < 0) {
