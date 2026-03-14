@@ -11,7 +11,7 @@ function resolveHouseCollision(entity, entitySize) {
   if (blockCol < 0) { blockCol = 0; }
   if (blockCol > 2) { blockCol = 2; }
   var terrain = TerrainManager.getTerrainAt(entity.x, entity.y);
-  if (terrain !== TERRAIN_TYPES.VILLAGE && terrain !== TERRAIN_TYPES.CASTLE_TOWN) {
+  if (terrain !== TERRAIN_TYPES.VILLAGE && terrain !== TERRAIN_TYPES.CASTLE_TOWN && terrain !== TERRAIN_TYPES.CASTLE) {
     return;
   }
   var blockHouses = HouseManager.getHouses(blockRow, blockCol);
@@ -648,6 +648,22 @@ var ParadeController = {
               EnemyManager.enemies.splice(ei, 1);
             }
             break;
+          }
+        }
+
+        // ボスへの攻撃
+        if (GekokujoSystem.boss && GekokujoSystem.battleActive && m.attackCooldown <= 0) {
+          var boss = GekokujoSystem.boss;
+          var bdx = m.x - boss.x;
+          var bdy = m.y - boss.y;
+          var bDist = Math.sqrt(bdx * bdx + bdy * bdy);
+          if (bDist < paradeAttackRadius) {
+            boss.hp -= paradeDamage;
+            m.attackCooldown = KobuSystem.getAttackCooldown();
+            EffectRenderer.add(boss.x, boss.y, "hit");
+            if (boss.hp <= 0) {
+              GekokujoSystem.success();
+            }
           }
         }
       }
