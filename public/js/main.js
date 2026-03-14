@@ -334,7 +334,6 @@ var HouseManager = {
 
   _generate: function(row, col) {
     var houses = [];
-    // Use deterministic seed based on row/col
     var seed = (row * 7919 + col * 6271) & 0x7fffffff;
     var bl = null;
     for (var i = 0; i < TerrainManager.blocks.length; i++) {
@@ -346,17 +345,77 @@ var HouseManager = {
     }
     if (!bl) { return houses; }
 
-    var count = 8;
     if (bl.type === TERRAIN_TYPES.CASTLE_TOWN) {
-      count = 12;
+      houses = this._generateGrid(seed);
+    } else {
+      houses = this._generateClusters(seed);
     }
+    return houses;
+  },
 
-    for (var h = 0; h < count; h++) {
+  // Castle town: grid layout (streets like a castle town)
+  _generateGrid: function(seed) {
+    var houses = [];
+    var cols = 4;
+    var rows = 3;
+    var marginX = 120;
+    var marginY = 100;
+    var spacingX = (BLOCK_W - marginX * 2) / (cols - 1);
+    var spacingY = (BLOCK_H - marginY * 2) / (rows - 1);
+
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; c++) {
+        seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
+        var jx = (seed % 21) - 10;
+        seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
+        var jy = (seed % 21) - 10;
+        var hx = Math.floor(marginX + c * spacingX + jx);
+        var hy = Math.floor(marginY + r * spacingY + jy);
+        houses.push({ x: hx, y: hy, collisionRadius: 35 });
+      }
+    }
+    return houses;
+  },
+
+  // Village: cluster layout (small groups like a settlement)
+  _generateClusters: function(seed) {
+    var houses = [];
+    seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
+    var clusterCount = 2 + (seed % 2);
+
+    for (var ci = 0; ci < clusterCount; ci++) {
       seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
-      var hx = 100 + (seed % (BLOCK_W - 200));
+      var cx = 180 + (seed % (BLOCK_W - 360));
       seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
-      var hy = 100 + (seed % (BLOCK_H - 200));
-      houses.push({ x: hx, y: hy, collisionRadius: 35 });
+      var cy = 150 + (seed % (BLOCK_H - 300));
+
+      seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
+      var houseCount = 2 + (seed % 3);
+
+      for (var h = 0; h < houseCount; h++) {
+        seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
+        var ox = (seed % 101) - 50;
+        seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
+        var oy = (seed % 101) - 50;
+        var hx = cx + ox;
+        var hy = cy + oy;
+        if (hx < 80) { hx = 80; }
+        if (hx > BLOCK_W - 80) { hx = BLOCK_W - 80; }
+        if (hy < 80) { hy = 80; }
+        if (hy > BLOCK_H - 80) { hy = BLOCK_H - 80; }
+        var overlaps = false;
+        for (var oi = 0; oi < houses.length; oi++) {
+          var odx = houses[oi].x - hx;
+          var ody = houses[oi].y - hy;
+          if (Math.sqrt(odx * odx + ody * ody) < 75) {
+            overlaps = true;
+            break;
+          }
+        }
+        if (!overlaps) {
+          houses.push({ x: hx, y: hy, collisionRadius: 35 });
+        }
+      }
     }
     return houses;
   }
@@ -396,9 +455,13 @@ var GameDirector = {
 
     // Clear house cache for new map
     HouseManager.clear();
+    TreeManager.clear();
 
     // Generate map
     MapGenerator.generate();
+
+    // Generate trees after terrain is built
+    TreeManager.generate();
 
     // Init all systems
     var startPos = MapGenerator.getPlayerStartPos();
@@ -578,8 +641,25 @@ var GameDirector = {
         ctx.fillStyle = "rgba(140, 130, 100, 0.2)";
         ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
       } else if (bl.type === TERRAIN_TYPES.EMPTY) {
-        ctx.fillStyle = "rgba(80, 120, 60, 0.1)";
-        ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
+        // Tile tsuchi.png on empty terrain
+        if (spritesLoaded && spriteImages.tsuchi) {
+          var tsuchiImg = spriteImages.tsuchi;
+          var tileSize = 64;
+          var tsStartX = bsp.x;
+          var tsStartY = bsp.y;
+          for (var ttx = tsStartX; ttx < tsStartX + bl.w; ttx += tileSize) {
+            for (var tty = tsStartY; tty < tsStartY + bl.h; tty += tileSize) {
+              var drawTW = Math.min(tileSize, tsStartX + bl.w - ttx);
+              var drawTH = Math.min(tileSize, tsStartY + bl.h - tty);
+              ctx.drawImage(tsuchiImg, 0, 0, SPRITE_DEFS.tsuchi.w * (drawTW / tileSize), SPRITE_DEFS.tsuchi.h * (drawTH / tileSize), ttx, tty, drawTW, drawTH);
+            }
+          }
+          ctx.fillStyle = "rgba(80, 120, 60, 0.05)";
+          ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
+        } else {
+          ctx.fillStyle = "rgba(80, 120, 60, 0.1)";
+          ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
+        }
       }
 
       if (bl.type === TERRAIN_TYPES.CASTLE) {
@@ -646,24 +726,74 @@ var GameDirector = {
       ctx.stroke();
     }
 
-    // Bridges
+    // Bridges (enhanced)
     for (var bri = 0; bri < TerrainManager.bridges.length; bri++) {
       var br = TerrainManager.bridges[bri];
       var brSp = CameraController.worldToScreen(br.x, br.y);
       if (brSp.x + br.w < 0 || brSp.x > CANVAS_W || brSp.y + br.h < 0 || brSp.y > CANVAS_H) { continue; }
-      // Bridge colored fill
-      ctx.fillStyle = "rgba(160, 130, 80, 0.5)";
+
+      // Bridge shadow
+      ctx.fillStyle = "rgba(60, 40, 20, 0.15)";
+      ctx.fillRect(brSp.x + 3, brSp.y + 3, br.w, br.h);
+
+      // Main bridge surface (brighter wood color)
+      ctx.fillStyle = "rgba(210, 170, 100, 0.85)";
       ctx.fillRect(brSp.x, brSp.y, br.w, br.h);
-      ctx.strokeStyle = "rgba(120, 90, 50, 0.6)";
+
+      // Plank lines (horizontal boards)
+      ctx.strokeStyle = "rgba(150, 110, 60, 0.4)";
+      ctx.lineWidth = 1;
+      var plankSpacing = 12;
+      for (var pi = brSp.y + plankSpacing; pi < brSp.y + br.h; pi += plankSpacing) {
+        ctx.beginPath();
+        ctx.moveTo(brSp.x, pi);
+        ctx.lineTo(brSp.x + br.w, pi);
+        ctx.stroke();
+      }
+
+      // Handrails (top and bottom edges)
+      ctx.strokeStyle = "rgba(100, 60, 30, 0.8)";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(brSp.x, brSp.y);
+      ctx.lineTo(brSp.x + br.w, brSp.y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(brSp.x, brSp.y + br.h);
+      ctx.lineTo(brSp.x + br.w, brSp.y + br.h);
+      ctx.stroke();
+
+      // Handrail posts
+      ctx.fillStyle = "rgba(80, 50, 25, 0.7)";
+      var postSpacing = 30;
+      for (var ppi = brSp.x; ppi <= brSp.x + br.w; ppi += postSpacing) {
+        ctx.fillRect(ppi - 2, brSp.y - 6, 4, 8);
+        ctx.fillRect(ppi - 2, brSp.y + br.h - 2, 4, 8);
+      }
+
+      // Border
+      ctx.strokeStyle = "rgba(120, 80, 40, 0.6)";
       ctx.lineWidth = 2;
       ctx.strokeRect(brSp.x, brSp.y, br.w, br.h);
+
+      // Label
       ctx.font = FONT.h5;
       ctx.textAlign = "center";
-      ctx.fillStyle = "#1a1a1a";
+      ctx.fillStyle = "#3a2a1a";
       if (br.safe) {
         ctx.fillText("大橋", brSp.x + br.w / 2, brSp.y + br.h / 2 + 3);
       } else {
         ctx.fillText("小橋", brSp.x + br.w / 2, brSp.y + br.h / 2 + 3);
+      }
+    }
+
+    // Trees
+    if (spritesLoaded && spriteImages.ki) {
+      for (var tri = 0; tri < TreeManager.trees.length; tri++) {
+        var tree = TreeManager.trees[tri];
+        if (!CameraController.isVisible(tree.x, tree.y, 50)) { continue; }
+        var treeSp = CameraController.worldToScreen(tree.x, tree.y);
+        drawSpriteCentered(ctx, "ki", treeSp.x, treeSp.y, 70, false);
       }
     }
 

@@ -206,6 +206,41 @@ var TerrainManager = {
     return TERRAIN_TYPES.EMPTY;
   },
 
+  isTreeCollision: function(x, y, entitySize) {
+    var trees = TreeManager.trees;
+    for (var i = 0; i < trees.length; i++) {
+      var tree = trees[i];
+      var tdx = x - tree.x;
+      var tdy = y - tree.y;
+      var tDist = Math.sqrt(tdx * tdx + tdy * tdy);
+      var minDist = tree.collisionRadius + entitySize;
+      if (tDist < minDist) {
+        return true;
+      }
+    }
+    return false;
+  },
+
+  pushFromTrees: function(x, y, entitySize) {
+    var trees = TreeManager.trees;
+    var nx = x;
+    var ny = y;
+    for (var i = 0; i < trees.length; i++) {
+      var tree = trees[i];
+      var tdx = nx - tree.x;
+      var tdy = ny - tree.y;
+      var tDist = Math.sqrt(tdx * tdx + tdy * tdy);
+      var minDist = tree.collisionRadius + entitySize;
+      if (tDist < minDist && tDist > 0) {
+        var pushX = (tdx / tDist) * (minDist - tDist);
+        var pushY = (tdy / tDist) * (minDist - tDist);
+        nx += pushX;
+        ny += pushY;
+      }
+    }
+    return { x: nx, y: ny };
+  },
+
   clampPosition: function(x, y) {
     var nx = x;
     var ny = y;
@@ -214,5 +249,51 @@ var TerrainManager = {
     if (ny < 15) { ny = 15; }
     if (ny > MAP_H - 15) { ny = MAP_H - 15; }
     return { x: nx, y: ny };
+  }
+};
+
+// ============================================================
+// TreeManager - deterministic tree placement with collision
+// ============================================================
+var TreeManager = {
+  trees: [],
+
+  clear: function() {
+    this.trees = [];
+  },
+
+  generate: function() {
+    this.trees = [];
+    var seed = 48271;
+    for (var i = 0; i < TerrainManager.blocks.length; i++) {
+      var bl = TerrainManager.blocks[i];
+      // Place trees on grassland and empty terrain
+      if (bl.type !== TERRAIN_TYPES.GRASSLAND && bl.type !== TERRAIN_TYPES.EMPTY) {
+        continue;
+      }
+      var treeCount = 6;
+      if (bl.type === TERRAIN_TYPES.GRASSLAND) {
+        treeCount = 10;
+      }
+      for (var t = 0; t < treeCount; t++) {
+        seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
+        var tx = bl.x + 80 + (seed % (BLOCK_W - 160));
+        seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
+        var ty = bl.y + 80 + (seed % (BLOCK_H - 160));
+        // Skip if in river
+        if (TerrainManager.isInRiver(tx, ty)) { continue; }
+        // Skip if too close to bridge
+        var nearBridge = false;
+        for (var bi = 0; bi < TerrainManager.bridges.length; bi++) {
+          var br = TerrainManager.bridges[bi];
+          if (tx >= br.x - 30 && tx <= br.x + br.w + 30 && ty >= br.y - 30 && ty <= br.y + br.h + 30) {
+            nearBridge = true;
+            break;
+          }
+        }
+        if (nearBridge) { continue; }
+        this.trees.push({ x: tx, y: ty, collisionRadius: 20 });
+      }
+    }
   }
 };

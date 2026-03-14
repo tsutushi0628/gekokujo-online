@@ -144,8 +144,9 @@ canvas { display: block; border: var(--border-main); cursor: crosshair; }
 
 /* --- Skull Screen --- */
 #skull-screen { background: var(--color-overlay-skull); }
-#skull-screen .skull-emoji { font-size: 100px; margin-bottom: 20px; }
-#skull-screen h2 { font-size: 48px; color: var(--color-danger); margin-bottom: 30px; letter-spacing: 6px; }
+#skull-screen .skull-emoji { font-size: 100px; margin-top: 20px; order: 1; }
+#skull-screen h2 { font-size: 48px; color: #ffffff; margin-bottom: 0; letter-spacing: 6px; order: 0; }
+#skull-screen .btn { order: 2; margin-top: 30px; }
 
 /* --- Effects --- */
 .success-banner { color: var(--color-primary); text-shadow: 0 0 10px rgba(0, 0, 0, 0.2); }

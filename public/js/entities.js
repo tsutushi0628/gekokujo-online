@@ -1,6 +1,40 @@
 // entities.js - プレイヤー、敵、民間人、弾丸、行列の管理
 
 // ============================================================
+// Shared building collision resolution
+// ============================================================
+function resolveHouseCollision(entity, entitySize) {
+  var blockRow = Math.floor(entity.y / BLOCK_H);
+  var blockCol = Math.floor(entity.x / BLOCK_W);
+  if (blockRow < 0) { blockRow = 0; }
+  if (blockRow > 2) { blockRow = 2; }
+  if (blockCol < 0) { blockCol = 0; }
+  if (blockCol > 2) { blockCol = 2; }
+  var terrain = TerrainManager.getTerrainAt(entity.x, entity.y);
+  if (terrain !== TERRAIN_TYPES.VILLAGE && terrain !== TERRAIN_TYPES.CASTLE_TOWN) {
+    return;
+  }
+  var blockHouses = HouseManager.getHouses(blockRow, blockCol);
+  var blockOriginX = blockCol * BLOCK_W;
+  var blockOriginY = blockRow * BLOCK_H;
+  for (var hi = 0; hi < blockHouses.length; hi++) {
+    var house = blockHouses[hi];
+    var houseWorldX = blockOriginX + house.x;
+    var houseWorldY = blockOriginY + house.y;
+    var hdx = entity.x - houseWorldX;
+    var hdy = entity.y - houseWorldY;
+    var hDist = Math.sqrt(hdx * hdx + hdy * hdy);
+    var minDist = house.collisionRadius + entitySize;
+    if (hDist < minDist && hDist > 0) {
+      var pushX = (hdx / hDist) * (minDist - hDist);
+      var pushY = (hdy / hDist) * (minDist - hDist);
+      entity.x += pushX;
+      entity.y += pushY;
+    }
+  }
+}
+
+// ============================================================
 // PlayerController
 // ============================================================
 var PlayerController = {
@@ -76,34 +110,13 @@ var PlayerController = {
     this.x = clamped.x;
     this.y = clamped.y;
 
-    // Building collision
-    var playerBlockRow = Math.floor(this.y / BLOCK_H);
-    var playerBlockCol = Math.floor(this.x / BLOCK_W);
-    if (playerBlockRow < 0) { playerBlockRow = 0; }
-    if (playerBlockRow > 2) { playerBlockRow = 2; }
-    if (playerBlockCol < 0) { playerBlockCol = 0; }
-    if (playerBlockCol > 2) { playerBlockCol = 2; }
-    var terrainAtPlayer = TerrainManager.getTerrainAt(this.x, this.y);
-    if (terrainAtPlayer === TERRAIN_TYPES.VILLAGE || terrainAtPlayer === TERRAIN_TYPES.CASTLE_TOWN) {
-      var blockHouses = HouseManager.getHouses(playerBlockRow, playerBlockCol);
-      var blockOriginX = playerBlockCol * BLOCK_W;
-      var blockOriginY = playerBlockRow * BLOCK_H;
-      for (var hi = 0; hi < blockHouses.length; hi++) {
-        var house = blockHouses[hi];
-        var houseWorldX = blockOriginX + house.x;
-        var houseWorldY = blockOriginY + house.y;
-        var hdx = this.x - houseWorldX;
-        var hdy = this.y - houseWorldY;
-        var hDist = Math.sqrt(hdx * hdx + hdy * hdy);
-        var minDist = house.collisionRadius + this.size;
-        if (hDist < minDist && hDist > 0) {
-          var pushX = (hdx / hDist) * (minDist - hDist);
-          var pushY = (hdy / hDist) * (minDist - hDist);
-          this.x += pushX;
-          this.y += pushY;
-        }
-      }
-    }
+    // Tree collision
+    var treePush = TerrainManager.pushFromTrees(this.x, this.y, this.size);
+    this.x = treePush.x;
+    this.y = treePush.y;
+
+    // Building collision (shared function)
+    resolveHouseCollision(this, this.size);
 
     // SPACE is reserved for Tsujigiri QTE only
   },
@@ -281,6 +294,14 @@ var EnemyManager = {
         en.y = newY;
       }
 
+      // Tree collision for enemies
+      var enTreePush = TerrainManager.pushFromTrees(en.x, en.y, en.size);
+      en.x = enTreePush.x;
+      en.y = enTreePush.y;
+
+      // Building collision for enemies
+      resolveHouseCollision(en, en.size);
+
       // Melee attack on player
       if (dist < PlayerController.size + en.size) {
         en.attackTimer += dt;
@@ -309,6 +330,13 @@ var EnemyManager = {
       if (!CameraController.isVisible(en.x, en.y, 30)) { continue; }
       var sp = CameraController.worldToScreen(en.x, en.y);
       ctx.textAlign = "center";
+
+      // Red border for enemies
+      ctx.strokeStyle = "rgba(255, 60, 60, 0.5)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(sp.x, sp.y, en.size + 4, 0, Math.PI * 2);
+      ctx.stroke();
 
       if (en.surrendering) {
         ctx.font = Math.round((en.size + 4) * 1.5) + "px " + FONT_FAMILY;
@@ -438,6 +466,14 @@ var CivilianManager = {
       if (civ.x > MAP_W - 20) { civ.x = MAP_W - 20; civ.wanderAngle = Math.PI; }
       if (civ.y < 20) { civ.y = 20; civ.wanderAngle = Math.PI / 2; }
       if (civ.y > MAP_H - 20) { civ.y = MAP_H - 20; civ.wanderAngle = -Math.PI / 2; }
+
+      // Tree collision for civilians
+      var civTreePush = TerrainManager.pushFromTrees(civ.x, civ.y, 12);
+      civ.x = civTreePush.x;
+      civ.y = civTreePush.y;
+
+      // Building collision for civilians
+      resolveHouseCollision(civ, 12);
 
       // Recruit check
       var recruitRange = def.recruitRange + ParadeController.getLength() * 5;
@@ -577,6 +613,9 @@ var ParadeController = {
         m.y += dy * followSpeed;
       }
 
+      // Building collision for parade members
+      resolveHouseCollision(m, 12);
+
       // Parade member attack (all characters)
       if (m.attackCooldown > 0) { m.attackCooldown -= dt; }
       if (m.attackCooldown <= 0) {
@@ -623,6 +662,13 @@ var ParadeController = {
           ctx.globalAlpha = 1.0;
         }
       }
+
+      // Blue border for ally followers
+      ctx.strokeStyle = "rgba(60, 120, 255, 0.5)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(sp.x, sp.y, 22, 0, Math.PI * 2);
+      ctx.stroke();
 
       if (spritesLoaded && !isIkki) {
         var mFacingLeft = PlayerController.facingLeft;

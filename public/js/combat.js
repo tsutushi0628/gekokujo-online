@@ -318,7 +318,6 @@ var TsujigiriSystem = {
       }
       ScoreManager.addRaw(100);
       ShoninSystem.addKokuForKill(100);
-      AnnouncementSystem.add("見事! 辻斬り返し!");
     } else {
       // Failure: 50% HP damage
       var tsujiDamage = Math.floor(PlayerController.maxHp * 0.5);
@@ -346,7 +345,7 @@ var TsujigiriSystem = {
       ctx.font = FONT.h1;
       ctx.textAlign = "center";
       ctx.fillStyle = "#c03030";
-      ctx.fillText("辻斬り!", CANVAS_W / 2, CANVAS_H / 2 + 30);
+      ctx.fillText("辻斬りがあらわれた！", CANVAS_W / 2, CANVAS_H / 2 + 30);
     }
 
     if (this.phase === "input") {
@@ -358,7 +357,7 @@ var TsujigiriSystem = {
       ctx.font = FONT.h1;
       ctx.textAlign = "center";
       ctx.fillStyle = "#c03030";
-      ctx.fillText("辻斬り!", CANVAS_W / 2, CANVAS_H / 2 - 10);
+      ctx.fillText("辻斬りがあらわれた！", CANVAS_W / 2, CANVAS_H / 2 - 10);
       var blink = Math.sin(performance.now() * 0.01) > 0;
       if (blink) {
         ctx.fillStyle = "#ffffff";
@@ -378,8 +377,8 @@ var TsujigiriSystem = {
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
       ctx.font = FONT.h1;
       ctx.textAlign = "center";
-      ctx.fillStyle = "#ffffff";
-      ctx.fillText("見事!", CANVAS_W / 2, CANVAS_H / 2);
+      ctx.fillStyle = "#33cc33";
+      ctx.fillText("撃退成功！", CANVAS_W / 2, CANVAS_H / 2);
     }
   }
 };
