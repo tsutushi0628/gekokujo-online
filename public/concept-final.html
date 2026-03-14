@@ -36,14 +36,15 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
   width: 500px; margin: 0 auto 20px auto;
 }
 .title-image-wrapper img {
-  display: block; width: 100%; object-fit: cover; object-position: top;
+  display: block; width: 100%;
 }
 .btn {
-  background: #1a1a1a;
-  color: #fff; border: 2px solid #1a1a1a; padding: 14px 48px;
-  font-size: 22px; font-family: inherit; cursor: pointer; letter-spacing: 4px; transition: all 0.2s;
+  background: #fff;
+  color: #1a1a1a; border: 3px solid #1a1a1a; padding: 14px 48px;
+  border-radius: 40px;
+  font-size: 30px; font-family: inherit; cursor: pointer; letter-spacing: 4px; transition: all 0.2s;
 }
-.btn:hover { background: #333; transform: scale(1.05); }
+.btn:hover { background: #f0f0f0; transform: scale(1.05); }
 .btn:active { transform: scale(0.98); }
 #char-select { text-align: center; }
 #char-select h2 { font-size: 38px; color: #1a1a1a; margin-bottom: 30px; letter-spacing: 4px; }
@@ -54,18 +55,20 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
 }
 .char-card:hover { border-color: #1a1a1a; background: rgba(255, 255, 255, 1); transform: translateY(-2px); }
 .char-img { display: block; height: 90px; margin: 0 auto 4px auto; image-rendering: pixelated; }
-.char-card .char-name { font-size: 20px; color: #1a1a1a; margin-bottom: 4px; }
-.char-card .char-type { font-size: 12px; color: #666; margin-bottom: 8px; }
-.char-card .char-desc { font-size: 13px; color: #2a2a2a; line-height: 1.5; }
-.char-card .char-stars { font-size: 12px; color: #1a1a1a; margin-top: 6px; }
+.char-card .char-name { font-size: 26px; font-weight: bold; color: #1a1a1a; margin-bottom: 4px; }
+.char-card .char-type { font-size: 16px; color: #666; margin-bottom: 8px; }
+.char-card .char-desc { font-size: 16px; color: #2a2a2a; line-height: 1.6; }
+.char-stats { margin-top: 8px; }
+.stat-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.stat-label { font-size: 16px; color: #666; }
+.stat-value { font-size: 18px; letter-spacing: 2px; }
 #result-screen { text-align: center; }
-#result-screen h2 { font-size: 36px; margin-bottom: 20px; letter-spacing: 4px; }
 #result-screen .result-score { font-size: 32px; color: #1a1a1a; margin-bottom: 6px; margin-top: 16px; }
 #result-screen .result-rank { margin-bottom: 30px; display: inline-block; text-align: left; }
 #result-screen .rank-label { font-size: 30px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; }
 #result-screen .rank-number { font-size: 80px; font-weight: 900; color: #ffe033; -webkit-text-stroke: 4px #1a1a1a; text-stroke: 4px #1a1a1a; letter-spacing: 4px; }
 #result-screen h2 { font-size: 48px; margin-bottom: 20px; letter-spacing: 4px; }
-#result-screen .result-details { font-size: 16px; color: #2a2a2a; margin-bottom: 30px; line-height: 1.8; white-space: pre-line; }
+#result-screen .result-details { font-size: 22px; color: #2a2a2a; margin-bottom: 30px; line-height: 1.8; white-space: pre-line; }
 .dialog-overlay {
   position: absolute; top: 0; left: 0; width: 800px; height: 600px;
   display: none; justify-content: center; align-items: center;
@@ -105,26 +108,53 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
   <div id="char-select" class="screen-overlay">
     <h2>身分を選べ</h2>
     <div class="char-grid">
+      <div class="char-card" data-char="farmer">
+        <img src="sprites/nomin_play.png" class="char-img" alt="農民">
+        <div class="char-name">農民（ひゃくしょう）</div>
+        <div class="char-type">テクニカル / 玄人向け</div>
+        <div class="char-desc">最弱だが「一揆」で大逆転。民衆を集めるほど全ステ強化</div>
+        <div class="char-stats">
+          <div class="stat-row">
+            <span class="stat-label">攻撃</span>
+            <span class="stat-value">&#x2605;&#x2606;&#x2606;&#x2606;&#x2606;</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">速度</span>
+            <span class="stat-value">&#x2605;&#x2605;&#x2606;&#x2606;&#x2606;</span>
+          </div>
+        </div>
+      </div>
       <div class="char-card" data-char="ashigaru">
         <img src="sprites/ashigaru_play.png" class="char-img" alt="足軽">
         <div class="char-name">足軽（あしがる）</div>
         <div class="char-type">バランス型 / 入門向け</div>
         <div class="char-desc">前方扇状の広い攻撃。行列突撃後の再集結が速い</div>
-        <div class="char-stars">攻撃 &#x2605;&#x2605;&#x2605;&#x2606;&#x2606; 速度 &#x2605;&#x2605;&#x2605;&#x2606;&#x2606;</div>
+        <div class="char-stats">
+          <div class="stat-row">
+            <span class="stat-label">攻撃</span>
+            <span class="stat-value">&#x2605;&#x2605;&#x2605;&#x2606;&#x2606;</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">速度</span>
+            <span class="stat-value">&#x2605;&#x2605;&#x2605;&#x2606;&#x2606;</span>
+          </div>
+        </div>
       </div>
       <div class="char-card" data-char="merchant">
         <img src="sprites/shonin_play.png" class="char-img" alt="商人">
         <div class="char-name">商人（あきんど）</div>
         <div class="char-type">経済型 / 戦略向け</div>
         <div class="char-desc">金で仲間を即リクルート。地形収入と維持費の経営バランスが鍵</div>
-        <div class="char-stars">攻撃 &#x2605;&#x2606;&#x2606;&#x2606;&#x2606; 速度 &#x2605;&#x2605;&#x2605;&#x2606;&#x2606;</div>
-      </div>
-      <div class="char-card" data-char="farmer">
-        <img src="sprites/nomin_play.png" class="char-img" alt="農民">
-        <div class="char-name">農民（ひゃくしょう）</div>
-        <div class="char-type">テクニカル / 玄人向け</div>
-        <div class="char-desc">最弱だが「一揆」で大逆転。民衆を集めるほど全ステ強化</div>
-        <div class="char-stars">攻撃 &#x2605;&#x2606;&#x2606;&#x2606;&#x2606; 速度 &#x2605;&#x2605;&#x2606;&#x2606;&#x2606;</div>
+        <div class="char-stats">
+          <div class="stat-row">
+            <span class="stat-label">攻撃</span>
+            <span class="stat-value">&#x2605;&#x2606;&#x2606;&#x2606;&#x2606;</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">速度</span>
+            <span class="stat-value">&#x2605;&#x2605;&#x2605;&#x2606;&#x2606;</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -234,9 +264,20 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
   var FONT_FAMILY = "'Chika', 'MokoMori', sans-serif";
   var FONT = {
     h1: "bold 48px " + FONT_FAMILY,
-    h2: "bold 28px " + FONT_FAMILY,
-    h3: "bold 20px " + FONT_FAMILY,
-    h5: "12px " + FONT_FAMILY
+    h2: "bold 36px " + FONT_FAMILY,
+    h3: "bold 28px " + FONT_FAMILY,
+    h4: "22px " + FONT_FAMILY,
+    h5: "18px " + FONT_FAMILY,
+    small: "14px " + FONT_FAMILY,
+    player: "42px " + FONT_FAMILY,
+    enemyLarge: "32px " + FONT_FAMILY,
+    enemyMedium: "24px " + FONT_FAMILY,
+    civilian: "24px " + FONT_FAMILY,
+    follower: "18px " + FONT_FAMILY,
+    iconLarge: "70px " + FONT_FAMILY,
+    iconMedium: "56px " + FONT_FAMILY,
+    effect: "24px " + FONT_FAMILY,
+    warning: "bold 56px " + FONT_FAMILY
   };
   var TILES_PER_BLOCK_X = Math.ceil(BLOCK_W / RENDER_TILE_SIZE); // 25
   var TILES_PER_BLOCK_Y = Math.ceil(BLOCK_H / RENDER_TILE_SIZE); // 19
