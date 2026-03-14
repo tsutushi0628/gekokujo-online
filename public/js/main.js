@@ -26,7 +26,8 @@ var gameState = {
   gameTime: 0,
   lastTimestamp: 0,
   koku: 0,
-  kokuPerSecond: 0
+  kokuPerSecond: 0,
+  speedMultiplier: 1
 };
 
 var dialogCallback = null;
@@ -630,7 +631,7 @@ var GameDirector = {
     // Update slow-mo / flash timers with real (unslowed) dt
     GekokujoSystem.updateTimers(rawDt);
 
-    var dt = rawDt * GekokujoSystem.slowMultiplier;
+    var dt = rawDt * GekokujoSystem.slowMultiplier * gameState.speedMultiplier;
 
     if (!gameState.paused) {
       this.update(dt);
@@ -1322,6 +1323,11 @@ for (var i = 0; i < charCards.length; i++) {
     var charKey = this.getAttribute("data-char");
     gameState.selectedChar = charKey;
     gameState.charDef = CHAR_DEFS[charKey];
+    if (InputManager.keys.q) {
+      gameState.speedMultiplier = 2;
+    } else {
+      gameState.speedMultiplier = 1;
+    }
     charSelect.classList.remove("active");
     GameDirector.init();
   });
