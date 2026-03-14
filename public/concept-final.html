@@ -3,11 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <title>下克上オンライン - 案1+5合体版</title>
-<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
 @font-face {
   font-family: 'Chika';
-  src: url('../docs/findings/sozai/chika-Regular.ttf') format('truetype');
+  src: url('sprites/chika-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'MokoMori';
+  src: url('sprites/mikiyu-newpenji-p.ttf') format('truetype');
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -16,7 +19,7 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  font-family: 'Chika', 'M PLUS Rounded 1c', 'Rounded Mplus 1c', 'Hiragino Maru Gothic ProN', 'Yu Gothic', sans-serif;
+  font-family: 'Chika', 'MokoMori', sans-serif;
   color: #1a1a1a;
   overflow: hidden;
 }
@@ -1222,7 +1225,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
       if (spritesLoaded && spriteKey) {
         drawSpriteCentered(ctx, spriteKey, sp.x, sp.y, 40, this.facingLeft);
       } else {
-        ctx.font = "28px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+        ctx.font = "28px 'Chika', 'MokoMori', sans-serif";
         ctx.textAlign = "center";
         ctx.fillText(gameState.charDef.emoji, sp.x, sp.y + 8);
       }
@@ -1421,10 +1424,10 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
         ctx.textAlign = "center";
 
         if (en.surrendering) {
-          ctx.font = (en.size + 4) + "px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+          ctx.font = (en.size + 4) + "px 'Chika', 'MokoMori', sans-serif";
           ctx.fillText("\uD83C\uDFF3\uFE0F", sp.x, sp.y + en.size / 3);
           ctx.fillStyle = "#1a1a1a";
-          ctx.font = "14px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+          ctx.font = "14px 'Chika', 'MokoMori', sans-serif";
           ctx.fillText("降伏!", sp.x, sp.y - en.size - 8);
         } else if (spritesLoaded) {
           var enemySpriteKey = "nobushi";
@@ -1432,7 +1435,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
           if (en.name === "武将") { enemySpriteKey = "tonosama"; }
           drawSpriteCentered(ctx, enemySpriteKey, sp.x, sp.y, en.size * 2, en.facingLeft);
         } else {
-          ctx.font = (en.size + 4) + "px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+          ctx.font = (en.size + 4) + "px 'Chika', 'MokoMori', sans-serif";
           ctx.save();
           if (en.facingLeft) {
             ctx.translate(sp.x, sp.y + en.size / 3);
@@ -1581,7 +1584,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
         var civ = this.civilians[i];
         if (!CameraController.isVisible(civ.x, civ.y, 20)) { continue; }
         var sp = CameraController.worldToScreen(civ.x, civ.y);
-        ctx.font = "16px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+        ctx.font = "16px 'Chika', 'MokoMori', sans-serif";
         ctx.textAlign = "center";
         ctx.fillText("\uD83D\uDC64", sp.x, sp.y + 4);
 
@@ -1592,7 +1595,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
         var effectiveRange = def.recruitRange + ParadeController.getLength() * 5;
         if (rDist < effectiveRange) {
           ctx.fillStyle = "#1a1a1a";
-          ctx.font = "14px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+          ctx.font = "14px 'Chika', 'MokoMori', sans-serif";
           if (gameState.selectedChar === "merchant") {
             if (ShoninSystem.koku >= def.recruitCost) {
               ctx.fillText("$", sp.x, sp.y - 12);
@@ -1716,7 +1719,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
         var m = this.members[i];
         if (!CameraController.isVisible(m.x, m.y, 20)) { continue; }
         var sp = CameraController.worldToScreen(m.x, m.y);
-        ctx.font = "12px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+        ctx.font = "12px 'Chika', 'MokoMori', sans-serif";
         ctx.textAlign = "center";
 
         // Ashigaru leave warning: blink when < 5s remaining
@@ -2482,11 +2485,11 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
         if (spritesLoaded) {
           drawSpriteCentered(ctx, "castle", sp.x, sp.y, 80, false);
         } else {
-          ctx.font = "40px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+          ctx.font = "40px 'Chika', 'MokoMori', sans-serif";
           ctx.textAlign = "center";
           ctx.fillText("\uD83C\uDFEF", sp.x, sp.y + 10);
         }
-        ctx.font = "12px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+        ctx.font = "12px 'Chika', 'MokoMori', sans-serif";
         ctx.textAlign = "center";
         ctx.fillStyle = "#1a1a1a";
         ctx.fillText("城門", sp.x, sp.y + 45);
@@ -2505,7 +2508,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
           var bossFacingLeft = (this.boss.x > PlayerController.x);
           drawSpriteCentered(ctx, "tonosama", bsp.x, bsp.y, 70, bossFacingLeft);
         } else {
-          ctx.font = "50px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+          ctx.font = "50px 'Chika', 'MokoMori', sans-serif";
           ctx.textAlign = "center";
           ctx.fillText("\uD83C\uDFEF", bsp.x, bsp.y + 15);
         }
@@ -2514,7 +2517,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
         ctx.fillStyle = "#c44";
         ctx.fillRect(bsp.x - 30, bsp.y - 40, 60 * (this.boss.hp / this.boss.maxHp), 6);
         ctx.fillStyle = "#1a1a1a";
-        ctx.font = "14px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+        ctx.font = "14px 'Chika', 'MokoMori', sans-serif";
         ctx.textAlign = "center";
         ctx.fillText("城主", bsp.x, bsp.y - 45);
       }
@@ -2632,7 +2635,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
         ctx.textAlign = "center";
         if (eff.type === "hit") {
           ctx.fillStyle = "rgba(0,0,0," + alpha + ")";
-          ctx.font = "16px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+          ctx.font = "16px 'Chika', 'MokoMori', sans-serif";
           ctx.fillText("\uD83D\uDCA5", sp.x, sp.y - eff.timer * 30);
         } else if (eff.type === "destroy") {
           ctx.strokeStyle = "rgba(0,0,0," + alpha + ")";
@@ -2642,7 +2645,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
           ctx.stroke();
         } else if (eff.type === "recruit") {
           ctx.fillStyle = "rgba(0,0,0," + alpha + ")";
-          ctx.font = "14px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+          ctx.font = "14px 'Chika', 'MokoMori', sans-serif";
           ctx.fillText("仲間!", sp.x, sp.y - eff.timer * 30);
         } else if (eff.type === "playerHit") {
           ctx.strokeStyle = "rgba(200,50,50," + alpha + ")";
@@ -2652,9 +2655,9 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
           ctx.stroke();
         } else if (eff.type === "surrender") {
           ctx.fillStyle = "rgba(0,0,0," + alpha + ")";
-          ctx.font = "18px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+          ctx.font = "18px 'Chika', 'MokoMori', sans-serif";
           ctx.fillText("\uD83C\uDFF3\uFE0F", sp.x, sp.y - eff.timer * 20);
-          ctx.font = "14px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+          ctx.font = "14px 'Chika', 'MokoMori', sans-serif";
           ctx.fillText("降伏!", sp.x, sp.y - eff.timer * 20 - 20);
         }
       }
@@ -2688,7 +2691,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
         var ann = this.announcements[i];
         var alpha = 1.0 - (ann.timer / ann.maxTime);
         ctx.fillStyle = "rgba(0,0,0," + alpha + ")";
-        ctx.font = "bold 18px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+        ctx.font = "bold 18px 'Chika', 'MokoMori', sans-serif";
         ctx.fillText(ann.text, CANVAS_W / 2, 130 + i * 25 - ann.timer * 10);
       }
     }
@@ -2860,7 +2863,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
         this.drawHouse(ctx, towers[ti][0], towers[ti][1], 25, 22);
       }
       // Label
-      ctx.font = "14px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+      ctx.font = "14px 'Chika', 'MokoMori', sans-serif";
       ctx.textAlign = "center";
       ctx.fillStyle = "#1a1a1a";
       ctx.fillText("城", bx + bw / 2, by + bh / 2 + 70);
@@ -2890,7 +2893,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
           buildingCount++;
         }
       }
-      ctx.font = "14px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+      ctx.font = "14px 'Chika', 'MokoMori', sans-serif";
       ctx.textAlign = "center";
       ctx.fillStyle = "#1a1a1a";
       ctx.fillText("城下町", bx + bw / 2, by + bh - 15);
@@ -2908,7 +2911,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
         var hh = 28 + this._seededRandom(seed * 50 + vi * 7 + 4) * 15;
         this.drawHouse(ctx, hx, hy, hw, hh);
       }
-      ctx.font = "14px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+      ctx.font = "14px 'Chika', 'MokoMori', sans-serif";
       ctx.textAlign = "center";
       ctx.fillStyle = "#1a1a1a";
       ctx.fillText("村", bx + bw / 2, by + bh - 15);
@@ -2983,7 +2986,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
       ctx.fillStyle = "#1a1a1a";
-      ctx.font = "20px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+      ctx.font = "20px 'Chika', 'MokoMori', sans-serif";
       ctx.textAlign = "center";
       ctx.fillText("読み込み中...", CANVAS_W / 2, CANVAS_H / 2);
 
@@ -3080,7 +3083,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
       // Draw countdown text on top
       ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-      ctx.font = "bold 120px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+      ctx.font = "bold 120px 'Chika', 'MokoMori', sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillStyle = "#1a1a1a";
@@ -3204,7 +3207,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
           }
           ctx.fillStyle = "#1a1a1a";
           ctx.textAlign = "center";
-          ctx.font = "14px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+          ctx.font = "14px 'Chika', 'MokoMori', sans-serif";
           ctx.fillText("城", tbx + bl.w / 2, tby + bl.h / 2 + 70);
         } else if (bl.type === TERRAIN_TYPES.GRASSLAND) {
           ctx.fillStyle = "rgba(100,140,80,0.1)";
@@ -3234,11 +3237,11 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
         } else if (bl.type === TERRAIN_TYPES.MOUNTAIN) {
           ctx.fillStyle = "rgba(100,100,100,0.08)";
           ctx.fillRect(tbx, tby, tbw, tbh);
-          ctx.font = "20px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+          ctx.font = "20px 'Chika', 'MokoMori', sans-serif";
           ctx.textAlign = "center";
           ctx.fillStyle = "#1a1a1a";
           ctx.fillText("\u26F0\uFE0F", tbx + bl.w / 2, tby + bl.h / 2 + 8);
-          ctx.font = "14px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+          ctx.font = "14px 'Chika', 'MokoMori', sans-serif";
           ctx.fillText("山道", tbx + bl.w / 2, tby + bl.h / 2 + 28);
         } else if (bl.type === TERRAIN_TYPES.VILLAGE) {
           ctx.fillStyle = "rgba(100,100,100,0.08)";
@@ -3301,7 +3304,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
         ctx.strokeStyle = "rgba(50,50,50,0.2)";
         ctx.lineWidth = 2;
         ctx.strokeRect(brx, bry, br.w, br.h);
-        ctx.font = "10px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+        ctx.font = "10px 'Chika', 'MokoMori', sans-serif";
         ctx.textAlign = "center";
         ctx.fillStyle = "#6a5a40";
         if (br.safe) {
@@ -3327,21 +3330,21 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
       if (GekokujoSystem.battleActive) { remaining = Math.max(0, Math.ceil(GekokujoSystem.battleTimer)); }
       if (remaining <= 10) { ctx.fillStyle = "#c03030"; }
       else { ctx.fillStyle = "#1a1a1a"; }
-      ctx.font = "bold 24px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+      ctx.font = "bold 24px 'Chika', 'MokoMori', sans-serif";
       ctx.fillText("残り " + remaining + "秒", 20, 35);
 
       if (GekokujoSystem.battleActive) {
         ctx.fillStyle = "#1a1a1a";
-        ctx.font = "bold 18px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+        ctx.font = "bold 18px 'Chika', 'MokoMori', sans-serif";
         ctx.fillText("下克上チャレンジ!", 20, 58);
       }
 
       ctx.fillStyle = "#1a1a1a";
-      ctx.font = "20px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+      ctx.font = "20px 'Chika', 'MokoMori', sans-serif";
       ctx.textAlign = "right";
       ctx.fillText("石高: " + ScoreManager.finalScore, MINIMAP_X - 10, 30);
       ctx.fillStyle = "#2a2a2a";
-      ctx.font = "16px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+      ctx.font = "16px 'Chika', 'MokoMori', sans-serif";
       ctx.fillText("身分: " + RankSystem.getCurrentName(), MINIMAP_X - 10, 52);
       ctx.fillText("民衆: " + ParadeController.getLength() + "人", MINIMAP_X - 10, 72);
       ctx.fillText(gameState.charDef.name + " " + gameState.charDef.emoji, MINIMAP_X - 10, 92);
@@ -3350,11 +3353,11 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
       ctx.textAlign = "left";
       if (PlayerController.chargeCooldown > 0) {
         ctx.fillStyle = "#aaa";
-        ctx.font = "12px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+        ctx.font = "12px 'Chika', 'MokoMori', sans-serif";
         ctx.fillText("突撃 [右クリック] " + Math.ceil(PlayerController.chargeCooldown) + "秒", 20, CANVAS_H - 30);
       } else {
         ctx.fillStyle = "#1a1a1a";
-        ctx.font = "12px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+        ctx.font = "12px 'Chika', 'MokoMori', sans-serif";
         ctx.fillText("突撃 [右クリック] 準備完了", 20, CANVAS_H - 30);
       }
 
@@ -3386,7 +3389,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
       // Merchant koku display
       if (gameState.selectedChar === "merchant") {
         ctx.fillStyle = "#d4a030";
-        ctx.font = "16px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+        ctx.font = "16px 'Chika', 'MokoMori', sans-serif";
         ctx.textAlign = "right";
         ctx.fillText("石高(資金): " + Math.floor(ShoninSystem.koku), MINIMAP_X - 10, 112);
       }
@@ -3418,7 +3421,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
           ctx.fill();
           ctx.restore();
           ctx.fillStyle = "rgba(200, 60, 60, 0.4)";
-          ctx.font = "10px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+          ctx.font = "10px 'Chika', 'MokoMori', sans-serif";
           ctx.textAlign = "center";
           ctx.fillText("城", arrowX, arrowY + 18);
         }
@@ -3427,7 +3430,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
       // Controls hint
       if (gameState.gameTime < 5) {
         ctx.fillStyle = "rgba(0,0,0,0.4)";
-        ctx.font = "13px 'Chika', 'M PLUS Rounded 1c', sans-serif";
+        ctx.font = "13px 'Chika', 'MokoMori', sans-serif";
         ctx.textAlign = "center";
         var controlsText = "WASD:移動  左クリック:攻撃  右クリック:行列突撃  SPACE:回避";
         if (gameState.selectedChar === "farmer") {
