@@ -233,10 +233,10 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
   ];
 
   var ENEMY_DEFS = [
-    { name: "野盗", emoji: "\uD83D\uDC79", hp: 20, attack: 3, speed: 1.5, score: 10, size: 25, grit: 3 },
-    { name: "足軽隊", emoji: "\uD83D\uDD34", hp: 35, attack: 5, speed: 1.8, score: 25, size: 29, grit: 10 },
-    { name: "侍", emoji: "\u26E9\uFE0F", hp: 55, attack: 8, speed: 2.0, score: 50, size: 32, grit: 999 },
-    { name: "武将", emoji: "\uD83C\uDFF4", hp: 80, attack: 12, speed: 2.2, score: 80, size: 40, grit: 999 }
+    { name: "野盗", emoji: "\uD83D\uDC79", hp: 20, attack: 3, speed: 1.5, score: 10, size: 21, grit: 3 },
+    { name: "足軽隊", emoji: "\uD83D\uDD34", hp: 35, attack: 5, speed: 1.8, score: 25, size: 24, grit: 10 },
+    { name: "侍", emoji: "\u26E9\uFE0F", hp: 55, attack: 8, speed: 2.0, score: 50, size: 27, grit: 999 },
+    { name: "武将", emoji: "\uD83C\uDFF4", hp: 80, attack: 12, speed: 2.2, score: 80, size: 33, grit: 999 }
   ];
 
   var TERRAIN_TYPES = {
@@ -452,10 +452,12 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
       if (!tilesheetLoaded) { return; }
       var sx = tileSourceX(tileCoord.col);
       var sy = tileSourceY(tileCoord.row);
+      var flooredX = Math.floor(destX);
+      var flooredY = Math.floor(destY);
       ctx.drawImage(
         tilesheetImg,
         sx, sy, TILE_SIZE, TILE_SIZE,
-        destX, destY, destSize, destSize
+        flooredX, flooredY, destSize + 1, destSize + 1
       );
     }
   };
@@ -1148,7 +1150,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
   var PlayerController = {
     x: 0, y: 0,
     hp: 100, maxHp: 100,
-    size: 36,
+    size: 30,
     facingLeft: false,
     knockbackTimer: 0,
     knockbackDirX: 0,
@@ -1162,7 +1164,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
       this.y = startPos.y;
       this.hp = 100;
       this.maxHp = 100;
-      this.size = 36;
+      this.size = 30;
       this.facingLeft = false;
       this.knockbackTimer = 0;
       this.attackCooldown = 0;
@@ -1198,21 +1200,19 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
 
       if (this.knockbackTimer <= 0) {
         // WASD movement
-        var prevX2 = this.x;
-        var prevY2 = this.y;
         var spd = def.speed + (ScoreManager.rankIndex * 0.3);
         // Farmer buff from parade (2.5% per follower to all stats)
         if (gameState.selectedChar === "farmer") {
           spd = spd * (1.0 + ParadeController.getLength() * 0.025);
         }
+        // River slow: 0.3x speed
+        if (TerrainManager.isInRiver(this.x, this.y)) {
+          spd = spd * 0.3;
+        }
         if (InputManager.keys.w) { this.y -= spd; }
         if (InputManager.keys.s) { this.y += spd; }
         if (InputManager.keys.a) { this.x -= spd; this.facingLeft = true; }
         if (InputManager.keys.d) { this.x += spd; this.facingLeft = false; }
-        if (TerrainManager.isInRiver(this.x, this.y)) {
-          this.x = prevX2;
-          this.y = prevY2;
-        }
       }
 
       // Clamp
@@ -1411,13 +1411,18 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
         var dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist > 1) {
-          var newX = en.x + (dx / dist) * en.speed;
-          var newY = en.y + (dy / dist) * en.speed;
-          // Enemy avoids river too
-          if (!TerrainManager.isInRiver(newX, newY)) {
-            en.x = newX;
-            en.y = newY;
+          var enemySpd = en.speed;
+          // Enemies slow down in river too
+          if (TerrainManager.isInRiver(en.x, en.y)) {
+            enemySpd = enemySpd * 0.3;
           }
+          var newX = en.x + (dx / dist) * enemySpd;
+          var newY = en.y + (dy / dist) * enemySpd;
+          // Track facing direction
+          if (dx < 0) { en.facingLeft = true; }
+          if (dx > 0) { en.facingLeft = false; }
+          en.x = newX;
+          en.y = newY;
         }
 
         // Melee attack on player
@@ -1449,8 +1454,6 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
         var sp = CameraController.worldToScreen(en.x, en.y);
         ctx.textAlign = "center";
 
-        var facingLeft = (en.x > PlayerController.x);
-
         if (en.surrendering) {
           ctx.font = Math.round((en.size + 4) * 1.5) + "px " + FONT_FAMILY;
           ctx.fillText("\uD83C\uDFF3\uFE0F", sp.x, sp.y + en.size / 3);
@@ -1459,11 +1462,12 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
           ctx.fillText("降伏!", sp.x, sp.y - en.size - 8);
         } else if (spritesLoaded) {
           var enemySpriteKey = "nobushi";
-          if (en.name === "侍") { enemySpriteKey = "tsujigiri"; }
-          if (en.name === "武将") { enemySpriteKey = "tonosama"; }
-          var enemySpriteH = 32 + en.size;
-          drawSpriteCentered(ctx, enemySpriteKey, sp.x, sp.y, enemySpriteH, facingLeft);
+          // nobushi default faces LEFT -> flip when enemy needs to face RIGHT (player is to the right)
+          var enFlipH = (en.x < PlayerController.x);
+          var enemySpriteH = 64 + en.size;
+          drawSpriteCentered(ctx, enemySpriteKey, sp.x, sp.y, enemySpriteH, enFlipH);
         } else {
+          var facingLeft = (en.x > PlayerController.x);
           ctx.font = Math.round((en.size + 4) * 1.5) + "px " + FONT_FAMILY;
           ctx.save();
           if (facingLeft) {
@@ -1753,6 +1757,17 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
         if (!CameraController.isVisible(m.x, m.y, 20)) { continue; }
         var sp = CameraController.worldToScreen(m.x, m.y);
 
+        // Ashigaru loyalty blink warning
+        var savedAlpha = ctx.globalAlpha;
+        if (gameState.selectedChar === "ashigaru" && m.loyaltyTimer !== undefined && m.loyaltyTimer < 5) {
+          var blinkPhase = Math.floor(m.loyaltyTimer / 0.3) % 2;
+          if (blinkPhase === 0) {
+            ctx.globalAlpha = 0.3;
+          } else {
+            ctx.globalAlpha = 1.0;
+          }
+        }
+
         if (spritesLoaded && !isIkki) {
           var mFacingLeft = PlayerController.facingLeft;
           if (i > 0) {
@@ -1769,7 +1784,8 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
             ctx.fillText("\uD83D\uDE0A", sp.x, sp.y + 3);
           }
         }
-        ctx.globalAlpha = 1.0;
+
+        ctx.globalAlpha = savedAlpha;
       }
     }
   };
@@ -2541,7 +2557,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
         hp: bossHp, maxHp: bossHp,
         attack: 8 + rIdx * 4,
         speed: 2.5,
-        size: 63,
+        size: 52,
         attackTimer: 0
       };
       AnnouncementSystem.add("下克上チャレンジ! 15秒で城主を倒せ!");
@@ -3106,6 +3122,10 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
       gameState.paused = false;
       gameState.phase = "countdown";
 
+      // Clear tile cache and house cache, rebuild for new map
+      TerrainTileCache.clear();
+      HouseManager.clear();
+
       // Generate map
       MapGenerator.generate();
 
@@ -3279,6 +3299,8 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
           // Castle sprite
           if (spritesLoaded) {
             drawSpriteCentered(ctx, "castle", bsp.x + bl.w / 2, bsp.y + bl.h / 2, 120, false);
+          } else {
+            BuildingRenderer.drawCastle(ctx, bsp.x, bsp.y, bl.w, bl.h);
           }
           ctx.fillStyle = "#1a1a1a";
           ctx.textAlign = "center";
@@ -3290,8 +3312,10 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
             var ctHouses = HouseManager.getHouses(bl.row, bl.col);
             for (var cthi = 0; cthi < ctHouses.length; cthi++) {
               var cth = ctHouses[cthi];
-              drawSpriteCentered(ctx, "house_town", bsp.x + cth.x, bsp.y + cth.y, 50, false);
+              drawSpriteCentered(ctx, "house_town", bsp.x + cth.x, bsp.y + cth.y, 85, false);
             }
+          } else {
+            BuildingRenderer.drawCastleTown(ctx, bsp.x, bsp.y, bl.w, bl.h, bi);
           }
         } else if (bl.type === TERRAIN_TYPES.MOUNTAIN) {
           ctx.font = FONT.h3;
@@ -3306,8 +3330,10 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
             var vHouses = HouseManager.getHouses(bl.row, bl.col);
             for (var vhi = 0; vhi < vHouses.length; vhi++) {
               var vhItem = vHouses[vhi];
-              drawSpriteCentered(ctx, "house_villege", bsp.x + vhItem.x, bsp.y + vhItem.y, 45, false);
+              drawSpriteCentered(ctx, "house_villege", bsp.x + vhItem.x, bsp.y + vhItem.y, 80, false);
             }
+          } else {
+            BuildingRenderer.drawVillage(ctx, bsp.x, bsp.y, bl.w, bl.h, bi);
           }
         }
 
@@ -3427,7 +3453,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
 
       // Merchant koku display
       if (gameState.selectedChar === "merchant") {
-        ctx.fillStyle = "#d4a030";
+        ctx.fillStyle = "#1a1a1a";
         ctx.font = FONT.h5;
         ctx.textAlign = "left";
         var kokuText = "石高: " + Math.floor(gameState.koku);
