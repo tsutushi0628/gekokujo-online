@@ -847,147 +847,270 @@ var GameDirector = {
     GekokujoSystem.draw(ctx);
     EffectRenderer.draw(ctx);
 
-    // === HUD (screen space) - 和紙パネルスタイル ===
-    var remaining = Math.max(0, MAX_TIME - gameState.gameTime);
-    var remainingCeil = Math.ceil(remaining);
+    // === HUD (screen space) - washi panel style ===
+    var remaining = Math.max(0, Math.ceil(MAX_TIME - gameState.gameTime));
     if (GekokujoSystem.battleActive) {
-      remaining = Math.max(0, GekokujoSystem.battleTimer);
-      remainingCeil = Math.ceil(remaining);
+      remaining = Math.max(0, Math.ceil(GekokujoSystem.battleTimer));
     }
 
-    // --- Top-left panel (timer) ---
-    var tlPanelW = 200;
-    var tlPanelH = GekokujoSystem.battleActive ? 70 : 48;
+    // --- Timer panel (top center) ---
+    var timerW = 90;
+    var timerH = 48;
+    var timerX = CANVAS_W / 2 - timerW / 2;
+    var timerY = 8;
+    var timerLabel = "のこり";
+    var timerLabelColor = "#9a8a6a";
+    var timerValueColor = "#3a2a1a";
+    var timerBg = "rgba(245, 238, 225, 0.82)";
+    var timerBorder = "rgba(160, 130, 90, 0.45)";
+
+    if (GekokujoSystem.battleActive) {
+      timerLabel = "殿様出現!";
+      timerLabelColor = "#8b6914";
+      timerValueColor = "#8b5e14";
+      timerBg = "rgba(250, 240, 220, 0.88)";
+      timerBorder = "rgba(160, 100, 40, 0.6)";
+    } else if (remaining <= 10) {
+      timerLabelColor = "#b07060";
+      timerValueColor = "#b03020";
+      timerBorder = "rgba(180, 80, 60, 0.5)";
+    }
+
+    ctx.fillStyle = timerBg;
+    ctx.beginPath();
+    ctx.roundRect(timerX, timerY, timerW, timerH, 12);
+    ctx.fill();
+    ctx.strokeStyle = timerBorder;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(timerX, timerY, timerW, timerH, 12);
+    ctx.stroke();
+
+    ctx.textAlign = "center";
+    ctx.font = "10px " + FONT_FAMILY;
+    ctx.fillStyle = timerLabelColor;
+    ctx.fillText(timerLabel, CANVAS_W / 2, timerY + 15);
+    ctx.font = "bold 28px " + FONT_FAMILY;
+    ctx.strokeStyle = "#f5eee1";
+    ctx.lineWidth = 3;
+    ctx.strokeText("" + remaining, CANVAS_W / 2, timerY + 42);
+    ctx.fillStyle = timerValueColor;
+    ctx.fillText("" + remaining, CANVAS_W / 2, timerY + 42);
+
+    // --- Score panel (top left) ---
+    var scoreW = 120;
+    var scoreH = 48;
+    var scoreX = 8;
+    var scoreY = 8;
+
     ctx.fillStyle = "rgba(245, 238, 225, 0.82)";
     ctx.beginPath();
-    ctx.roundRect(10, 10, tlPanelW, tlPanelH, 12);
+    ctx.roundRect(scoreX, scoreY, scoreW, scoreH, 12);
     ctx.fill();
     ctx.strokeStyle = "rgba(160, 130, 90, 0.45)";
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.roundRect(10, 10, tlPanelW, tlPanelH, 12);
+    ctx.roundRect(scoreX, scoreY, scoreW, scoreH, 12);
     ctx.stroke();
 
     ctx.textAlign = "left";
-    if (remainingCeil <= 10) { ctx.fillStyle = "#c03030"; }
-    else { ctx.fillStyle = "#3a2a1a"; }
-    ctx.font = FONT.h2;
-    ctx.fillText("残り " + remainingCeil + "秒", 22, 45);
-
-    if (GekokujoSystem.battleActive) {
-      ctx.fillStyle = "#c03030";
-      ctx.font = FONT.h4;
-      ctx.fillText("殿様出現!", 22, 68);
-    }
-
-    // --- Top-right panel (score/rank) ---
-    var trPanelW = 180;
-    var trPanelH = 58;
-    if (gameState.selectedChar === "merchant") { trPanelH = 78; }
-    var trPanelX = MINIMAP_X - trPanelW - 10;
-    ctx.fillStyle = "rgba(245, 238, 225, 0.82)";
-    ctx.beginPath();
-    ctx.roundRect(trPanelX, 10, trPanelW, trPanelH, 12);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(160, 130, 90, 0.45)";
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.roundRect(trPanelX, 10, trPanelW, trPanelH, 12);
-    ctx.stroke();
-
-    ctx.fillStyle = "#3a2a1a";
-    ctx.font = FONT.h3;
+    ctx.font = "11px " + FONT_FAMILY;
+    ctx.fillStyle = "#9a8a6a";
+    ctx.fillText("石高", scoreX + 10, scoreY + 20);
     ctx.textAlign = "right";
-    ctx.fillText("石高: " + ScoreManager.finalScore, trPanelX + trPanelW - 12, 35);
-    ctx.font = FONT.h4;
-    ctx.fillText("身分: " + RankSystem.getCurrentName(), trPanelX + trPanelW - 12, 58);
-
-    // Merchant koku (3rd line in top-right panel)
-    if (gameState.selectedChar === "merchant") {
-      ctx.font = FONT.h5;
-      var kokuText = "石高: " + Math.floor(gameState.koku);
-      if (ShoninSystem.currentTerrainLabel) {
-        kokuText += " (" + ShoninSystem.currentTerrainLabel + ")";
-      }
-      ctx.fillText(kokuText, trPanelX + trPanelW - 12, 78);
-    }
-
-    // --- Bottom ability bar (2 slots) ---
-    var slotW = 180;
-    var slotH = 40;
-    var slotY = CANVAS_H - slotH - 12;
-    var slotGap = 12;
-
-    // Slot 1: 突撃 [右]
-    var slot1X = 12;
-    ctx.fillStyle = "rgba(245, 238, 225, 0.82)";
-    ctx.beginPath();
-    ctx.roundRect(slot1X, slotY, slotW, slotH, 12);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(160, 130, 90, 0.45)";
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.roundRect(slot1X, slotY, slotW, slotH, 12);
-    ctx.stroke();
+    ctx.font = "bold 20px " + FONT_FAMILY;
+    ctx.fillStyle = "#8b6914";
+    ctx.fillText("" + ScoreManager.finalScore, scoreX + scoreW - 10, scoreY + 22);
 
     ctx.textAlign = "left";
-    ctx.font = FONT.h5;
-    if (PlayerController.chargeCooldown > 0) {
-      ctx.fillStyle = "#aaa";
-      ctx.fillText("突撃 [右] " + Math.ceil(PlayerController.chargeCooldown) + "秒", slot1X + 10, slotY + 26);
-    } else {
-      ctx.fillStyle = "#c03030";
-      ctx.fillText("突撃 [右] 準備完了", slot1X + 10, slotY + 26);
+    ctx.font = "11px " + FONT_FAMILY;
+    ctx.fillStyle = "#9a8a6a";
+    ctx.fillText("身分", scoreX + 10, scoreY + 40);
+    ctx.textAlign = "right";
+    ctx.font = "16px " + FONT_FAMILY;
+    ctx.fillStyle = "#6b4226";
+    ctx.fillText(RankSystem.getCurrentName(), scoreX + scoreW - 10, scoreY + 42);
+
+    // --- Ability bar (bottom center, 2 slots) ---
+    var slotW = 58;
+    var slotH = 62;
+    var slotGap = 10;
+    var barW = 2 * slotW + slotGap;
+    var barStartX = CANVAS_W / 2 - barW / 2;
+    var barY = CANVAS_H - slotH - 10;
+    var keyBadgeW = 20;
+    var keyBadgeH = 14;
+
+    // Slot 1: Charge (right click)
+    var chargeReady = PlayerController.chargeCooldown <= 0;
+    var chargeBorderColor = "rgba(160, 150, 130, 0.4)";
+    var chargeKanjiColor = "#aaa090";
+    var chargeNameColor = "#b0a090";
+    if (chargeReady) {
+      chargeBorderColor = "rgba(180, 140, 60, 0.7)";
+      chargeKanjiColor = "#5a3a10";
+      chargeNameColor = "#8a7a5a";
     }
 
-    // Slot 2: Q ability
-    var slot2X = slot1X + slotW + slotGap;
-    var slot2W = 200;
-    ctx.fillStyle = "rgba(245, 238, 225, 0.82)";
+    ctx.save();
+    if (chargeReady) {
+      ctx.shadowColor = "rgba(200, 160, 60, 0.25)";
+      ctx.shadowBlur = 10;
+    }
+    ctx.fillStyle = "rgba(245, 238, 225, 0.8)";
     ctx.beginPath();
-    ctx.roundRect(slot2X, slotY, slot2W, slotH, 12);
+    ctx.roundRect(barStartX, barY, slotW, slotH, 14);
     ctx.fill();
-    ctx.strokeStyle = "rgba(160, 130, 90, 0.45)";
-    ctx.lineWidth = 1.5;
+    ctx.restore();
+    ctx.strokeStyle = chargeBorderColor;
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.roundRect(slot2X, slotY, slot2W, slotH, 12);
+    ctx.roundRect(barStartX, barY, slotW, slotH, 14);
     ctx.stroke();
 
-    ctx.textAlign = "left";
-    ctx.font = FONT.h5;
+    // Key badge "右"
+    ctx.textAlign = "center";
+    ctx.font = "10px sans-serif";
+    ctx.fillStyle = "rgba(220, 210, 190, 0.55)";
+    ctx.beginPath();
+    ctx.roundRect(barStartX + slotW / 2 - keyBadgeW / 2, barY + 4, keyBadgeW, keyBadgeH, 4);
+    ctx.fill();
+    ctx.fillStyle = "#7a6a4a";
+    ctx.fillText("右", barStartX + slotW / 2, barY + 14);
+
+    // Kanji "突"
+    ctx.font = "24px " + FONT_FAMILY;
+    ctx.fillStyle = chargeKanjiColor;
+    ctx.fillText("突", barStartX + slotW / 2, barY + 40);
+
+    // Name "突撃"
+    ctx.font = "8px " + FONT_FAMILY;
+    ctx.fillStyle = chargeNameColor;
+    ctx.fillText("突撃", barStartX + slotW / 2, barY + 52);
+
+    // Charge cooldown overlay
+    if (!chargeReady) {
+      var cdOverlayH = slotH * 0.55;
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(barStartX, barY + slotH - cdOverlayH, slotW, cdOverlayH, [0, 0, 12, 12]);
+      ctx.clip();
+      ctx.fillStyle = "rgba(200, 190, 170, 0.7)";
+      ctx.fillRect(barStartX, barY + slotH - cdOverlayH, slotW, cdOverlayH);
+      ctx.restore();
+      ctx.font = "bold 18px " + FONT_FAMILY;
+      ctx.fillStyle = "#5a4a3a";
+      ctx.textAlign = "center";
+      ctx.fillText("" + Math.ceil(PlayerController.chargeCooldown), barStartX + slotW / 2, barY + slotH - cdOverlayH / 2 + 7);
+    }
+
+    // Slot 2: Q ability (character-specific)
+    var qSlotX = barStartX + slotW + slotGap;
+    var qOnCD = false;
+    var qDisabled = false;
+    var qKanji = "";
+    var qName = "";
+    var qCooldownVal = 0;
+
     if (gameState.selectedChar === "farmer") {
-      if (IkkiSystem.cooldown > 0) {
-        ctx.fillStyle = "#aaa";
-        ctx.fillText("揆 [Q] " + Math.ceil(IkkiSystem.cooldown) + "秒", slot2X + 10, slotY + 26);
-      } else if (ParadeController.getLength() < 1) {
-        ctx.fillStyle = "#aaa";
-        ctx.fillText("揆 [Q] 仲間1人必要", slot2X + 10, slotY + 26);
-      } else {
-        ctx.fillStyle = "#c03030";
-        ctx.fillText("揆 [Q] 準備完了!", slot2X + 10, slotY + 26);
-      }
+      qKanji = "揆";
+      qName = "一揆";
+      qOnCD = IkkiSystem.cooldown > 0;
+      qCooldownVal = IkkiSystem.cooldown;
+      qDisabled = ParadeController.getLength() < 1;
     } else if (gameState.selectedChar === "ashigaru") {
-      if (JumonjiSystem.cooldown > 0) {
-        ctx.fillStyle = "#aaa";
-        ctx.fillText("十 [Q] " + Math.ceil(JumonjiSystem.cooldown) + "秒", slot2X + 10, slotY + 26);
-      } else if (ParadeController.getLength() < 1) {
-        ctx.fillStyle = "#aaa";
-        ctx.fillText("十 [Q] 仲間1人必要", slot2X + 10, slotY + 26);
-      } else {
-        ctx.fillStyle = "#c03030";
-        ctx.fillText("十 [Q] 準備完了!", slot2X + 10, slotY + 26);
-      }
+      qKanji = "十";
+      qName = "十文字";
+      qOnCD = JumonjiSystem.cooldown > 0;
+      qCooldownVal = JumonjiSystem.cooldown;
+      qDisabled = ParadeController.getLength() < 1;
     } else if (gameState.selectedChar === "merchant") {
-      if (DoushiuchiSystem.cooldown > 0) {
-        ctx.fillStyle = "#aaa";
-        ctx.fillText("討 [Q] " + Math.ceil(DoushiuchiSystem.cooldown) + "秒", slot2X + 10, slotY + 26);
-      } else if (gameState.koku < 100) {
-        ctx.fillStyle = "#aaa";
-        ctx.fillText("討 [Q] 石高100必要", slot2X + 10, slotY + 26);
-      } else {
-        ctx.fillStyle = "#c03030";
-        ctx.fillText("討 [Q] 準備完了!", slot2X + 10, slotY + 26);
+      qKanji = "討";
+      qName = "同士討ち";
+      qOnCD = DoushiuchiSystem.cooldown > 0;
+      qCooldownVal = DoushiuchiSystem.cooldown;
+      qDisabled = gameState.koku < 100;
+    }
+
+    var qReady = !qOnCD && !qDisabled;
+    var qBorderColor = "rgba(160, 150, 130, 0.4)";
+    var qKanjiColor = "#aaa090";
+    var qNameColor = "#b0a090";
+    var qSlotAlpha = 1.0;
+
+    if (qReady) {
+      if (gameState.selectedChar === "farmer") {
+        qBorderColor = "rgba(180, 80, 60, 0.6)";
+        qKanjiColor = "#8b3020";
+        qNameColor = "#8b3020";
+      } else if (gameState.selectedChar === "ashigaru") {
+        qBorderColor = "rgba(60, 80, 180, 0.6)";
+        qKanjiColor = "#203080";
+        qNameColor = "#203080";
+      } else if (gameState.selectedChar === "merchant") {
+        qBorderColor = "rgba(180, 100, 40, 0.6)";
+        qKanjiColor = "#8b5020";
+        qNameColor = "#8b5020";
       }
+    } else if (qDisabled && !qOnCD) {
+      qSlotAlpha = 0.45;
+    }
+
+    ctx.save();
+    ctx.globalAlpha = qSlotAlpha;
+    if (qReady) {
+      ctx.shadowColor = "rgba(200, 160, 60, 0.25)";
+      ctx.shadowBlur = 10;
+    }
+    ctx.fillStyle = "rgba(245, 238, 225, 0.8)";
+    ctx.beginPath();
+    ctx.roundRect(qSlotX, barY, slotW, slotH, 14);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = qSlotAlpha;
+    ctx.strokeStyle = qBorderColor;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(qSlotX, barY, slotW, slotH, 14);
+    ctx.stroke();
+
+    // Q key badge
+    ctx.textAlign = "center";
+    ctx.font = "10px sans-serif";
+    ctx.fillStyle = "rgba(220, 210, 190, 0.55)";
+    ctx.beginPath();
+    ctx.roundRect(qSlotX + slotW / 2 - keyBadgeW / 2, barY + 4, keyBadgeW, keyBadgeH, 4);
+    ctx.fill();
+    ctx.fillStyle = "#7a6a4a";
+    ctx.fillText("Q", qSlotX + slotW / 2, barY + 14);
+
+    // Q kanji
+    ctx.font = "24px " + FONT_FAMILY;
+    ctx.fillStyle = qKanjiColor;
+    ctx.fillText(qKanji, qSlotX + slotW / 2, barY + 40);
+
+    // Q name
+    ctx.font = "8px " + FONT_FAMILY;
+    ctx.fillStyle = qNameColor;
+    ctx.fillText(qName, qSlotX + slotW / 2, barY + 52);
+    ctx.restore();
+
+    // Q cooldown overlay
+    if (qOnCD) {
+      var qOverlayH = slotH * 0.55;
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(qSlotX, barY + slotH - qOverlayH, slotW, qOverlayH, [0, 0, 12, 12]);
+      ctx.clip();
+      ctx.fillStyle = "rgba(200, 190, 170, 0.7)";
+      ctx.fillRect(qSlotX, barY + slotH - qOverlayH, slotW, qOverlayH);
+      ctx.restore();
+      ctx.font = "bold 18px " + FONT_FAMILY;
+      ctx.fillStyle = "#5a4a3a";
+      ctx.textAlign = "center";
+      ctx.fillText("" + Math.ceil(qCooldownVal), qSlotX + slotW / 2, barY + slotH - qOverlayH / 2 + 7);
     }
 
     // Q ability flash effects
@@ -998,7 +1121,7 @@ var GameDirector = {
     }
     if (JumonjiSystem.flashTimer > 0) {
       var jFlashAlpha = JumonjiSystem.flashTimer / 0.3;
-      ctx.fillStyle = "rgba(255,255,255," + (jFlashAlpha * 0.7) + ")";
+      ctx.fillStyle = "rgba(200,220,255," + (jFlashAlpha * 0.7) + ")";
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     }
     if (DoushiuchiSystem.flashTimer > 0) {
@@ -1007,21 +1130,26 @@ var GameDirector = {
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     }
 
-    // End-game countdown overlay (残り5秒)
-    if (remaining <= 5 && remaining > 0 && !GekokujoSystem.battleActive) {
-      var countdownNum = Math.ceil(remaining);
-      ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
-      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    // --- End-game countdown (last 5 seconds) ---
+    var normalRemaining = Math.max(0, Math.ceil(MAX_TIME - gameState.gameTime));
+    if (!GekokujoSystem.battleActive && normalRemaining <= 5 && normalRemaining >= 1) {
+      var cdR = 58;
+      var cdG = 42;
+      var cdB = 26;
+      var cdAlpha = 0.75;
+      if (normalRemaining <= 1) {
+        cdR = 176; cdG = 48; cdB = 32; cdAlpha = 0.9;
+      } else if (normalRemaining <= 2) {
+        cdR = 150; cdG = 46; cdB = 30; cdAlpha = 0.87;
+      } else if (normalRemaining <= 3) {
+        cdR = 120; cdG = 44; cdB = 28; cdAlpha = 0.85;
+      } else if (normalRemaining <= 4) {
+        cdR = 90; cdG = 43; cdB = 27; cdAlpha = 0.8;
+      }
       ctx.font = "bold 120px " + FONT_FAMILY;
       ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      if (countdownNum <= 2) {
-        ctx.fillStyle = "#c03030";
-      } else {
-        ctx.fillStyle = "#3a2a1a";
-      }
-      ctx.fillText("" + countdownNum, CANVAS_W / 2, CANVAS_H / 2);
-      ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = "rgba(" + cdR + ", " + cdG + ", " + cdB + ", " + cdAlpha + ")";
+      ctx.fillText("" + normalRemaining, CANVAS_W / 2, CANVAS_H / 2 + 40);
     }
 
     // Castle direction arrow
@@ -1034,7 +1162,6 @@ var GameDirector = {
         var cAngle = Math.atan2(cdy, cdx);
         var arrowX = CANVAS_W / 2 + Math.cos(cAngle) * 250;
         var arrowY = CANVAS_H / 2 + Math.sin(cAngle) * 200;
-        // Clamp to screen
         if (arrowX < 30) { arrowX = 30; }
         if (arrowX > CANVAS_W - 30) { arrowX = CANVAS_W - 30; }
         if (arrowY < 30) { arrowY = 30; }
@@ -1057,13 +1184,25 @@ var GameDirector = {
       }
     }
 
-    // Controls hint
+    // Controls hint (first 5 seconds only)
     if (gameState.gameTime < 5) {
-      ctx.fillStyle = "rgba(0,0,0,0.4)";
-      ctx.font = FONT.h4;
+      var hintW = 240;
+      var hintH = 24;
+      var hintX = CANVAS_W / 2 - hintW / 2;
+      var hintY = CANVAS_H - slotH - 46;
+      ctx.fillStyle = "rgba(245, 238, 225, 0.82)";
+      ctx.beginPath();
+      ctx.roundRect(hintX, hintY, hintW, hintH, 12);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(160, 130, 90, 0.45)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(hintX, hintY, hintW, hintH, 12);
+      ctx.stroke();
+      ctx.fillStyle = "#7a6a4a";
+      ctx.font = "12px " + FONT_FAMILY;
       ctx.textAlign = "center";
-      var controlsText = "WASD:移動  左クリック:攻撃  右クリック:突撃  SPACE:辻斬り返し  Q:固有能力";
-      ctx.fillText(controlsText, CANVAS_W / 2, CANVAS_H - 65);
+      ctx.fillText("WASD 移動  左Click 攻撃", CANVAS_W / 2, hintY + 16);
     }
 
     // Announcements
