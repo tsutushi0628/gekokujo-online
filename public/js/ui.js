@@ -103,6 +103,7 @@ var ScoreManager = {
 
   addRaw: function(amount) {
     this.rawScore += amount;
+    FloatingScoreSystem.show(amount);
     this.recalculate();
     RankSystem.check();
   },
@@ -456,5 +457,374 @@ var BuildingRenderer = {
     ctx.textAlign = "center";
     ctx.fillStyle = "#1a1a1a";
     ctx.fillText("村", bx + bw / 2, by + bh - 15);
+  }
+};
+
+// ============================================================
+// FloatingScoreSystem
+// ============================================================
+var FloatingScoreSystem = {
+  items: [],
+  terrainBuffer: 0,
+  terrainBufferTimer: 0,
+  MAX_ITEMS: 5,
+  // Score panel right edge + offset (scoreX=8, scoreW=120)
+  BASE_X: 138,
+  BASE_Y: 32,
+
+  show: function(amount) {
+    if (amount === 0) { return; }
+    var isLarge = Math.abs(amount) >= 50;
+    var maxTime = 1.2;
+    var floatDist = 30;
+    if (isLarge) {
+      maxTime = 1.8;
+      floatDist = 45;
+    }
+    var item = {
+      amount: amount,
+      timer: 0,
+      maxTime: maxTime,
+      floatDist: floatDist,
+      isLarge: isLarge,
+      offsetY: 0
+    };
+
+    // Shift existing items up by 10px each
+    for (var i = 0; i < this.items.length; i++) {
+      this.items[i].offsetY -= 10;
+    }
+
+    // Enforce max items: remove oldest if at limit
+    if (this.items.length >= this.MAX_ITEMS) {
+      this.items.shift();
+    }
+
+    this.items.push(item);
+  },
+
+  bufferTerrainIncome: function(amount) {
+    this.terrainBuffer += amount;
+  },
+
+  update: function(dt) {
+    // Terrain buffer flush every 3 seconds
+    this.terrainBufferTimer += dt;
+    if (this.terrainBufferTimer >= 3) {
+      if (this.terrainBuffer !== 0) {
+        var flushed = Math.round(this.terrainBuffer);
+        if (flushed !== 0) {
+          this.show(flushed);
+        }
+        this.terrainBuffer = 0;
+      }
+      this.terrainBufferTimer = 0;
+    }
+
+    // Update item timers, remove expired
+    for (var i = this.items.length - 1; i >= 0; i--) {
+      this.items[i].timer += dt;
+      if (this.items[i].timer >= this.items[i].maxTime) {
+        this.items.splice(i, 1);
+      }
+    }
+  },
+
+  draw: function(ctx) {
+    for (var i = 0; i < this.items.length; i++) {
+      var item = this.items[i];
+      var progress = item.timer / item.maxTime;
+      var floatY = progress * item.floatDist;
+
+      // Alpha: full for first 60%, fade out in last 40%
+      var alpha = 1.0;
+      if (progress > 0.6) {
+        alpha = 1.0 - (progress - 0.6) / 0.4;
+      }
+      if (alpha <= 0) { continue; }
+
+      // Scale for large amounts: pop-in from 1.3 to 1.0 in first 20%
+      var scale = 1.0;
+      if (item.isLarge && progress < 0.2) {
+        scale = 1.3 - (progress / 0.2) * 0.3;
+      }
+
+      // Colors
+      var fillColor;
+      var strokeColor;
+      if (item.amount > 0) {
+        fillColor = "rgba(56, 102, 46, " + (0.95 * alpha) + ")";
+        strokeColor = "rgba(245, 238, 225, " + (0.7 * alpha) + ")";
+      } else {
+        fillColor = "rgba(160, 50, 40, " + (0.95 * alpha) + ")";
+        strokeColor = "rgba(245, 238, 225, " + (0.7 * alpha) + ")";
+      }
+
+      // Text
+      var text;
+      if (item.amount > 0) {
+        text = "+" + item.amount;
+      } else {
+        text = "" + item.amount;
+      }
+
+      var fontSize;
+      if (item.isLarge) {
+        fontSize = "bold 26px " + FONT_FAMILY;
+      } else {
+        fontSize = "bold 18px " + FONT_FAMILY;
+      }
+
+      var drawX = this.BASE_X;
+      var drawY = this.BASE_Y - floatY + item.offsetY;
+
+      ctx.save();
+
+      if (scale !== 1.0) {
+        ctx.translate(drawX, drawY);
+        ctx.scale(scale, scale);
+        ctx.translate(-drawX, -drawY);
+      }
+
+      ctx.textAlign = "left";
+      ctx.font = fontSize;
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = 3;
+      ctx.strokeText(text, drawX, drawY);
+      ctx.fillStyle = fillColor;
+      ctx.fillText(text, drawX, drawY);
+
+      ctx.restore();
+    }
+  }
+};
+
+// ============================================================
+// OnboardingSystem
+// ============================================================
+var OnboardingSystem = {
+  disabled: false,
+  currentTip: null,
+  tipQueue: [],
+  checkboxChecked: false,
+  fadeAlpha: 0,
+  fadeDir: 0, // 1 = fading in, -1 = fading out
+  dismissTimer: 0,
+  AUTO_DISMISS_TIME: 8,
+  FADE_SPEED: 3.0,
+  // Panel layout
+  PANEL_X: 260,
+  PANEL_Y: 400,
+  PANEL_W: 280,
+  PANEL_MIN_H: 80,
+  PANEL_RADIUS: 14,
+  CHECKBOX_SIZE: 12,
+
+  init: function() {
+    var saved = localStorage.getItem("gekokujo_onboarding");
+    if (saved) {
+      try {
+        var data = JSON.parse(saved);
+        if (data.disabled) {
+          this.disabled = true;
+          this.checkboxChecked = true;
+        }
+      } catch(e) {
+        // ignore parse errors
+      }
+    }
+  },
+
+  showTip: function(id, title, lines) {
+    if (this.disabled) { return; }
+
+    var tip = {
+      id: id,
+      title: title,
+      lines: lines
+    };
+
+    // If something is already showing, queue it
+    if (this.currentTip) {
+      this.tipQueue.push(tip);
+      return;
+    }
+
+    this.currentTip = tip;
+    this.fadeAlpha = 0;
+    this.fadeDir = 1;
+    this.dismissTimer = 0;
+  },
+
+  dismissCurrent: function() {
+    if (!this.currentTip) { return; }
+    this.fadeDir = -1;
+  },
+
+  _onDismissComplete: function() {
+    this.currentTip = null;
+    this.fadeAlpha = 0;
+    this.fadeDir = 0;
+    this.dismissTimer = 0;
+
+    // Show next in queue
+    if (this.tipQueue.length > 0) {
+      var next = this.tipQueue.shift();
+      this.currentTip = next;
+      this.fadeAlpha = 0;
+      this.fadeDir = 1;
+    }
+  },
+
+  update: function(dt) {
+    if (!this.currentTip) { return; }
+
+    // Fade animation
+    if (this.fadeDir === 1) {
+      this.fadeAlpha += dt * this.FADE_SPEED;
+      if (this.fadeAlpha >= 1) {
+        this.fadeAlpha = 1;
+        this.fadeDir = 0;
+      }
+    } else if (this.fadeDir === -1) {
+      this.fadeAlpha -= dt * this.FADE_SPEED;
+      if (this.fadeAlpha <= 0) {
+        this._onDismissComplete();
+        return;
+      }
+    }
+
+    // Auto-dismiss timer
+    if (this.fadeDir === 0 && this.fadeAlpha === 1) {
+      this.dismissTimer += dt;
+      if (this.dismissTimer >= this.AUTO_DISMISS_TIME) {
+        this.dismissCurrent();
+      }
+    }
+  },
+
+  handleClick: function(mx, my) {
+    if (!this.currentTip) { return false; }
+    if (this.fadeAlpha < 0.5) { return false; }
+
+    var tip = this.currentTip;
+    var panelH = this._calcPanelHeight(tip);
+    var cbX = this.PANEL_X + 14;
+    var cbY = this.PANEL_Y + panelH - 24;
+    var cbSize = this.CHECKBOX_SIZE;
+
+    // Checkbox hit test (with some padding)
+    if (mx >= cbX - 4 && mx <= cbX + cbSize + 4 &&
+        my >= cbY - 4 && my <= cbY + cbSize + 4) {
+      this._toggleCheckbox();
+      return true;
+    }
+
+    // Click anywhere on panel dismisses
+    if (mx >= this.PANEL_X && mx <= this.PANEL_X + this.PANEL_W &&
+        my >= this.PANEL_Y && my <= this.PANEL_Y + panelH) {
+      this.dismissCurrent();
+      return true;
+    }
+
+    return false;
+  },
+
+  _calcPanelHeight: function(tip) {
+    // Title line + text lines + checkbox line
+    var lineCount = tip.lines.length;
+    var h = 30 + lineCount * 20 + 30;
+    if (h < this.PANEL_MIN_H) { h = this.PANEL_MIN_H; }
+    if (h > 120) { h = 120; }
+    return h;
+  },
+
+  draw: function(ctx) {
+    if (!this.currentTip) { return; }
+    if (this.fadeAlpha <= 0) { return; }
+
+    var tip = this.currentTip;
+    var alpha = this.fadeAlpha;
+    var px = this.PANEL_X;
+    var py = this.PANEL_Y;
+    var pw = this.PANEL_W;
+    var ph = this._calcPanelHeight(tip);
+
+    // Washi panel background
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    ctx.fillStyle = "rgba(245, 238, 225, 0.92)";
+    ctx.beginPath();
+    ctx.roundRect(px, py, pw, ph, this.PANEL_RADIUS);
+    ctx.fill();
+
+    // Border
+    ctx.strokeStyle = "rgba(160, 130, 90, 0.55)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(px, py, pw, ph, this.PANEL_RADIUS);
+    ctx.stroke();
+
+    // Left accent line (3px sumi-colored)
+    ctx.fillStyle = "rgba(90, 70, 40, 0.6)";
+    ctx.beginPath();
+    ctx.roundRect(px + 4, py + 8, 3, ph - 16, 1.5);
+    ctx.fill();
+
+    // Title
+    ctx.textAlign = "left";
+    ctx.font = "bold 16px " + FONT_FAMILY;
+    ctx.fillStyle = "rgba(58, 42, 26, " + alpha + ")";
+    ctx.fillText(tip.title, px + 18, py + 22);
+
+    // Body lines
+    ctx.font = "13px " + FONT_FAMILY;
+    ctx.fillStyle = "rgba(80, 65, 45, " + alpha + ")";
+    for (var i = 0; i < tip.lines.length; i++) {
+      ctx.fillText(tip.lines[i], px + 18, py + 42 + i * 20);
+    }
+
+    // Checkbox area
+    var cbX = px + 14;
+    var cbY = py + ph - 24;
+    var cbSize = this.CHECKBOX_SIZE;
+
+    // Checkbox box
+    ctx.strokeStyle = "rgba(160, 130, 90, 0.6)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(cbX, cbY, cbSize, cbSize, 2);
+    ctx.stroke();
+
+    if (this.checkboxChecked) {
+      // Fill
+      ctx.fillStyle = "rgba(160, 130, 90, 0.4)";
+      ctx.beginPath();
+      ctx.roundRect(cbX, cbY, cbSize, cbSize, 2);
+      ctx.fill();
+
+      // Checkmark
+      ctx.strokeStyle = "rgba(90, 70, 40, 0.9)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cbX + 2, cbY + cbSize * 0.5);
+      ctx.lineTo(cbX + cbSize * 0.4, cbY + cbSize - 2);
+      ctx.lineTo(cbX + cbSize - 2, cbY + 2);
+      ctx.stroke();
+    }
+
+    // Checkbox label
+    ctx.font = "11px " + FONT_FAMILY;
+    ctx.fillStyle = "rgba(120, 100, 70, " + alpha + ")";
+    ctx.fillText("次回から表示しない", cbX + cbSize + 6, cbY + cbSize - 1);
+
+    ctx.restore();
+  },
+
+  _toggleCheckbox: function() {
+    this.checkboxChecked = !this.checkboxChecked;
+    this.disabled = this.checkboxChecked;
+    localStorage.setItem("gekokujo_onboarding", JSON.stringify({disabled: this.disabled}));
   }
 };

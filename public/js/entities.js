@@ -274,9 +274,6 @@ var EnemyManager = {
         continue;
       }
 
-      // Skip normal AI if under doushiuchi (handled by DoushiuchiSystem)
-      if (en.doushiuchi) { continue; }
-
       // AI: move toward player
       var dx = px - en.x;
       var dy = py - en.y;
@@ -555,19 +552,21 @@ var CivilianManager = {
 };
 
 // ============================================================
-// ParadeController (snake-style position history)
+// ParadeController (pikmin-style orbit around player)
 // ============================================================
 var ParadeController = {
   members: [],
-  positionHistory: [],
 
   init: function() {
     this.members = [];
-    this.positionHistory = [];
   },
 
   addMember: function(x, y) {
-    var member = { x: x, y: y, detached: false, attackCooldown: 0 };
+    var member = {
+      x: x, y: y, detached: false, attackCooldown: 0,
+      orbitAngle: Math.random() * Math.PI * 2,
+      orbitRadius: Math.random() * 40
+    };
     if (gameState.selectedChar === "ashigaru") {
       member.loyaltyTimer = 15 + Math.random() * 10;
     }
@@ -579,18 +578,7 @@ var ParadeController = {
   },
 
   update: function(dt) {
-    // Record player position history
-    this.positionHistory.push({ x: PlayerController.x, y: PlayerController.y });
-    // Keep reasonable size
-    var maxHistory = (this.members.length + 5) * HISTORY_SPACING;
-    if (this.positionHistory.length > maxHistory) {
-      this.positionHistory.splice(0, this.positionHistory.length - maxHistory);
-    }
-
-    // Apply ParadePhysics spacing based on terrain
-    var spacing = ParadePhysics.getSpacing(PlayerController.x, PlayerController.y);
-
-    // Update each member position from history + ashigaru leave timer
+    // Update each member: orbit around player (pikmin-style)
     for (var i = this.members.length - 1; i >= 0; i--) {
       var m = this.members[i];
       if (m.detached) { continue; }
@@ -612,25 +600,27 @@ var ParadeController = {
         }
       }
 
-      var histIdx = this.positionHistory.length - 1 - ((i + 1) * spacing);
-      if (histIdx < 0) { histIdx = 0; }
-      if (histIdx >= this.positionHistory.length) { histIdx = this.positionHistory.length - 1; }
-      var target = this.positionHistory[histIdx];
-      if (target) {
-        // Smooth follow
-        var followSpeed = 0.2;
-        var dx = target.x - m.x;
-        var dy = target.y - m.y;
-        var mNewX = m.x + dx * followSpeed;
-        var mNewY = m.y + dy * followSpeed;
-        // Block river crossing (allow only on bridge)
-        if (TerrainManager.isInRiver(mNewX, mNewY) && !TerrainManager.isOnBridge(mNewX, mNewY)) {
-          mNewX = m.x;
-          mNewY = m.y;
-        }
-        m.x = mNewX;
-        m.y = mNewY;
+      // Pikmin orbit movement
+      var wobble = Math.sin(m.orbitAngle * 2.7 + i) * 0.4;
+      var targetAngle = m.orbitAngle + wobble;
+      var targetRadius = 40 + m.orbitRadius;
+      var targetX = PlayerController.x + Math.cos(targetAngle) * targetRadius;
+      var targetY = PlayerController.y + Math.sin(targetAngle) * targetRadius;
+
+      // Lerp toward target position
+      var mNewX = m.x + (targetX - m.x) * 0.1;
+      var mNewY = m.y + (targetY - m.y) * 0.1;
+
+      // Block river crossing (allow only on bridge)
+      if (TerrainManager.isInRiver(mNewX, mNewY) && !TerrainManager.isOnBridge(mNewX, mNewY)) {
+        mNewX = m.x;
+        mNewY = m.y;
       }
+      m.x = mNewX;
+      m.y = mNewY;
+
+      // Slowly rotate orbit angle for wandering feel
+      m.orbitAngle += 0.3 * dt;
 
       // Building collision for parade members
       resolveHouseCollision(m, 12);
@@ -649,7 +639,7 @@ var ParadeController = {
           var eDist = Math.sqrt(edx * edx + edy * edy);
           if (eDist < paradeAttackRadius) {
             en.hp -= paradeDamage;
-            m.attackCooldown = 1.0;
+            m.attackCooldown = KobuSystem.getAttackCooldown();
             EffectRenderer.add(en.x, en.y, "hit");
             if (en.hp <= 0) {
               ScoreManager.addRaw(en.scoreValue);

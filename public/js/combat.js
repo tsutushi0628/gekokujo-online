@@ -276,7 +276,9 @@ var TsujigiriSystem = {
     if (TerrainManager.isOnBridge(px, py)) { return 0; }
     if (TerrainManager.isInRiver(px, py)) { return 0; }
     var terrain = TerrainManager.getTerrainAt(px, py);
-    var charTable = this._terrainChanceTable[gameState.selectedChar] || this._terrainChanceTable.farmer;
+    if (terrain === TERRAIN_TYPES.CASTLE) { return 0; }
+    var charTable = this._terrainChanceTable[gameState.selectedChar];
+    if (!charTable) { charTable = this._terrainChanceTable.farmer; }
     if (terrain === TERRAIN_TYPES.MOUNTAIN) { return charTable.mountain; }
     if (terrain === TERRAIN_TYPES.VILLAGE) { return charTable.village; }
     if (terrain === TERRAIN_TYPES.CASTLE_TOWN) { return charTable.castleTown; }
@@ -384,246 +386,112 @@ var TsujigiriSystem = {
 };
 
 // ============================================================
-// JumonjiSystem (足軽専用Q: 十文字陣形)
+// KobuSystem (足軽専用Q: 鼓舞 - 仲間の攻撃速度UP)
 // ============================================================
-var JumonjiSystem = {
-  available: false,
+var KobuSystem = {
+  active: false,
+  timer: 0,
+  duration: 5,
   cooldown: 0,
+  cooldownMax: 15,
   flashTimer: 0,
-  formationActive: false,
-  formationTimer: 0,
-  formationPositions: [],
 
   init: function() {
-    this.available = (gameState.selectedChar === "ashigaru");
+    this.active = false;
+    this.timer = 0;
     this.cooldown = 0;
     this.flashTimer = 0;
-    this.formationActive = false;
-    this.formationTimer = 0;
-    this.formationPositions = [];
-  },
-
-  update: function(dt) {
-    if (!this.available) { return; }
-    if (this.cooldown > 0) { this.cooldown -= dt; }
-    if (this.flashTimer > 0) { this.flashTimer -= dt; }
-
-    if (this.formationActive) {
-      this.formationTimer -= dt;
-      // Attack enemies near formation positions
-      for (var fi = 0; fi < this.formationPositions.length; fi++) {
-        var fp = this.formationPositions[fi];
-        for (var ei = EnemyManager.enemies.length - 1; ei >= 0; ei--) {
-          var en = EnemyManager.enemies[ei];
-          if (en.surrendering) { continue; }
-          var edx = fp.x - en.x;
-          var edy = fp.y - en.y;
-          if (Math.sqrt(edx * edx + edy * edy) < 40) {
-            en.hp -= 5;
-            EffectRenderer.add(en.x, en.y, "hit");
-            if (en.hp <= 0) {
-              ScoreManager.addRaw(en.scoreValue);
-              ShoninSystem.addKokuForKill(en.scoreValue);
-              EffectRenderer.add(en.x, en.y, "destroy");
-              EnemyManager.enemies.splice(ei, 1);
-            }
-          }
-        }
-      }
-      // Also damage boss
-      if (GekokujoSystem.boss) {
-        for (var bi = 0; bi < this.formationPositions.length; bi++) {
-          var bp = this.formationPositions[bi];
-          var bdx = bp.x - GekokujoSystem.boss.x;
-          var bdy = bp.y - GekokujoSystem.boss.y;
-          if (Math.sqrt(bdx * bdx + bdy * bdy) < 40) {
-            GekokujoSystem.boss.hp -= 5;
-            EffectRenderer.add(GekokujoSystem.boss.x, GekokujoSystem.boss.y, "hit");
-            if (GekokujoSystem.boss.hp <= 0) { GekokujoSystem.success(); }
-          }
-        }
-      }
-
-      if (this.formationTimer <= 0) {
-        this.formationActive = false;
-        this.formationPositions = [];
-      }
-    }
   },
 
   tryActivate: function() {
-    if (!this.available) { return; }
-    if (this.cooldown > 0 || this.formationActive) { return; }
-    this._activate();
+    if (this.cooldown > 0) { return; }
+    if (this.active) { return; }
+    this.active = true;
+    this.timer = this.duration;
+    this.cooldown = this.cooldownMax;
+    this.flashTimer = 0.3;
+    AnnouncementSystem.add("鼓舞!!");
   },
 
-  _activate: function() {
-    var paradeLen = ParadeController.getLength();
-    if (paradeLen < 1) {
-      AnnouncementSystem.add("十文字には仲間が必要!");
-      return;
+  update: function(dt) {
+    if (this.cooldown > 0) {
+      this.cooldown -= dt;
+      if (this.cooldown < 0) { this.cooldown = 0; }
     }
-
-    // Distribute parade members into cross formation (up/down/left/right)
-    var px = PlayerController.x;
-    var py = PlayerController.y;
-    var armSpacing = 30;
-    this.formationPositions = [];
-
-    // Assign each parade member to one of 4 arms of the cross
-    for (var i = 0; i < paradeLen; i++) {
-      var arm = i % 4;
-      var distFromCenter = armSpacing * (Math.floor(i / 4) + 1);
-      var targetX = px;
-      var targetY = py;
-      if (arm === 0) { targetY = py - distFromCenter; } // up
-      else if (arm === 1) { targetY = py + distFromCenter; } // down
-      else if (arm === 2) { targetX = px - distFromCenter; } // left
-      else { targetX = px + distFromCenter; } // right
-
-      // Move the parade member to formation position
-      if (i < ParadeController.members.length) {
-        ParadeController.members[i].x = targetX;
-        ParadeController.members[i].y = targetY;
-      }
-      this.formationPositions.push({ x: targetX, y: targetY });
+    if (this.flashTimer > 0) { this.flashTimer -= dt; }
+    if (!this.active) { return; }
+    this.timer -= dt;
+    if (this.timer <= 0) {
+      this.active = false;
+      this.timer = 0;
     }
+  },
 
-    this.formationActive = true;
-    this.formationTimer = 1.5;
-    this.flashTimer = 0.3;
-    this.cooldown = 15;
-    AnnouncementSystem.add("十文字!");
+  getAttackCooldown: function() {
+    if (this.active) { return 0.3; }
+    return 1.0;
   }
 };
 
 // ============================================================
-// DoushiuchiSystem (商人専用Q: 同士討ち)
+// BaishuSystem (商人専用Q: 買収 - 範囲内の敵を仲間化)
 // ============================================================
-var DoushiuchiSystem = {
-  available: false,
-  cooldown: 0,
-  flashTimer: 0,
+var BaishuSystem = {
   active: false,
-  activeTimer: 0,
-  affectedEnemyIds: [],
+  timer: 0,
+  duration: 5,
+  cooldown: 0,
+  cooldownMax: 15,
+  range: 150,
+  cost: 50,
+  flashTimer: 0,
 
   init: function() {
-    this.available = (gameState.selectedChar === "merchant");
+    this.active = false;
+    this.timer = 0;
     this.cooldown = 0;
     this.flashTimer = 0;
-    this.active = false;
-    this.activeTimer = 0;
-    this.affectedEnemyIds = [];
-  },
-
-  update: function(dt) {
-    if (!this.available) { return; }
-    if (this.cooldown > 0) { this.cooldown -= dt; }
-    if (this.flashTimer > 0) { this.flashTimer -= dt; }
-
-    if (this.active) {
-      this.activeTimer -= dt;
-      // Make affected enemies attack each other
-      for (var i = 0; i < EnemyManager.enemies.length; i++) {
-        var en = EnemyManager.enemies[i];
-        if (!en.doushiuchi) { continue; }
-        if (en.surrendering) { continue; }
-
-        // Find nearest other doushiuchi enemy to attack
-        var nearestDist = 99999;
-        var nearestEnemy = null;
-        for (var j = 0; j < EnemyManager.enemies.length; j++) {
-          if (i === j) { continue; }
-          var other = EnemyManager.enemies[j];
-          if (!other.doushiuchi) { continue; }
-          if (other.surrendering) { continue; }
-          var ddx = other.x - en.x;
-          var ddy = other.y - en.y;
-          var dDist = Math.sqrt(ddx * ddx + ddy * ddy);
-          if (dDist < nearestDist) {
-            nearestDist = dDist;
-            nearestEnemy = other;
-          }
-        }
-
-        if (nearestEnemy) {
-          // Move toward nearest doushiuchi enemy instead of player
-          var mdx = nearestEnemy.x - en.x;
-          var mdy = nearestEnemy.y - en.y;
-          var mDist = Math.sqrt(mdx * mdx + mdy * mdy);
-          if (mDist > 1) {
-            en.x += (mdx / mDist) * en.speed;
-            en.y += (mdy / mDist) * en.speed;
-          }
-          // Attack each other when close
-          if (mDist < 30) {
-            en.doushiuchiAttackTimer += dt;
-            if (en.doushiuchiAttackTimer > 0.5) {
-              en.doushiuchiAttackTimer = 0;
-              nearestEnemy.hp -= en.attack;
-              EffectRenderer.add(nearestEnemy.x, nearestEnemy.y, "hit");
-              if (nearestEnemy.hp <= 0) {
-                ScoreManager.addRaw(nearestEnemy.scoreValue);
-                ShoninSystem.addKokuForKill(nearestEnemy.scoreValue);
-                EffectRenderer.add(nearestEnemy.x, nearestEnemy.y, "destroy");
-                var nIdx = EnemyManager.enemies.indexOf(nearestEnemy);
-                if (nIdx >= 0) { EnemyManager.enemies.splice(nIdx, 1); }
-              }
-            }
-          }
-        }
-      }
-
-      if (this.activeTimer <= 0) {
-        // Clear doushiuchi flags
-        for (var ci = 0; ci < EnemyManager.enemies.length; ci++) {
-          EnemyManager.enemies[ci].doushiuchi = false;
-        }
-        this.active = false;
-      }
-    }
   },
 
   tryActivate: function() {
-    if (!this.available) { return; }
-    if (this.cooldown > 0 || this.active) { return; }
-    this._activate();
+    if (this.cooldown > 0) { return; }
+    if (this.active) { return; }
+    if (gameState.koku < this.cost) { return; }
+    gameState.koku -= this.cost;
+    this.active = true;
+    this.timer = this.duration;
+    this.cooldown = this.cooldownMax;
+    this.flashTimer = 0.3;
+    AnnouncementSystem.add("買収!!");
   },
 
-  _activate: function() {
-    if (gameState.koku < 100) {
-      AnnouncementSystem.add("石高が足りない! (100必要)");
+  update: function(dt) {
+    if (this.cooldown > 0) {
+      this.cooldown -= dt;
+      if (this.cooldown < 0) { this.cooldown = 0; }
+    }
+    if (this.flashTimer > 0) { this.flashTimer -= dt; }
+    if (!this.active) { return; }
+    this.timer -= dt;
+    if (this.timer <= 0) {
+      this.active = false;
+      this.timer = 0;
       return;
     }
-
-    gameState.koku -= 100;
-    var radius = 200;
-    var affected = 0;
-    for (var i = 0; i < EnemyManager.enemies.length; i++) {
+    // 範囲内の敵を仲間化
+    var px = PlayerController.x;
+    var py = PlayerController.y;
+    var i = EnemyManager.enemies.length - 1;
+    while (i >= 0) {
       var en = EnemyManager.enemies[i];
-      if (en.surrendering) { continue; }
-      var dx = en.x - PlayerController.x;
-      var dy = en.y - PlayerController.y;
-      if (Math.sqrt(dx * dx + dy * dy) < radius) {
-        en.doushiuchi = true;
-        en.doushiuchiAttackTimer = 0;
-        affected++;
+      var dx = en.x - px;
+      var dy = en.y - py;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= this.range) {
+        ParadeController.addMember(en.x, en.y);
+        EnemyManager.enemies.splice(i, 1);
       }
+      i--;
     }
-
-    if (affected < 2) {
-      // Need at least 2 enemies for infighting to make sense
-      // But still consume koku and go on cooldown per spec
-      for (var j = 0; j < EnemyManager.enemies.length; j++) {
-        EnemyManager.enemies[j].doushiuchi = false;
-      }
-    }
-
-    this.active = true;
-    this.activeTimer = 5;
-    this.flashTimer = 0.3;
-    this.cooldown = 15;
-    AnnouncementSystem.add("同士討ち! (" + affected + "体)");
   }
 };

@@ -22,11 +22,11 @@ var CHAR_DEFS = {
     name: "商人", emoji: "\uD83D\uDCB0", attack: 2, speed: 3.2,
     recruitRange: 55, recruitTime: 0, followerBonus: 0.007,
     regroupSpeed: 0.7, chargeMultiplier: 0.5,
-    initialKoku: 1000, recruitCost: 5
+    initialKoku: 500, recruitCost: 5
   },
   farmer: {
     name: "農民", emoji: "\uD83D\uDC68\u200D\uD83C\uDF3E", attack: 3, speed: 2.8,
-    recruitRange: 65, recruitTime: 600, followerBonus: 0.025,
+    recruitRange: 65, recruitTime: 400, followerBonus: 0.025,
     regroupSpeed: 1.0, chargeMultiplier: 0.8,
   }
 };

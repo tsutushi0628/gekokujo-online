@@ -499,8 +499,8 @@ var GameDirector = {
     ScoreManager.init();
     TsujigiriSystem.init();
     IkkiSystem.init();
-    JumonjiSystem.init();
-    DoushiuchiSystem.init();
+    KobuSystem.init();
+    BaishuSystem.init();
     ShoninSystem.init();
     GekokujoSystem.init();
 
@@ -600,8 +600,8 @@ var GameDirector = {
     }
     if (InputManager.consumeQ()) {
       if (gameState.selectedChar === "farmer") { IkkiSystem.tryActivate(); }
-      else if (gameState.selectedChar === "ashigaru") { JumonjiSystem.tryActivate(); }
-      else if (gameState.selectedChar === "merchant") { DoushiuchiSystem.tryActivate(); }
+      else if (gameState.selectedChar === "ashigaru") { KobuSystem.tryActivate(); }
+      else if (gameState.selectedChar === "merchant") { BaishuSystem.tryActivate(); }
     }
 
     // Update all systems
@@ -615,14 +615,18 @@ var GameDirector = {
     ParadeChargeSystem.update(dt);
     IntimidationSystem.update(dt);
     ProjectileManager.update(dt);
-    TsujigiriSystem.update(dt);
+    if (!GekokujoSystem.battleActive) {
+      TsujigiriSystem.update(dt);
+    }
     IkkiSystem.update(dt);
-    JumonjiSystem.update(dt);
-    DoushiuchiSystem.update(dt);
+    KobuSystem.update(dt);
+    BaishuSystem.update(dt);
     ShoninSystem.update(dt);
     GekokujoSystem.update(dt);
     EffectRenderer.update(dt);
     AnnouncementSystem.update(dt);
+    FloatingScoreSystem.update(dt);
+    OnboardingSystem.update(dt);
   },
 
   render: function() {
@@ -1019,17 +1023,17 @@ var GameDirector = {
       qCooldownVal = IkkiSystem.cooldown;
       qDisabled = ParadeController.getLength() < 1;
     } else if (gameState.selectedChar === "ashigaru") {
-      qKanji = "十";
-      qName = "十文字";
-      qOnCD = JumonjiSystem.cooldown > 0;
-      qCooldownVal = JumonjiSystem.cooldown;
-      qDisabled = ParadeController.getLength() < 1;
+      qKanji = "鼓";
+      qName = "鼓舞";
+      qOnCD = KobuSystem.cooldown > 0;
+      qCooldownVal = KobuSystem.cooldown;
+      qDisabled = false;
     } else if (gameState.selectedChar === "merchant") {
-      qKanji = "討";
-      qName = "同士討ち";
-      qOnCD = DoushiuchiSystem.cooldown > 0;
-      qCooldownVal = DoushiuchiSystem.cooldown;
-      qDisabled = gameState.koku < 100;
+      qKanji = "買";
+      qName = "買収";
+      qOnCD = BaishuSystem.cooldown > 0;
+      qCooldownVal = BaishuSystem.cooldown;
+      qDisabled = gameState.koku < BaishuSystem.cost;
     }
 
     var qReady = !qOnCD && !qDisabled;
@@ -1119,13 +1123,13 @@ var GameDirector = {
       ctx.fillStyle = "rgba(255,255,255," + (flashAlpha * 0.7) + ")";
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     }
-    if (JumonjiSystem.flashTimer > 0) {
-      var jFlashAlpha = JumonjiSystem.flashTimer / 0.3;
+    if (KobuSystem.flashTimer > 0) {
+      var jFlashAlpha = KobuSystem.flashTimer / 0.3;
       ctx.fillStyle = "rgba(200,220,255," + (jFlashAlpha * 0.7) + ")";
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     }
-    if (DoushiuchiSystem.flashTimer > 0) {
-      var dFlashAlpha = DoushiuchiSystem.flashTimer / 0.3;
+    if (BaishuSystem.flashTimer > 0) {
+      var dFlashAlpha = BaishuSystem.flashTimer / 0.3;
       ctx.fillStyle = "rgba(255,200,200," + (dFlashAlpha * 0.5) + ")";
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     }
@@ -1204,6 +1208,12 @@ var GameDirector = {
       ctx.textAlign = "center";
       ctx.fillText("WASD 移動  左Click 攻撃", CANVAS_W / 2, hintY + 16);
     }
+
+    // Floating score popups
+    FloatingScoreSystem.draw(ctx);
+
+    // Onboarding hints
+    OnboardingSystem.draw(ctx);
 
     // Announcements
     AnnouncementSystem.draw(ctx);

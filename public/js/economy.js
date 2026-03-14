@@ -26,11 +26,11 @@ var ShoninSystem = {
     var terrain = TerrainManager.getTerrainAt(PlayerController.x, PlayerController.y);
     var incomeRate = 0;
     if (terrain === TERRAIN_TYPES.CASTLE_TOWN) {
-      incomeRate = 10;
-      this.currentTerrainLabel = "城下町 +10/s";
+      incomeRate = 5;
+      this.currentTerrainLabel = "城下町 +5/s";
     } else if (terrain === TERRAIN_TYPES.VILLAGE) {
-      incomeRate = 4;
-      this.currentTerrainLabel = "村 +4/s";
+      incomeRate = 3;
+      this.currentTerrainLabel = "村 +3/s";
     } else if (terrain === TERRAIN_TYPES.GRASSLAND) {
       incomeRate = 1;
       this.currentTerrainLabel = "草原 +1/s";
@@ -40,7 +40,8 @@ var ShoninSystem = {
     }
     gameState.kokuPerSecond = incomeRate;
     gameState.koku += incomeRate * dt;
-    var upkeepCost = ParadeController.getLength() * 0.15 * dt;
+    FloatingScoreSystem.bufferTerrainIncome(incomeRate * dt);
+    var upkeepCost = ParadeController.getLength() * 0.3 * dt;
     gameState.koku -= upkeepCost;
     if (this.removeCooldown > 0) { this.removeCooldown -= dt; }
     if (gameState.koku < 0) {
@@ -61,12 +62,13 @@ var ShoninSystem = {
       }
     }
     if (this.hireCooldown > 0) { this.hireCooldown -= dt; }
-    if (gameState.koku >= 10 && this.hireCooldown <= 0) {
-      gameState.koku -= 10;
+    if (gameState.koku >= 15 && this.hireCooldown <= 0) {
+      gameState.koku -= 15;
+      FloatingScoreSystem.show(-15);
       ParadeController.addMember(PlayerController.x, PlayerController.y);
-      AnnouncementSystem.add("傭兵を雇った! (石高 -10)");
+      AnnouncementSystem.add("傭兵を雇った! (石高 -15)");
       ScoreManager.recalculate();
-      this.hireCooldown = 2;
+      this.hireCooldown = 3;
     }
   },
 
