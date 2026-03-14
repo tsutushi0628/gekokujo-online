@@ -1,0 +1,2380 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>下克上オンライン - 案1+5合体版</title>
+<style>
+@font-face {
+  font-family: 'Chika';
+  src: url('../docs/findings/sozai/chika-Regular.ttf') format('truetype');
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #e8e0d0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  font-family: 'Chika', 'Hiragino Mincho ProN', serif;
+  color: #3a3020;
+  overflow: hidden;
+}
+#game-container { position: relative; width: 800px; height: 600px; }
+canvas { display: block; border: 3px solid #8b7355; cursor: crosshair; }
+.screen-overlay {
+  position: absolute; top: 0; left: 0; width: 800px; height: 600px;
+  display: none; flex-direction: column; justify-content: center; align-items: center;
+  background: rgba(245, 240, 230, 0.97); z-index: 10;
+}
+.screen-overlay.active { display: flex; }
+#title-screen { text-align: center; }
+#title-screen h1 {
+  font-size: 48px; color: #5a4020;
+  text-shadow: 1px 1px 4px rgba(0,0,0,0.2); margin-bottom: 8px; letter-spacing: 8px;
+}
+#title-screen .subtitle { font-size: 18px; color: #8a7a60; letter-spacing: 4px; margin-bottom: 10px; }
+#title-screen .tagline { font-size: 22px; color: #7a5a30; margin-bottom: 40px; font-style: italic; letter-spacing: 2px; }
+.btn {
+  background: linear-gradient(180deg, #7a5a30 0%, #5a4020 100%);
+  color: #f5f0e0; border: 2px solid #8b7355; padding: 14px 48px;
+  font-size: 22px; font-family: inherit; cursor: pointer; letter-spacing: 4px; transition: all 0.2s;
+}
+.btn:hover { background: linear-gradient(180deg, #8a6a3a 0%, #6a5030 100%); transform: scale(1.05); }
+.btn:active { transform: scale(0.98); }
+#char-select { text-align: center; }
+#char-select h2 { font-size: 30px; color: #5a4020; margin-bottom: 30px; letter-spacing: 4px; }
+.char-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; padding: 0 30px; }
+.char-card {
+  background: rgba(255, 250, 240, 0.9); border: 2px solid #c0b090; padding: 16px;
+  cursor: pointer; transition: all 0.2s; text-align: left;
+}
+.char-card:hover { border-color: #7a5a30; background: rgba(255, 248, 230, 1); transform: translateY(-2px); }
+.char-card .char-emoji { font-size: 36px; margin-bottom: 4px; }
+.char-card .char-name { font-size: 20px; color: #5a4020; margin-bottom: 4px; }
+.char-card .char-type { font-size: 12px; color: #8a7a60; margin-bottom: 8px; }
+.char-card .char-desc { font-size: 13px; color: #6a5a40; line-height: 1.5; }
+.char-card .char-stars { font-size: 12px; color: #7a5a30; margin-top: 6px; }
+#result-screen { text-align: center; }
+#result-screen h2 { font-size: 36px; margin-bottom: 20px; letter-spacing: 4px; }
+#result-screen .result-score { font-size: 28px; color: #5a4020; margin-bottom: 10px; }
+#result-screen .result-rank { font-size: 22px; color: #8a7a60; margin-bottom: 30px; }
+#result-screen .result-details { font-size: 16px; color: #6a5a40; margin-bottom: 30px; line-height: 1.8; white-space: pre-line; }
+.dialog-overlay {
+  position: absolute; top: 0; left: 0; width: 800px; height: 600px;
+  display: none; justify-content: center; align-items: center;
+  background: rgba(0, 0, 0, 0.4); z-index: 20;
+}
+.dialog-overlay.active { display: flex; }
+.dialog-box { background: #f5f0e0; border: 3px solid #8b7355; padding: 30px 40px; text-align: center; max-width: 400px; }
+.dialog-box p { font-size: 20px; margin-bottom: 20px; line-height: 1.6; color: #3a3020; }
+.dialog-buttons { display: flex; gap: 16px; justify-content: center; }
+.dialog-btn {
+  background: linear-gradient(180deg, #d0c0a0 0%, #b0a080 100%);
+  color: #3a3020; border: 2px solid #8b7355; padding: 10px 30px;
+  font-size: 18px; font-family: inherit; cursor: pointer; letter-spacing: 2px;
+}
+.dialog-btn:hover { background: linear-gradient(180deg, #e0d0b0 0%, #c0b090 100%); }
+.dialog-btn.yes { border-color: #7a5a30; color: #5a4020; font-weight: bold; }
+.dialog-btn.no { border-color: #a07050; color: #8a5a3a; }
+#skull-screen { background: rgba(40, 30, 20, 0.97); }
+#skull-screen .skull-emoji { font-size: 100px; margin-bottom: 20px; }
+#skull-screen h2 { font-size: 36px; color: #c04040; margin-bottom: 30px; letter-spacing: 6px; }
+.success-banner { color: #7a5a30; text-shadow: 0 0 10px rgba(122,90,48,0.3); }
+.concentration-lines {
+  position: absolute; top: 0; left: 0; width: 800px; height: 600px;
+  pointer-events: none; z-index: 11; display: none;
+}
+</style>
+</head>
+<body>
+<div id="game-container">
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+  <div id="title-screen" class="screen-overlay active">
+    <h1>下克上</h1>
+    <div class="subtitle">GEKOKUJO ONLINE</div>
+    <div class="tagline">民衆の大行列を率いて成り上がれ</div>
+    <p style="font-size:14px;color:#8a7a60;margin-bottom:20px;">案1+5合体版</p>
+    <button class="btn" id="startBtn">START</button>
+  </div>
+  <div id="char-select" class="screen-overlay">
+    <h2>身分を選べ</h2>
+    <div class="char-grid">
+      <div class="char-card" data-char="ashigaru">
+        <div class="char-emoji">&#x2694;&#xFE0F;</div>
+        <div class="char-name">足軽（あしがる）</div>
+        <div class="char-type">バランス型 / 入門向け</div>
+        <div class="char-desc">前方扇状の広い攻撃。行列突撃後の再集結が速い</div>
+        <div class="char-stars">攻撃 &#x2605;&#x2605;&#x2605;&#x2606;&#x2606; 速度 &#x2605;&#x2605;&#x2605;&#x2606;&#x2606;</div>
+      </div>
+      <div class="char-card" data-char="nobushi">
+        <div class="char-emoji">&#x1F5E1;&#xFE0F;</div>
+        <div class="char-name">野武士（のぶし）</div>
+        <div class="char-type">高速攻撃型 / アクション向け</div>
+        <div class="char-desc">高攻撃力・高速移動。突撃威力1.8倍だが再集結が遅い</div>
+        <div class="char-stars">攻撃 &#x2605;&#x2605;&#x2605;&#x2605;&#x2606; 速度 &#x2605;&#x2605;&#x2605;&#x2605;&#x2606;</div>
+      </div>
+      <div class="char-card" data-char="farmer">
+        <div class="char-emoji">&#x1F468;&#x200D;&#x1F33E;</div>
+        <div class="char-name">農民（ひゃくしょう）</div>
+        <div class="char-type">テクニカル / 玄人向け</div>
+        <div class="char-desc">最弱だが「一揆」で大逆転。民衆を集めるほど全ステ強化</div>
+        <div class="char-stars">攻撃 &#x2605;&#x2606;&#x2606;&#x2606;&#x2606; 速度 &#x2605;&#x2605;&#x2606;&#x2606;&#x2606;</div>
+      </div>
+    </div>
+  </div>
+  <div id="result-screen" class="screen-overlay">
+    <h2 id="resultTitle"></h2>
+    <div class="result-score" id="resultScore"></div>
+    <div class="result-rank" id="resultRank"></div>
+    <div class="result-details" id="resultDetails"></div>
+    <button class="btn" id="replayBtn">もう一度</button>
+  </div>
+  <div id="skull-screen" class="screen-overlay">
+    <div class="skull-emoji">&#x1F480;</div>
+    <h2>下克上失敗.....</h2>
+    <button class="btn" id="skullReplayBtn" style="color:#f5f0e0;">もう一度</button>
+  </div>
+  <div id="dialog-overlay" class="dialog-overlay">
+    <div class="dialog-box">
+      <p id="dialogText"></p>
+      <div class="dialog-buttons">
+        <button class="dialog-btn yes" id="dialogYes">はい</button>
+        <button class="dialog-btn no" id="dialogNo">いいえ</button>
+      </div>
+    </div>
+  </div>
+  <canvas id="linesCanvas" class="concentration-lines" width="800" height="600"></canvas>
+</div>
+<script>
+(function() {
+  "use strict";
+
+  // ============================================================
+  // Constants
+  // ============================================================
+  var CANVAS_W = 800;
+  var CANVAS_H = 600;
+  var MAP_W = 2400;
+  var MAP_H = 1800;
+  var BLOCK_W = 800;
+  var BLOCK_H = 600;
+  var HISTORY_SPACING = 8;
+  var MAX_TIME = 90;
+  var MINIMAP_W = 128;
+  var MINIMAP_H = 96;
+  var MINIMAP_X = CANVAS_W - MINIMAP_W - 10;
+  var MINIMAP_Y = 10;
+
+  var CHAR_DEFS = {
+    ashigaru: {
+      name: "足軽", emoji: "\u2694\uFE0F", attack: 6, speed: 3.5,
+      recruitRange: 55, recruitTime: 400, followerBonus: 0.01,
+      regroupSpeed: 0.85, chargeMultiplier: 1.0
+    },
+    nobushi: {
+      name: "野武士", emoji: "\uD83D\uDDE1\uFE0F", attack: 9, speed: 4.5,
+      recruitRange: 45, recruitTime: 500, followerBonus: 0.02,
+      regroupSpeed: 0.5, chargeMultiplier: 1.8
+    },
+    farmer: {
+      name: "農民", emoji: "\uD83D\uDC68\u200D\uD83C\uDF3E", attack: 3, speed: 2.8,
+      recruitRange: 65, recruitTime: 500, followerBonus: 0.015,
+      regroupSpeed: 1.0, chargeMultiplier: 0.8
+    }
+  };
+
+  var RANKS = [
+    { name: "農民", threshold: 0, bonus: 1.0 },
+    { name: "足軽", threshold: 50, bonus: 1.2 },
+    { name: "侍", threshold: 150, bonus: 1.5 },
+    { name: "武将", threshold: 350, bonus: 2.0 },
+    { name: "大名", threshold: 700, bonus: 2.5 },
+    { name: "天下人", threshold: 1200, bonus: 3.0 }
+  ];
+
+  var ENEMY_DEFS = [
+    { name: "野盗", emoji: "\uD83D\uDC79", hp: 20, attack: 3, speed: 1.5, score: 10, size: 14, grit: 3 },
+    { name: "足軽隊", emoji: "\uD83D\uDD34", hp: 35, attack: 5, speed: 1.8, score: 25, size: 16, grit: 10 },
+    { name: "侍", emoji: "\u26E9\uFE0F", hp: 55, attack: 8, speed: 2.0, score: 50, size: 18, grit: 999 },
+    { name: "武将", emoji: "\uD83C\uDFF4", hp: 80, attack: 12, speed: 2.2, score: 80, size: 22, grit: 999 }
+  ];
+
+  var TERRAIN_TYPES = {
+    CASTLE: "castle",
+    RIVER: "river",
+    BRIDGE: "bridge",
+    GRASSLAND: "grassland",
+    CASTLE_TOWN: "castleTown",
+    MOUNTAIN: "mountain",
+    VILLAGE: "village",
+    EMPTY: "empty"
+  };
+
+  // ============================================================
+  // DOM References
+  // ============================================================
+  var canvas = document.getElementById("gameCanvas");
+  var ctx = canvas.getContext("2d");
+  var titleScreen = document.getElementById("title-screen");
+  var charSelect = document.getElementById("char-select");
+  var resultScreen = document.getElementById("result-screen");
+  var skullScreen = document.getElementById("skull-screen");
+  var dialogOverlay = document.getElementById("dialog-overlay");
+  var dialogTextEl = document.getElementById("dialogText");
+  var dialogYesBtn = document.getElementById("dialogYes");
+  var dialogNoBtn = document.getElementById("dialogNo");
+  var linesCanvas = document.getElementById("linesCanvas");
+
+  // ============================================================
+  // Shared Game State (minimal globals)
+  // ============================================================
+  var gameState = {
+    phase: "title",
+    paused: false,
+    selectedChar: null,
+    charDef: null,
+    gameTime: 0,
+    lastTimestamp: 0
+  };
+
+  var dialogCallback = null;
+
+  // ============================================================
+  // InputManager
+  // ============================================================
+  var InputManager = {
+    keys: { w: false, a: false, s: false, d: false, space: false },
+    mouseX: 400,
+    mouseY: 300,
+    mouseWorldX: 400,
+    mouseWorldY: 300,
+    leftClick: false,
+    rightClick: false,
+
+    init: function() {
+      var self = this;
+      document.addEventListener("keydown", function(e) {
+        if (e.code === "KeyW") { self.keys.w = true; }
+        if (e.code === "KeyA") { self.keys.a = true; }
+        if (e.code === "KeyS") { self.keys.s = true; }
+        if (e.code === "KeyD") { self.keys.d = true; }
+        if (e.code === "Space") {
+          e.preventDefault();
+          self.keys.space = true;
+        }
+      });
+      document.addEventListener("keyup", function(e) {
+        if (e.code === "KeyW") { self.keys.w = false; }
+        if (e.code === "KeyA") { self.keys.a = false; }
+        if (e.code === "KeyS") { self.keys.s = false; }
+        if (e.code === "KeyD") { self.keys.d = false; }
+        if (e.code === "Space") { self.keys.space = false; }
+      });
+      canvas.addEventListener("mousemove", function(e) {
+        var rect = canvas.getBoundingClientRect();
+        self.mouseX = e.clientX - rect.left;
+        self.mouseY = e.clientY - rect.top;
+        self.mouseWorldX = self.mouseX + CameraController.x;
+        self.mouseWorldY = self.mouseY + CameraController.y;
+      });
+      canvas.addEventListener("click", function() {
+        self.leftClick = true;
+      });
+      canvas.addEventListener("contextmenu", function(e) {
+        e.preventDefault();
+        self.rightClick = true;
+      });
+    },
+
+    consumeLeftClick: function() {
+      if (this.leftClick) { this.leftClick = false; return true; }
+      return false;
+    },
+
+    consumeRightClick: function() {
+      if (this.rightClick) { this.rightClick = false; return true; }
+      return false;
+    },
+
+    consumeSpace: function() {
+      if (this.keys.space) { this.keys.space = false; return true; }
+      return false;
+    },
+
+    updateWorldMouse: function() {
+      this.mouseWorldX = this.mouseX + CameraController.x;
+      this.mouseWorldY = this.mouseY + CameraController.y;
+    }
+  };
+
+  // ============================================================
+  // MapGenerator
+  // ============================================================
+  var MapGenerator = {
+    grid: null,
+    castleBlock: null,
+    playerBlock: null,
+    bridges: [],
+    riverPath: null,
+
+    generate: function() {
+      this.grid = [];
+      for (var r = 0; r < 3; r++) {
+        this.grid[r] = [];
+        for (var c = 0; c < 3; c++) {
+          this.grid[r][c] = TERRAIN_TYPES.EMPTY;
+        }
+      }
+
+      // Castle on outer ring
+      var outerBlocks = [
+        [0,0],[0,1],[0,2],[1,0],[1,2],[2,0],[2,1],[2,2]
+      ];
+      var castleIdx = Math.floor(Math.random() * outerBlocks.length);
+      this.castleBlock = { r: outerBlocks[castleIdx][0], c: outerBlocks[castleIdx][1] };
+      this.grid[this.castleBlock.r][this.castleBlock.c] = TERRAIN_TYPES.CASTLE;
+
+      // Player at least 2 blocks away
+      var candidates = [];
+      for (var pr = 0; pr < 3; pr++) {
+        for (var pc = 0; pc < 3; pc++) {
+          var dist = Math.abs(pr - this.castleBlock.r) + Math.abs(pc - this.castleBlock.c);
+          if (dist >= 2) { candidates.push({ r: pr, c: pc }); }
+        }
+      }
+      var pIdx = Math.floor(Math.random() * candidates.length);
+      this.playerBlock = candidates[pIdx];
+
+      // Castle town adjacent to castle
+      var adjList = this._getAdjacent(this.castleBlock.r, this.castleBlock.c);
+      for (var ai = 0; ai < adjList.length; ai++) {
+        if (this.grid[adjList[ai].r][adjList[ai].c] === TERRAIN_TYPES.EMPTY) {
+          this.grid[adjList[ai].r][adjList[ai].c] = TERRAIN_TYPES.CASTLE_TOWN;
+          break;
+        }
+      }
+
+      // Mountain on shortest path
+      var midR = Math.round((this.castleBlock.r + this.playerBlock.r) / 2);
+      var midC = Math.round((this.castleBlock.c + this.playerBlock.c) / 2);
+      if (this.grid[midR][midC] === TERRAIN_TYPES.EMPTY) {
+        this.grid[midR][midC] = TERRAIN_TYPES.MOUNTAIN;
+      }
+
+      // Grasslands near player
+      var grassCount = 0;
+      for (var gr = 0; gr < 3; gr++) {
+        for (var gc = 0; gc < 3; gc++) {
+          if (grassCount >= 3) { break; }
+          if (this.grid[gr][gc] === TERRAIN_TYPES.EMPTY) {
+            var pd = Math.abs(gr - this.playerBlock.r) + Math.abs(gc - this.playerBlock.c);
+            if (pd <= 2 && Math.random() < 0.6) {
+              this.grid[gr][gc] = TERRAIN_TYPES.GRASSLAND;
+              grassCount++;
+            }
+          }
+        }
+      }
+
+      // Villages
+      for (var vr = 0; vr < 3; vr++) {
+        for (var vc = 0; vc < 3; vc++) {
+          if (this.grid[vr][vc] === TERRAIN_TYPES.EMPTY && Math.random() < 0.4) {
+            this.grid[vr][vc] = TERRAIN_TYPES.VILLAGE;
+          }
+        }
+      }
+
+      // Generate river between castle and player
+      this._generateRiver();
+
+      // Build terrain data
+      TerrainManager.buildFromGrid(this.grid, this.bridges, this.riverPath);
+    },
+
+    _getAdjacent: function(r, c) {
+      var result = [];
+      if (r > 0) { result.push({ r: r - 1, c: c }); }
+      if (r < 2) { result.push({ r: r + 1, c: c }); }
+      if (c > 0) { result.push({ r: r, c: c - 1 }); }
+      if (c < 2) { result.push({ r: r, c: c + 1 }); }
+      return result;
+    },
+
+    _generateRiver: function() {
+      // River crosses between castle and player
+      var castleCY = this.castleBlock.r * BLOCK_H + BLOCK_H / 2;
+      var playerCY = this.playerBlock.r * BLOCK_H + BLOCK_H / 2;
+      var riverY = (castleCY + playerCY) / 2;
+      // Clamp
+      if (riverY < 400) { riverY = 400; }
+      if (riverY > 1400) { riverY = 1400; }
+
+      this.riverPath = {
+        y: riverY,
+        height: 50
+      };
+
+      // Two bridges
+      var nearBridgeX = 200 + Math.random() * 600;
+      var farBridgeX = 1200 + Math.random() * 800;
+      this.bridges = [
+        { x: nearBridgeX, y: riverY - 10, w: 70, h: 70, safe: false },
+        { x: farBridgeX, y: riverY - 10, w: 120, h: 70, safe: true }
+      ];
+    },
+
+    getCastleWorldPos: function() {
+      return {
+        x: this.castleBlock.c * BLOCK_W + BLOCK_W / 2,
+        y: this.castleBlock.r * BLOCK_H + BLOCK_H / 2
+      };
+    },
+
+    getPlayerStartPos: function() {
+      return {
+        x: this.playerBlock.c * BLOCK_W + BLOCK_W / 2,
+        y: this.playerBlock.r * BLOCK_H + BLOCK_H / 2
+      };
+    }
+  };
+
+  // ============================================================
+  // TerrainManager
+  // ============================================================
+  var TerrainManager = {
+    blocks: [],
+    riverY: 0,
+    riverH: 50,
+    bridges: [],
+
+    buildFromGrid: function(grid, bridges, riverPath) {
+      this.blocks = [];
+      this.bridges = bridges;
+      if (riverPath) {
+        this.riverY = riverPath.y;
+        this.riverH = riverPath.height;
+      }
+
+      for (var r = 0; r < 3; r++) {
+        for (var c = 0; c < 3; c++) {
+          this.blocks.push({
+            type: grid[r][c],
+            x: c * BLOCK_W,
+            y: r * BLOCK_H,
+            w: BLOCK_W,
+            h: BLOCK_H,
+            row: r,
+            col: c
+          });
+        }
+      }
+    },
+
+    isInRiver: function(x, y) {
+      if (y >= this.riverY && y <= this.riverY + this.riverH) {
+        for (var i = 0; i < this.bridges.length; i++) {
+          var b = this.bridges[i];
+          if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
+            return false;
+          }
+        }
+        return true;
+      }
+      return false;
+    },
+
+    isOnBridge: function(x, y) {
+      for (var i = 0; i < this.bridges.length; i++) {
+        var b = this.bridges[i];
+        if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
+          return true;
+        }
+      }
+      return false;
+    },
+
+    isInGrassland: function(x, y) {
+      for (var i = 0; i < this.blocks.length; i++) {
+        var bl = this.blocks[i];
+        if (bl.type === TERRAIN_TYPES.GRASSLAND) {
+          if (x >= bl.x && x <= bl.x + bl.w && y >= bl.y && y <= bl.y + bl.h) {
+            return true;
+          }
+        }
+      }
+      return false;
+    },
+
+    getTerrainAt: function(x, y) {
+      for (var i = 0; i < this.blocks.length; i++) {
+        var bl = this.blocks[i];
+        if (x >= bl.x && x <= bl.x + bl.w && y >= bl.y && y <= bl.y + bl.h) {
+          return bl.type;
+        }
+      }
+      return TERRAIN_TYPES.EMPTY;
+    },
+
+    clampPosition: function(x, y) {
+      var nx = x;
+      var ny = y;
+      if (nx < 15) { nx = 15; }
+      if (nx > MAP_W - 15) { nx = MAP_W - 15; }
+      if (ny < 15) { ny = 15; }
+      if (ny > MAP_H - 15) { ny = MAP_H - 15; }
+      // River collision
+      if (this.isInRiver(nx, ny)) {
+        // Push out of river
+        var riverMid = this.riverY + this.riverH / 2;
+        if (ny < riverMid) {
+          ny = this.riverY - 1;
+        } else {
+          ny = this.riverY + this.riverH + 1;
+        }
+      }
+      return { x: nx, y: ny };
+    }
+  };
+
+  // ============================================================
+  // CameraController
+  // ============================================================
+  var CameraController = {
+    x: 0,
+    y: 0,
+    deadZone: 80,
+
+    follow: function(targetX, targetY) {
+      var screenX = targetX - this.x;
+      var screenY = targetY - this.y;
+      var centerX = CANVAS_W / 2;
+      var centerY = CANVAS_H / 2;
+
+      if (screenX < centerX - this.deadZone) {
+        this.x = targetX - (centerX - this.deadZone);
+      }
+      if (screenX > centerX + this.deadZone) {
+        this.x = targetX - (centerX + this.deadZone);
+      }
+      if (screenY < centerY - this.deadZone) {
+        this.y = targetY - (centerY - this.deadZone);
+      }
+      if (screenY > centerY + this.deadZone) {
+        this.y = targetY - (centerY + this.deadZone);
+      }
+
+      // Clamp camera
+      if (this.x < 0) { this.x = 0; }
+      if (this.y < 0) { this.y = 0; }
+      if (this.x > MAP_W - CANVAS_W) { this.x = MAP_W - CANVAS_W; }
+      if (this.y > MAP_H - CANVAS_H) { this.y = MAP_H - CANVAS_H; }
+    },
+
+    worldToScreen: function(wx, wy) {
+      return { x: wx - this.x, y: wy - this.y };
+    },
+
+    isVisible: function(wx, wy, margin) {
+      var m = margin;
+      if (m === undefined) { m = 50; }
+      return wx >= this.x - m && wx <= this.x + CANVAS_W + m &&
+             wy >= this.y - m && wy <= this.y + CANVAS_H + m;
+    }
+  };
+
+  // ============================================================
+  // MinimapRenderer
+  // ============================================================
+  var MinimapRenderer = {
+    draw: function(ctx) {
+      var mx = MINIMAP_X;
+      var my = MINIMAP_Y;
+      var scaleX = MINIMAP_W / MAP_W;
+      var scaleY = MINIMAP_H / MAP_H;
+
+      // Background
+      ctx.fillStyle = "rgba(245, 240, 230, 0.85)";
+      ctx.fillRect(mx, my, MINIMAP_W, MINIMAP_H);
+      ctx.strokeStyle = "rgba(139, 115, 85, 0.6)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(mx, my, MINIMAP_W, MINIMAP_H);
+
+      // Terrain blocks
+      for (var i = 0; i < TerrainManager.blocks.length; i++) {
+        var bl = TerrainManager.blocks[i];
+        var bx = mx + bl.x * scaleX;
+        var by = my + bl.y * scaleY;
+        var bw = bl.w * scaleX;
+        var bh = bl.h * scaleY;
+        if (bl.type === TERRAIN_TYPES.CASTLE) {
+          ctx.fillStyle = "rgba(200, 60, 60, 0.5)";
+          ctx.fillRect(bx, by, bw, bh);
+        } else if (bl.type === TERRAIN_TYPES.GRASSLAND) {
+          ctx.fillStyle = "rgba(100, 160, 80, 0.3)";
+          ctx.fillRect(bx, by, bw, bh);
+        } else if (bl.type === TERRAIN_TYPES.CASTLE_TOWN) {
+          ctx.fillStyle = "rgba(160, 120, 80, 0.3)";
+          ctx.fillRect(bx, by, bw, bh);
+        } else if (bl.type === TERRAIN_TYPES.MOUNTAIN) {
+          ctx.fillStyle = "rgba(120, 100, 80, 0.3)";
+          ctx.fillRect(bx, by, bw, bh);
+        } else if (bl.type === TERRAIN_TYPES.VILLAGE) {
+          ctx.fillStyle = "rgba(180, 160, 120, 0.3)";
+          ctx.fillRect(bx, by, bw, bh);
+        }
+      }
+
+      // River
+      ctx.fillStyle = "rgba(100, 140, 200, 0.4)";
+      ctx.fillRect(mx, my + TerrainManager.riverY * scaleY, MINIMAP_W, TerrainManager.riverH * scaleY);
+
+      // Bridges (brown)
+      ctx.fillStyle = "rgba(139, 115, 85, 0.7)";
+      for (var bi = 0; bi < TerrainManager.bridges.length; bi++) {
+        var br = TerrainManager.bridges[bi];
+        ctx.fillRect(mx + br.x * scaleX, my + br.y * scaleY, br.w * scaleX, br.h * scaleY);
+      }
+
+      // Castle red icon
+      var castlePos = MapGenerator.getCastleWorldPos();
+      ctx.fillStyle = "#c03030";
+      ctx.fillRect(mx + castlePos.x * scaleX - 3, my + castlePos.y * scaleY - 3, 6, 6);
+
+      // Civilians (green dots)
+      ctx.fillStyle = "rgba(80, 160, 80, 0.6)";
+      var civs = CivilianManager.civilians;
+      for (var ci = 0; ci < civs.length; ci++) {
+        ctx.fillRect(mx + civs[ci].x * scaleX - 1, my + civs[ci].y * scaleY - 1, 2, 2);
+      }
+
+      // Player (white)
+      var px = mx + PlayerController.x * scaleX;
+      var py = my + PlayerController.y * scaleY;
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = "#3a3020";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(px, py, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Camera viewport
+      ctx.strokeStyle = "rgba(200, 180, 140, 0.5)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(mx + CameraController.x * scaleX, my + CameraController.y * scaleY, CANVAS_W * scaleX, CANVAS_H * scaleY);
+    }
+  };
+
+  // ============================================================
+  // PlayerController
+  // ============================================================
+  var PlayerController = {
+    x: 0, y: 0,
+    hp: 100, maxHp: 100,
+    size: 20,
+    dodging: false,
+    dodgeTimer: 0,
+    dodgeCooldown: 0,
+    dodgeDirX: 0,
+    dodgeDirY: 0,
+    knockbackTimer: 0,
+    knockbackDirX: 0,
+    knockbackDirY: 0,
+    attackCooldown: 0,
+    chargeCooldown: 0,
+
+    init: function(startPos) {
+      var def = gameState.charDef;
+      this.x = startPos.x;
+      this.y = startPos.y;
+      this.hp = 100;
+      this.maxHp = 100;
+      this.size = 20;
+      this.dodging = false;
+      this.dodgeTimer = 0;
+      this.dodgeCooldown = 0;
+      this.knockbackTimer = 0;
+      this.attackCooldown = 0;
+      this.chargeCooldown = 0;
+    },
+
+    update: function(dt) {
+      var def = gameState.charDef;
+      if (this.attackCooldown > 0) { this.attackCooldown -= dt; }
+      if (this.dodgeCooldown > 0) { this.dodgeCooldown -= dt; }
+      if (this.chargeCooldown > 0) { this.chargeCooldown -= dt; }
+
+      // HP regen
+      if (this.hp < this.maxHp) {
+        this.hp += dt * 2;
+        if (this.hp > this.maxHp) { this.hp = this.maxHp; }
+      }
+
+      // Knockback
+      if (this.knockbackTimer > 0) {
+        this.x += this.knockbackDirX;
+        this.y += this.knockbackDirY;
+        this.knockbackTimer -= dt;
+        this.knockbackDirX *= 0.9;
+        this.knockbackDirY *= 0.9;
+      }
+
+      // Dodge
+      if (this.dodging) {
+        this.x += this.dodgeDirX;
+        this.y += this.dodgeDirY;
+        this.dodgeTimer -= dt;
+        if (this.dodgeTimer <= 0) { this.dodging = false; }
+      } else if (this.knockbackTimer <= 0) {
+        // WASD movement
+        var spd = def.speed + (ScoreManager.rankIndex * 0.3);
+        // Farmer buff from parade
+        if (gameState.selectedChar === "farmer") {
+          spd = spd * (1.0 + ParadeController.getLength() * 0.015);
+        }
+        if (InputManager.keys.w) { this.y -= spd; }
+        if (InputManager.keys.s) { this.y += spd; }
+        if (InputManager.keys.a) { this.x -= spd; }
+        if (InputManager.keys.d) { this.x += spd; }
+      }
+
+      // Clamp
+      var clamped = TerrainManager.clampPosition(this.x, this.y);
+      this.x = clamped.x;
+      this.y = clamped.y;
+
+      // Dodge input
+      if (InputManager.consumeSpace() && this.dodgeCooldown <= 0 && !this.dodging) {
+        this.startDodge();
+      }
+    },
+
+    startDodge: function() {
+      this.dodging = true;
+      this.dodgeTimer = 0.25;
+      this.dodgeCooldown = 1.0;
+      var dx = InputManager.mouseWorldX - this.x;
+      var dy = InputManager.mouseWorldY - this.y;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 1) { dist = 1; }
+      // Dodge perpendicular
+      this.dodgeDirX = -(dy / dist) * 10;
+      this.dodgeDirY = (dx / dist) * 10;
+    },
+
+    applyKnockback: function(dirX, dirY, force) {
+      this.knockbackTimer = 0.3;
+      var dist = Math.sqrt(dirX * dirX + dirY * dirY);
+      if (dist < 1) { dist = 1; }
+      this.knockbackDirX = (dirX / dist) * force;
+      this.knockbackDirY = (dirY / dist) * force;
+    },
+
+    takeDamage: function(amount) {
+      this.hp -= amount;
+      EffectRenderer.add(this.x, this.y, "playerHit");
+      if (this.hp <= 0) {
+        this.hp = 0;
+        return true; // dead
+      }
+      return false;
+    },
+
+    getAttackPower: function() {
+      var def = gameState.charDef;
+      var base = def.attack;
+      var followerBonus = Math.floor(ParadeController.getLength() * def.followerBonus * base * 10);
+      return base + followerBonus;
+    },
+
+    draw: function(ctx) {
+      var sp = CameraController.worldToScreen(this.x, this.y);
+      ctx.font = "28px 'Chika', serif";
+      ctx.textAlign = "center";
+      if (this.dodging) { ctx.globalAlpha = 0.5; }
+      if (this.knockbackTimer > 0) { ctx.globalAlpha = 0.6 + Math.sin(performance.now() * 0.05) * 0.3; }
+      ctx.fillText(gameState.charDef.emoji, sp.x, sp.y + 8);
+      ctx.globalAlpha = 1.0;
+
+      // HP bar
+      ctx.fillStyle = "#ddd";
+      ctx.fillRect(sp.x - 15, sp.y - 22, 30, 4);
+      var hpR = this.hp / this.maxHp;
+      if (hpR > 0.5) { ctx.fillStyle = "#4a8"; }
+      else { ctx.fillStyle = "#c44"; }
+      ctx.fillRect(sp.x - 15, sp.y - 22, 30 * hpR, 4);
+    }
+  };
+
+  // ============================================================
+  // EnemyManager
+  // ============================================================
+  var EnemyManager = {
+    enemies: [],
+    spawnTimer: 0,
+    waveAnnounced: [false, false, false],
+
+    init: function() {
+      this.enemies = [];
+      this.spawnTimer = 0;
+      this.waveAnnounced = [false, false, false];
+    },
+
+    spawn: function() {
+      if (this.enemies.length >= 12) { return; }
+
+      var tier = 0;
+      if (gameState.gameTime > 60) { tier = 3; }
+      else if (gameState.gameTime > 30) { tier = 2; }
+      else if (gameState.gameTime > 15) { tier = 1; }
+
+      var idx = Math.min(tier, Math.floor(Math.random() * (tier + 1)));
+      var def = ENEMY_DEFS[idx];
+
+      // Spawn near edges of visible area or around map
+      var ex, ey;
+      var edge = Math.floor(Math.random() * 4);
+      var margin = 100;
+      if (edge === 0) { ex = CameraController.x + Math.random() * CANVAS_W; ey = CameraController.y - margin; }
+      else if (edge === 1) { ex = CameraController.x + CANVAS_W + margin; ey = CameraController.y + Math.random() * CANVAS_H; }
+      else if (edge === 2) { ex = CameraController.x + Math.random() * CANVAS_W; ey = CameraController.y + CANVAS_H + margin; }
+      else { ex = CameraController.x - margin; ey = CameraController.y + Math.random() * CANVAS_H; }
+
+      // Clamp to map
+      if (ex < 20) { ex = 20; }
+      if (ex > MAP_W - 20) { ex = MAP_W - 20; }
+      if (ey < 20) { ey = 20; }
+      if (ey > MAP_H - 20) { ey = MAP_H - 20; }
+      // Don't spawn in river
+      if (TerrainManager.isInRiver(ex, ey)) { ey = TerrainManager.riverY - 30; }
+
+      // Castle town enemies are stronger
+      var terrType = TerrainManager.getTerrainAt(ex, ey);
+      var hpMult = 1;
+      if (terrType === TERRAIN_TYPES.CASTLE_TOWN) { hpMult = 1.5; }
+      if (terrType === TERRAIN_TYPES.MOUNTAIN) { hpMult = 1.3; }
+
+      this.enemies.push({
+        x: ex, y: ey,
+        hp: Math.floor(def.hp * hpMult), maxHp: Math.floor(def.hp * hpMult),
+        attack: def.attack, speed: def.speed,
+        scoreValue: def.score, size: def.size,
+        emoji: def.emoji, name: def.name,
+        grit: def.grit,
+        attackTimer: 0,
+        surrendering: false, surrenderTimer: 0
+      });
+    },
+
+    update: function(dt) {
+      // Wave announcements
+      if (gameState.gameTime >= 30 && !this.waveAnnounced[0]) {
+        this.waveAnnounced[0] = true;
+        AnnouncementSystem.add("第二波 襲来!");
+      }
+      if (gameState.gameTime >= 60 && !this.waveAnnounced[1]) {
+        this.waveAnnounced[1] = true;
+        AnnouncementSystem.add("第三波 襲来!!");
+      }
+
+      // Spawning
+      this.spawnTimer += dt;
+      if (this.spawnTimer > 3) {
+        this.spawnTimer = 0;
+        if (this.enemies.length < 6) { this.spawn(); this.spawn(); }
+        else if (this.enemies.length < 10) { this.spawn(); }
+      }
+
+      var px = PlayerController.x;
+      var py = PlayerController.y;
+
+      for (var i = this.enemies.length - 1; i >= 0; i--) {
+        var en = this.enemies[i];
+
+        // Surrendering
+        if (en.surrendering) {
+          en.surrenderTimer -= dt;
+          if (en.surrenderTimer <= 0) {
+            ScoreManager.addRaw(en.scoreValue);
+            EffectRenderer.add(en.x, en.y, "surrender");
+            this.enemies.splice(i, 1);
+          }
+          continue;
+        }
+
+        // AI: move toward player
+        var dx = px - en.x;
+        var dy = py - en.y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist > 1) {
+          var newX = en.x + (dx / dist) * en.speed;
+          var newY = en.y + (dy / dist) * en.speed;
+          // Enemy avoids river too
+          if (!TerrainManager.isInRiver(newX, newY)) {
+            en.x = newX;
+            en.y = newY;
+          } else {
+            // Try to path around
+            en.x += (Math.random() - 0.5) * 3;
+          }
+        }
+
+        // Melee attack
+        if (dist < PlayerController.size + en.size && !PlayerController.dodging) {
+          en.attackTimer += dt;
+          if (en.attackTimer > 0.8) {
+            en.attackTimer = 0;
+            var dead = PlayerController.takeDamage(en.attack);
+            if (dead) {
+              GameDirector.endGame(false);
+              return;
+            }
+          }
+        }
+      }
+    },
+
+    removeEnemy: function(index) {
+      this.enemies.splice(index, 1);
+    },
+
+    draw: function(ctx) {
+      for (var i = 0; i < this.enemies.length; i++) {
+        var en = this.enemies[i];
+        if (!CameraController.isVisible(en.x, en.y, 30)) { continue; }
+        var sp = CameraController.worldToScreen(en.x, en.y);
+        ctx.textAlign = "center";
+
+        if (en.surrendering) {
+          ctx.font = (en.size + 4) + "px 'Chika', serif";
+          ctx.fillText("\uD83C\uDFF3\uFE0F", sp.x, sp.y + en.size / 3);
+          ctx.fillStyle = "#5a8a30";
+          ctx.font = "14px 'Chika', serif";
+          ctx.fillText("降伏!", sp.x, sp.y - en.size - 8);
+        } else {
+          ctx.font = (en.size + 4) + "px 'Chika', serif";
+          ctx.fillText(en.emoji, sp.x, sp.y + en.size / 3);
+        }
+
+        // HP bar
+        if (en.hp < en.maxHp && !en.surrendering) {
+          var hpR = en.hp / en.maxHp;
+          ctx.fillStyle = "#ddd";
+          ctx.fillRect(sp.x - 12, sp.y - en.size - 4, 24, 4);
+          if (hpR > 0.5) { ctx.fillStyle = "#4a8"; }
+          else { ctx.fillStyle = "#c44"; }
+          ctx.fillRect(sp.x - 12, sp.y - en.size - 4, 24 * hpR, 4);
+        }
+      }
+    }
+  };
+
+  // ============================================================
+  // CivilianManager
+  // ============================================================
+  var CivilianManager = {
+    civilians: [],
+    spawnTimer: 0,
+
+    init: function() {
+      this.civilians = [];
+      this.spawnTimer = 0;
+    },
+
+    spawn: function() {
+      if (this.civilians.length >= 20) { return; }
+      var cx, cy;
+      // Prefer grassland/village blocks
+      var grassBlocks = [];
+      for (var i = 0; i < TerrainManager.blocks.length; i++) {
+        var bl = TerrainManager.blocks[i];
+        if (bl.type === TERRAIN_TYPES.GRASSLAND || bl.type === TERRAIN_TYPES.VILLAGE) {
+          grassBlocks.push(bl);
+        }
+      }
+      if (grassBlocks.length > 0 && Math.random() < 0.6) {
+        var gb = grassBlocks[Math.floor(Math.random() * grassBlocks.length)];
+        cx = gb.x + 50 + Math.random() * (gb.w - 100);
+        cy = gb.y + 50 + Math.random() * (gb.h - 100);
+      } else {
+        cx = 50 + Math.random() * (MAP_W - 100);
+        cy = 50 + Math.random() * (MAP_H - 100);
+      }
+      if (TerrainManager.isInRiver(cx, cy)) { cy = TerrainManager.riverY - 30; }
+      this.civilians.push({
+        x: cx, y: cy,
+        wanderAngle: Math.random() * Math.PI * 2,
+        wanderTimer: 0,
+        recruitTimer: 0
+      });
+    },
+
+    update: function(dt) {
+      var def = gameState.charDef;
+      this.spawnTimer += dt;
+      if (this.spawnTimer > 4) {
+        this.spawnTimer = 0;
+        if (this.civilians.length < 15) { this.spawn(); }
+      }
+
+      for (var i = this.civilians.length - 1; i >= 0; i--) {
+        var civ = this.civilians[i];
+        // Wander
+        civ.wanderTimer += dt;
+        if (civ.wanderTimer > 2) { civ.wanderTimer = 0; civ.wanderAngle = Math.random() * Math.PI * 2; }
+        civ.x += Math.cos(civ.wanderAngle) * 0.3;
+        civ.y += Math.sin(civ.wanderAngle) * 0.3;
+
+        // Bounds
+        if (civ.x < 20) { civ.x = 20; civ.wanderAngle = 0; }
+        if (civ.x > MAP_W - 20) { civ.x = MAP_W - 20; civ.wanderAngle = Math.PI; }
+        if (civ.y < 20) { civ.y = 20; civ.wanderAngle = Math.PI / 2; }
+        if (civ.y > MAP_H - 20) { civ.y = MAP_H - 20; civ.wanderAngle = -Math.PI / 2; }
+
+        // Recruit check
+        var dx = PlayerController.x - civ.x;
+        var dy = PlayerController.y - civ.y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < def.recruitRange) {
+          civ.recruitTimer += dt * 1000;
+          if (civ.recruitTimer >= def.recruitTime) {
+            ParadeController.addMember(civ.x, civ.y);
+            EffectRenderer.add(civ.x, civ.y, "recruit");
+            this.civilians.splice(i, 1);
+          }
+        } else {
+          civ.recruitTimer = 0;
+        }
+      }
+    },
+
+    draw: function(ctx) {
+      var def = gameState.charDef;
+      for (var i = 0; i < this.civilians.length; i++) {
+        var civ = this.civilians[i];
+        if (!CameraController.isVisible(civ.x, civ.y, 20)) { continue; }
+        var sp = CameraController.worldToScreen(civ.x, civ.y);
+        ctx.font = "16px 'Chika', serif";
+        ctx.textAlign = "center";
+        ctx.fillText("\uD83D\uDC64", sp.x, sp.y + 4);
+
+        // Recruiting indicator
+        var dx = PlayerController.x - civ.x;
+        var dy = PlayerController.y - civ.y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < def.recruitRange) {
+          ctx.fillStyle = "#7a5a30";
+          ctx.font = "14px 'Chika', serif";
+          if (civ.recruitTimer > def.recruitTime * 0.5) {
+            ctx.fillText("!", sp.x, sp.y - 12);
+          } else {
+            ctx.fillText("?", sp.x, sp.y - 12);
+          }
+          ctx.fillStyle = "rgba(122,90,48,0.5)";
+          ctx.fillRect(sp.x - 10, sp.y - 20, 20 * (civ.recruitTimer / def.recruitTime), 3);
+        }
+      }
+    }
+  };
+
+  // ============================================================
+  // ParadeController (snake-style position history)
+  // ============================================================
+  var ParadeController = {
+    members: [],
+    positionHistory: [],
+
+    init: function() {
+      this.members = [];
+      this.positionHistory = [];
+    },
+
+    addMember: function(x, y) {
+      this.members.push({ x: x, y: y, detached: false });
+    },
+
+    getLength: function() {
+      return this.members.length;
+    },
+
+    update: function(dt) {
+      // Record player position history
+      this.positionHistory.push({ x: PlayerController.x, y: PlayerController.y });
+      // Keep reasonable size
+      var maxHistory = (this.members.length + 5) * HISTORY_SPACING;
+      if (this.positionHistory.length > maxHistory) {
+        this.positionHistory.splice(0, this.positionHistory.length - maxHistory);
+      }
+
+      // Apply ParadePhysics spacing based on terrain
+      var spacing = ParadePhysics.getSpacing(PlayerController.x, PlayerController.y);
+
+      // Update each member position from history
+      for (var i = 0; i < this.members.length; i++) {
+        var m = this.members[i];
+        if (m.detached) { continue; }
+        var histIdx = this.positionHistory.length - 1 - ((i + 1) * spacing);
+        if (histIdx < 0) { histIdx = 0; }
+        if (histIdx >= this.positionHistory.length) { histIdx = this.positionHistory.length - 1; }
+        var target = this.positionHistory[histIdx];
+        if (target) {
+          // Smooth follow
+          var dx = target.x - m.x;
+          var dy = target.y - m.y;
+          m.x += dx * 0.2;
+          m.y += dy * 0.2;
+        }
+      }
+    },
+
+    draw: function(ctx) {
+      var isIkki = IkkiSystem.active;
+      for (var i = 0; i < this.members.length; i++) {
+        var m = this.members[i];
+        if (!CameraController.isVisible(m.x, m.y, 20)) { continue; }
+        var sp = CameraController.worldToScreen(m.x, m.y);
+        ctx.font = "12px 'Chika', serif";
+        ctx.textAlign = "center";
+        if (isIkki) {
+          ctx.fillText("\uD83D\uDE24", sp.x, sp.y + 3);
+        } else {
+          ctx.fillText("\uD83D\uDE0A", sp.x, sp.y + 3);
+        }
+      }
+    }
+  };
+
+  // ============================================================
+  // ParadePhysics
+  // ============================================================
+  var ParadePhysics = {
+    getSpacing: function(x, y) {
+      if (TerrainManager.isOnBridge(x, y)) {
+        return 4; // tight on bridge
+      }
+      if (TerrainManager.isInGrassland(x, y)) {
+        return 12; // spread on grassland
+      }
+      return HISTORY_SPACING; // default
+    }
+  };
+
+  // ============================================================
+  // ParadeSplitter
+  // ============================================================
+  var ParadeSplitter = {
+    splitAt: function(splitIndex) {
+      if (splitIndex >= ParadeController.members.length) { return; }
+      var detached = ParadeController.members.splice(splitIndex);
+      // Return detached as civilians
+      for (var i = 0; i < detached.length; i++) {
+        CivilianManager.civilians.push({
+          x: detached[i].x,
+          y: detached[i].y,
+          wanderAngle: Math.random() * Math.PI * 2,
+          wanderTimer: 0,
+          recruitTimer: 0
+        });
+      }
+      ScoreManager.recalculate();
+    },
+
+    splitByLine: function(lineX, lineY, dirX, dirY) {
+      // Find the split point: which parade member is closest to the line
+      var px = PlayerController.x;
+      var py = PlayerController.y;
+      var bestIdx = Math.floor(ParadeController.members.length / 2);
+
+      if (TerrainManager.isOnBridge(px, py)) {
+        // On bridge, split deeper (more members lost)
+        bestIdx = Math.floor(ParadeController.members.length * 0.3);
+      }
+
+      if (bestIdx < 1) { bestIdx = 1; }
+      this.splitAt(bestIdx);
+    }
+  };
+
+  // ============================================================
+  // IntimidationSystem
+  // ============================================================
+  var IntimidationSystem = {
+    checkTimer: 0,
+
+    update: function(dt) {
+      this.checkTimer += dt;
+      if (this.checkTimer < 0.5) { return; }
+      this.checkTimer = 0;
+
+      var paradeLen = ParadeController.getLength();
+      if (paradeLen < 4) { return; }
+
+      for (var i = EnemyManager.enemies.length - 1; i >= 0; i--) {
+        var en = EnemyManager.enemies[i];
+        if (en.surrendering) { continue; }
+
+        var dx = en.x - PlayerController.x;
+        var dy = en.y - PlayerController.y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < 200 && paradeLen > en.grit) {
+          // Surrender!
+          en.surrendering = true;
+          en.surrenderTimer = 1.0;
+          AnnouncementSystem.add(en.name + " が行列に圧倒された!");
+        }
+      }
+    }
+  };
+
+  // ============================================================
+  // ParadeChargeSystem
+  // ============================================================
+  var ParadeChargeSystem = {
+    active: false,
+    timer: 0,
+    regroupTimer: 0,
+    dirX: 0,
+    dirY: 0,
+
+    start: function() {
+      if (ParadeController.getLength() < 3) {
+        AnnouncementSystem.add("行列が短すぎる!");
+        return;
+      }
+      if (this.active) { return; }
+      if (this.regroupTimer > 0) { return; }
+      if (PlayerController.chargeCooldown > 0) { return; }
+
+      var dx = InputManager.mouseWorldX - PlayerController.x;
+      var dy = InputManager.mouseWorldY - PlayerController.y;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 1) { dist = 1; }
+      this.dirX = dx / dist;
+      this.dirY = dy / dist;
+      this.active = true;
+      this.timer = 1.2;
+      PlayerController.chargeCooldown = 6;
+      AnnouncementSystem.add("行列突撃!!");
+    },
+
+    update: function(dt) {
+      if (!this.active && this.regroupTimer <= 0) { return; }
+
+      if (this.active) {
+        this.timer -= dt;
+        var chargeSpeed = 5 * gameState.charDef.chargeMultiplier;
+        // Move all parade members toward charge direction
+        for (var i = 0; i < ParadeController.members.length; i++) {
+          var m = ParadeController.members[i];
+          m.x += this.dirX * chargeSpeed;
+          m.y += this.dirY * chargeSpeed;
+
+          // Check collision with enemies
+          for (var j = EnemyManager.enemies.length - 1; j >= 0; j--) {
+            var en = EnemyManager.enemies[j];
+            if (en.surrendering) { continue; }
+            var edx = m.x - en.x;
+            var edy = m.y - en.y;
+            if (Math.sqrt(edx * edx + edy * edy) < en.size + 10) {
+              en.hp -= gameState.charDef.attack * gameState.charDef.chargeMultiplier;
+              EffectRenderer.add(en.x, en.y, "hit");
+              if (en.hp <= 0) {
+                ScoreManager.addRaw(en.scoreValue);
+                EffectRenderer.add(en.x, en.y, "destroy");
+                EnemyManager.enemies.splice(j, 1);
+              }
+            }
+          }
+        }
+
+        if (this.timer <= 0) {
+          this.active = false;
+          this.regroupTimer = 3 * (1 - gameState.charDef.regroupSpeed + 0.5);
+        }
+      }
+
+      if (this.regroupTimer > 0) {
+        this.regroupTimer -= dt;
+        // Regroup: members move back toward their history positions
+        // (handled naturally by ParadeController.update)
+      }
+    }
+  };
+
+  // ============================================================
+  // CombatSystem
+  // ============================================================
+  var CombatSystem = {
+    handleAttack: function() {
+      if (PlayerController.attackCooldown > 0) { return; }
+      var def = gameState.charDef;
+      var damage = PlayerController.getAttackPower();
+      var dx = InputManager.mouseWorldX - PlayerController.x;
+      var dy = InputManager.mouseWorldY - PlayerController.y;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 1) { dist = 1; }
+      var angle = Math.atan2(dy, dx);
+
+      if (gameState.selectedChar === "ashigaru") {
+        // Fan 3 projectiles
+        for (var pi = 0; pi < 3; pi++) {
+          var a = angle - 0.3 + 0.3 * pi;
+          ProjectileManager.add(PlayerController.x, PlayerController.y, Math.cos(a) * 8, Math.sin(a) * 8, damage, 35, 5, "#8a6a30");
+        }
+      } else if (gameState.selectedChar === "nobushi") {
+        // Fast single
+        ProjectileManager.add(PlayerController.x, PlayerController.y, Math.cos(angle) * 12, Math.sin(angle) * 12, Math.floor(damage * 1.5), 30, 7, "#a04030");
+      } else {
+        // Farmer: normal
+        ProjectileManager.add(PlayerController.x, PlayerController.y, Math.cos(angle) * 6, Math.sin(angle) * 6, damage, 40, 4, "#6a8a30");
+      }
+      PlayerController.attackCooldown = 0.25;
+
+      // Farmer: attack hits can attract civilians
+      if (gameState.selectedChar === "farmer" && Math.random() < 0.2) {
+        CivilianManager.spawn();
+      }
+    }
+  };
+
+  // ============================================================
+  // ProjectileManager
+  // ============================================================
+  var ProjectileManager = {
+    projectiles: [],
+
+    init: function() { this.projectiles = []; },
+
+    add: function(x, y, vx, vy, damage, life, size, color) {
+      this.projectiles.push({ x: x, y: y, vx: vx, vy: vy, damage: damage, life: life, size: size, color: color });
+    },
+
+    update: function(dt) {
+      for (var i = this.projectiles.length - 1; i >= 0; i--) {
+        var p = this.projectiles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        if (p.life <= 0 || p.x < -20 || p.x > MAP_W + 20 || p.y < -20 || p.y > MAP_H + 20) {
+          this.projectiles.splice(i, 1);
+          continue;
+        }
+
+        // Hit enemies
+        for (var j = EnemyManager.enemies.length - 1; j >= 0; j--) {
+          var en = EnemyManager.enemies[j];
+          if (en.surrendering) { continue; }
+          var dx = p.x - en.x;
+          var dy = p.y - en.y;
+          if (Math.sqrt(dx * dx + dy * dy) < en.size + p.size) {
+            en.hp -= p.damage;
+            EffectRenderer.add(en.x, en.y, "hit");
+            this.projectiles.splice(i, 1);
+            if (en.hp <= 0) {
+              ScoreManager.addRaw(en.scoreValue);
+              EffectRenderer.add(en.x, en.y, "destroy");
+              EnemyManager.enemies.splice(j, 1);
+            }
+            break;
+          }
+        }
+
+        // Hit gekokujo boss
+        if (GekokujoSystem.boss) {
+          var boss = GekokujoSystem.boss;
+          if (i >= 0 && i < this.projectiles.length) {
+            var bp = this.projectiles[i];
+            if (bp) {
+              var bdx = bp.x - boss.x;
+              var bdy = bp.y - boss.y;
+              if (Math.sqrt(bdx * bdx + bdy * bdy) < boss.size + bp.size) {
+                boss.hp -= bp.damage;
+                EffectRenderer.add(boss.x, boss.y, "hit");
+                this.projectiles.splice(i, 1);
+                if (boss.hp <= 0) { GekokujoSystem.success(); }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    draw: function(ctx) {
+      for (var i = 0; i < this.projectiles.length; i++) {
+        var p = this.projectiles[i];
+        if (!CameraController.isVisible(p.x, p.y, 10)) { continue; }
+        var sp = CameraController.worldToScreen(p.x, p.y);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  };
+
+  // ============================================================
+  // TsujigiriSystem
+  // ============================================================
+  var TsujigiriSystem = {
+    scheduled: [],
+    warning: null,
+    active: null,
+
+    init: function() {
+      this.scheduled = [];
+      this.warning = null;
+      this.active = null;
+      var count = 1 + Math.floor(Math.random() * 2);
+      for (var i = 0; i < count; i++) {
+        this.scheduled.push(20 + Math.random() * 50);
+      }
+    },
+
+    update: function(dt) {
+      // Check schedule
+      for (var i = this.scheduled.length - 1; i >= 0; i--) {
+        if (gameState.gameTime >= this.scheduled[i] && !this.warning && !this.active) {
+          this.scheduled.splice(i, 1);
+          this.startWarning();
+        }
+      }
+
+      // Warning
+      if (this.warning) {
+        this.warning.timer -= dt;
+        if (this.warning.timer <= 0) { this.launch(); }
+      }
+
+      // Active tsujigiri
+      if (this.active) {
+        this.active.x += this.active.vx;
+        this.active.y += this.active.vy;
+
+        var dx = this.active.x - PlayerController.x;
+        var dy = this.active.y - PlayerController.y;
+        if (Math.sqrt(dx * dx + dy * dy) < 30 && !PlayerController.dodging) {
+          // Hit!
+          AnnouncementSystem.add("辻斬りにあってしまった!");
+          PlayerController.applyKnockback(this.active.vx, this.active.vy, 15);
+          EffectRenderer.add(PlayerController.x, PlayerController.y, "playerHit");
+          // Split parade
+          ParadeSplitter.splitByLine(this.active.x, this.active.y, this.active.vx, this.active.vy);
+          this.active = null;
+        }
+
+        if (this.active) {
+          if (this.active.x < -50 || this.active.x > MAP_W + 50 || this.active.y < -50 || this.active.y > MAP_H + 50) {
+            this.active = null;
+          }
+        }
+      }
+    },
+
+    startWarning: function() {
+      this.warning = { timer: 0.5, x: PlayerController.x, y: PlayerController.y };
+      AnnouncementSystem.add("辻斬りだ! SPACEで回避!");
+    },
+
+    launch: function() {
+      var tx = this.warning.x;
+      var ty = this.warning.y;
+      // Come from off screen edge
+      var edge = Math.floor(Math.random() * 4);
+      var sx, sy;
+      if (edge === 0) { sx = CameraController.x - 50; sy = ty; }
+      else if (edge === 1) { sx = CameraController.x + CANVAS_W + 50; sy = ty; }
+      else if (edge === 2) { sx = tx; sy = CameraController.y - 50; }
+      else { sx = tx; sy = CameraController.y + CANVAS_H + 50; }
+      var dx = tx - sx;
+      var dy = ty - sy;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 1) { dist = 1; }
+      this.active = { x: sx, y: sy, vx: (dx / dist) * 12, vy: (dy / dist) * 12 };
+      this.warning = null;
+    },
+
+    draw: function(ctx) {
+      if (this.warning) {
+        var sp = CameraController.worldToScreen(this.warning.x, this.warning.y);
+        ctx.font = "bold 40px 'Chika', serif";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#c03030";
+        ctx.fillText("!", sp.x, sp.y - 30);
+      }
+      if (this.active) {
+        if (CameraController.isVisible(this.active.x, this.active.y, 30)) {
+          var asp = CameraController.worldToScreen(this.active.x, this.active.y);
+          ctx.font = "24px 'Chika', serif";
+          ctx.textAlign = "center";
+          ctx.fillText("\u26A1", asp.x, asp.y + 6);
+        }
+      }
+    }
+  };
+
+  // ============================================================
+  // IkkiSystem
+  // ============================================================
+  var IkkiSystem = {
+    available: false,
+    triggered: false,
+    active: false,
+    timer: 0,
+    scheduleTime: 0,
+    killCount: 0,
+
+    init: function() {
+      this.available = (gameState.selectedChar === "farmer");
+      this.triggered = false;
+      this.active = false;
+      this.timer = 0;
+      this.killCount = 0;
+      if (this.available) {
+        this.scheduleTime = 30 + Math.random() * 25;
+      }
+    },
+
+    update: function(dt) {
+      if (!this.available) { return; }
+
+      // Trigger check
+      if (!this.triggered && !this.active && gameState.gameTime >= this.scheduleTime && ParadeController.getLength() >= 10) {
+        this.triggered = true;
+        this.available = false;
+        GameDirector.showDialog("一揆に参加する?", function(yes) {
+          if (yes) {
+            IkkiSystem.active = true;
+            IkkiSystem.timer = 10;
+            IkkiSystem.killCount = 0;
+            AnnouncementSystem.add("一揆発生!! 民衆が立ち上がった!!");
+          }
+        });
+      }
+
+      // Active ikki
+      if (this.active) {
+        this.timer -= dt;
+        // All parade members scatter and attack enemies
+        for (var i = 0; i < ParadeController.members.length; i++) {
+          var m = ParadeController.members[i];
+          // Find nearest enemy
+          var nearestDist = 300;
+          var nearestEnemy = null;
+          var nearestIdx = -1;
+          for (var j = 0; j < EnemyManager.enemies.length; j++) {
+            var en = EnemyManager.enemies[j];
+            if (en.surrendering) { continue; }
+            var edx = en.x - m.x;
+            var edy = en.y - m.y;
+            var eDist = Math.sqrt(edx * edx + edy * edy);
+            if (eDist < nearestDist) {
+              nearestDist = eDist;
+              nearestEnemy = en;
+              nearestIdx = j;
+            }
+          }
+          if (nearestEnemy) {
+            var dx = nearestEnemy.x - m.x;
+            var dy = nearestEnemy.y - m.y;
+            var dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 1) {
+              m.x += (dx / dist) * 4;
+              m.y += (dy / dist) * 4;
+            }
+            if (dist < 20) {
+              nearestEnemy.hp -= 2;
+              if (nearestEnemy.hp <= 0) {
+                ScoreManager.addRaw(nearestEnemy.scoreValue);
+                EffectRenderer.add(nearestEnemy.x, nearestEnemy.y, "destroy");
+                EnemyManager.enemies.splice(nearestIdx, 1);
+                this.killCount++;
+              }
+            }
+          }
+        }
+
+        if (this.timer <= 0) {
+          this.active = false;
+          if (this.killCount >= 3) {
+            AnnouncementSystem.add("一揆成功!! 民衆が更に集まった!");
+            for (var s = 0; s < 5; s++) { CivilianManager.spawn(); }
+            ScoreManager.addRaw(100);
+          } else {
+            AnnouncementSystem.add("一揆鎮圧... 民衆が散り散りに...");
+            ParadeController.members = [];
+          }
+          ScoreManager.recalculate();
+        }
+      }
+    }
+  };
+
+  // ============================================================
+  // GekokujoSystem
+  // ============================================================
+  var GekokujoSystem = {
+    available: true,
+    gateActive: false,
+    gatePos: null,
+    boss: null,
+    battleActive: false,
+    battleTimer: 0,
+    scheduleTime: 0,
+
+    init: function() {
+      this.available = true;
+      this.gateActive = false;
+      this.gatePos = null;
+      this.boss = null;
+      this.battleActive = false;
+      this.battleTimer = 0;
+      this.scheduleTime = 30 + Math.random() * 20;
+    },
+
+    update: function(dt) {
+      // Show gate
+      if (this.available && !this.gateActive && !this.battleActive && gameState.gameTime >= this.scheduleTime) {
+        var castlePos = MapGenerator.getCastleWorldPos();
+        this.gatePos = { x: castlePos.x, y: castlePos.y, timer: 30 };
+        this.gateActive = true;
+        this.available = false;
+        AnnouncementSystem.add("城門が出現した!");
+      }
+
+      // Gate approach
+      if (this.gatePos && !this.battleActive) {
+        this.gatePos.timer -= dt;
+        if (this.gatePos.timer <= 0) {
+          this.gatePos = null;
+          this.gateActive = false;
+          return;
+        }
+
+        var dx = PlayerController.x - this.gatePos.x;
+        var dy = PlayerController.y - this.gatePos.y;
+        if (Math.sqrt(dx * dx + dy * dy) < 60) {
+          this.gateActive = false;
+          var savedGatePos = this.gatePos;
+          this.gatePos = null;
+          GameDirector.showDialog("城に攻め込む! 下克上を仕掛ける?", function(yes) {
+            if (yes) { GekokujoSystem.startBattle(); }
+          });
+        }
+      }
+
+      // Boss battle
+      if (this.battleActive) {
+        this.battleTimer -= dt;
+        var boss = this.boss;
+
+        // Boss AI
+        var bdx = PlayerController.x - boss.x;
+        var bdy = PlayerController.y - boss.y;
+        var bDist = Math.sqrt(bdx * bdx + bdy * bdy);
+        if (bDist > 1) {
+          boss.x += (bdx / bDist) * boss.speed;
+          boss.y += (bdy / bDist) * boss.speed;
+        }
+        if (bDist < PlayerController.size + boss.size && !PlayerController.dodging) {
+          boss.attackTimer += dt;
+          if (boss.attackTimer > 1.0) {
+            boss.attackTimer = 0;
+            var dead = PlayerController.takeDamage(boss.attack);
+            if (dead) { this.fail(); return; }
+          }
+        }
+
+        if (this.battleTimer <= 0) { this.fail(); }
+      }
+    },
+
+    startBattle: function() {
+      this.battleActive = true;
+      this.battleTimer = 15;
+      EnemyManager.enemies = [];
+      var rIdx = Math.min(ScoreManager.rankIndex + 2, RANKS.length - 1);
+      // Parade reduces boss HP
+      var hpReduction = ParadeController.getLength() * 3;
+      var bossHp = Math.max(30, 60 + rIdx * 40 - hpReduction);
+      this.boss = {
+        x: MapGenerator.getCastleWorldPos().x,
+        y: MapGenerator.getCastleWorldPos().y,
+        hp: bossHp, maxHp: bossHp,
+        attack: 8 + rIdx * 4,
+        speed: 2.5,
+        size: 35,
+        attackTimer: 0
+      };
+      AnnouncementSystem.add("下克上チャレンジ! 15秒で城主を倒せ!");
+    },
+
+    success: function() {
+      this.battleActive = false;
+      this.boss = null;
+      ScoreManager.addRaw(200 + ScoreManager.rankIndex * 100);
+      ScoreManager.rankIndex = Math.min(ScoreManager.rankIndex + 2, RANKS.length - 1);
+      ScoreManager.recalculate();
+      GameDirector.endGame(true);
+    },
+
+    fail: function() {
+      this.battleActive = false;
+      this.boss = null;
+      gameState.phase = "result";
+      skullScreen.classList.add("active");
+    },
+
+    draw: function(ctx) {
+      // Gate
+      if (this.gatePos) {
+        var sp = CameraController.worldToScreen(this.gatePos.x, this.gatePos.y);
+        ctx.font = "40px 'Chika', serif";
+        ctx.textAlign = "center";
+        ctx.fillText("\uD83C\uDFEF", sp.x, sp.y + 10);
+        ctx.font = "12px 'Chika', serif";
+        ctx.fillStyle = "#7a5a30";
+        ctx.fillText("城門", sp.x, sp.y + 30);
+        var pa = 0.3 + Math.sin(performance.now() / 300) * 0.2;
+        ctx.strokeStyle = "rgba(122,90,48," + pa + ")";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, 50, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Boss
+      if (this.boss) {
+        var bsp = CameraController.worldToScreen(this.boss.x, this.boss.y);
+        ctx.font = "50px 'Chika', serif";
+        ctx.textAlign = "center";
+        ctx.fillText("\uD83C\uDFEF", bsp.x, bsp.y + 15);
+        ctx.fillStyle = "#ddd";
+        ctx.fillRect(bsp.x - 30, bsp.y - 40, 60, 6);
+        ctx.fillStyle = "#c44";
+        ctx.fillRect(bsp.x - 30, bsp.y - 40, 60 * (this.boss.hp / this.boss.maxHp), 6);
+        ctx.fillStyle = "#5a3020";
+        ctx.font = "14px 'Chika', serif";
+        ctx.fillText("城主", bsp.x, bsp.y - 45);
+      }
+    }
+  };
+
+  // ============================================================
+  // ScoreManager
+  // ============================================================
+  var ScoreManager = {
+    rawScore: 0,
+    finalScore: 0,
+    rankIndex: 0,
+
+    init: function() {
+      this.rawScore = 0;
+      this.finalScore = 0;
+      this.rankIndex = 0;
+    },
+
+    addRaw: function(amount) {
+      this.rawScore += amount;
+      this.recalculate();
+      RankSystem.check();
+    },
+
+    recalculate: function() {
+      var def = gameState.charDef;
+      var followerMult = 1.0 + ParadeController.getLength() * def.followerBonus;
+      var rankBonus = RANKS[this.rankIndex].bonus;
+      this.finalScore = Math.floor(this.rawScore * followerMult * rankBonus);
+    }
+  };
+
+  // ============================================================
+  // RankSystem
+  // ============================================================
+  var RankSystem = {
+    check: function() {
+      for (var i = RANKS.length - 1; i >= 0; i--) {
+        if (ScoreManager.rawScore >= RANKS[i].threshold) {
+          if (i > ScoreManager.rankIndex) {
+            ScoreManager.rankIndex = i;
+            AnnouncementSystem.add("身分上昇! " + RANKS[i].name + "になった!");
+            ScoreManager.recalculate();
+          }
+          break;
+        }
+      }
+    },
+
+    getCurrentName: function() {
+      return RANKS[ScoreManager.rankIndex].name;
+    }
+  };
+
+  // ============================================================
+  // RankingManager
+  // ============================================================
+  var RankingManager = {
+    save: function(score, charName) {
+      var rankings = [];
+      var stored = localStorage.getItem("gekokujo_final_rankings");
+      if (stored) {
+        try { rankings = JSON.parse(stored); } catch(e) { rankings = []; }
+      }
+      rankings.push({ score: score, character: charName, time: Date.now() });
+      rankings.sort(function(a, b) { return b.score - a.score; });
+      if (rankings.length > 100) { rankings = rankings.slice(0, 100); }
+      localStorage.setItem("gekokujo_final_rankings", JSON.stringify(rankings));
+      return rankings;
+    },
+
+    getRank: function(score) {
+      var rankings = [];
+      var stored = localStorage.getItem("gekokujo_final_rankings");
+      if (stored) {
+        try { rankings = JSON.parse(stored); } catch(e) { rankings = []; }
+      }
+      var rank = 1;
+      for (var i = 0; i < rankings.length; i++) {
+        if (rankings[i].score > score) { rank++; } else { break; }
+      }
+      return rank;
+    }
+  };
+
+  // ============================================================
+  // EffectRenderer
+  // ============================================================
+  var EffectRenderer = {
+    effects: [],
+
+    init: function() { this.effects = []; },
+
+    add: function(x, y, type) {
+      this.effects.push({ x: x, y: y, type: type, timer: 0, maxTime: 0.5 });
+    },
+
+    update: function(dt) {
+      for (var i = this.effects.length - 1; i >= 0; i--) {
+        this.effects[i].timer += dt;
+        if (this.effects[i].timer >= this.effects[i].maxTime) {
+          this.effects.splice(i, 1);
+        }
+      }
+    },
+
+    draw: function(ctx) {
+      for (var i = 0; i < this.effects.length; i++) {
+        var eff = this.effects[i];
+        if (!CameraController.isVisible(eff.x, eff.y, 50)) { continue; }
+        var sp = CameraController.worldToScreen(eff.x, eff.y);
+        var alpha = 1.0 - (eff.timer / eff.maxTime);
+        ctx.textAlign = "center";
+        if (eff.type === "hit") {
+          ctx.fillStyle = "rgba(180,120,30," + alpha + ")";
+          ctx.font = "16px 'Chika', serif";
+          ctx.fillText("\uD83D\uDCA5", sp.x, sp.y - eff.timer * 30);
+        } else if (eff.type === "destroy") {
+          ctx.strokeStyle = "rgba(180,80,30," + alpha + ")";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(sp.x, sp.y, eff.timer * 40, 0, Math.PI * 2);
+          ctx.stroke();
+        } else if (eff.type === "recruit") {
+          ctx.fillStyle = "rgba(80,140,80," + alpha + ")";
+          ctx.font = "14px 'Chika', serif";
+          ctx.fillText("仲間!", sp.x, sp.y - eff.timer * 30);
+        } else if (eff.type === "playerHit") {
+          ctx.strokeStyle = "rgba(200,50,50," + alpha + ")";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(sp.x, sp.y, 25, 0, Math.PI * 2);
+          ctx.stroke();
+        } else if (eff.type === "surrender") {
+          ctx.fillStyle = "rgba(90,140,50," + alpha + ")";
+          ctx.font = "18px 'Chika', serif";
+          ctx.fillText("\uD83C\uDFF3\uFE0F", sp.x, sp.y - eff.timer * 20);
+          ctx.font = "14px 'Chika', serif";
+          ctx.fillText("降伏!", sp.x, sp.y - eff.timer * 20 - 20);
+        }
+      }
+    }
+  };
+
+  // ============================================================
+  // AnnouncementSystem
+  // ============================================================
+  var AnnouncementSystem = {
+    announcements: [],
+
+    init: function() { this.announcements = []; },
+
+    add: function(text) {
+      this.announcements.push({ text: text, timer: 0, maxTime: 2.5 });
+    },
+
+    update: function(dt) {
+      for (var i = this.announcements.length - 1; i >= 0; i--) {
+        this.announcements[i].timer += dt;
+        if (this.announcements[i].timer >= this.announcements[i].maxTime) {
+          this.announcements.splice(i, 1);
+        }
+      }
+    },
+
+    draw: function(ctx) {
+      ctx.textAlign = "center";
+      for (var i = 0; i < this.announcements.length; i++) {
+        var ann = this.announcements[i];
+        var alpha = 1.0 - (ann.timer / ann.maxTime);
+        ctx.fillStyle = "rgba(120,80,30," + alpha + ")";
+        ctx.font = "bold 18px 'Chika', serif";
+        ctx.fillText(ann.text, CANVAS_W / 2, 130 + i * 25 - ann.timer * 10);
+      }
+    }
+  };
+
+  // ============================================================
+  // ResultRenderer
+  // ============================================================
+  var ResultRenderer = {
+    showNormal: function() {
+      var score = ScoreManager.finalScore;
+      RankingManager.save(score, gameState.charDef.name);
+      var rank = RankingManager.getRank(score);
+
+      document.getElementById("resultTitle").textContent = "時間切れ";
+      document.getElementById("resultTitle").className = "";
+      document.getElementById("resultScore").textContent = "石高: " + score;
+      document.getElementById("resultRank").textContent = "お主は " + rank + "位";
+      document.getElementById("resultDetails").textContent =
+        "身分: " + RankSystem.getCurrentName() + "\n仲間の民衆: " + ParadeController.getLength() + "人\n使用キャラ: " + gameState.charDef.name;
+      resultScreen.classList.add("active");
+    },
+
+    showGekokujoSuccess: function() {
+      var score = ScoreManager.finalScore;
+      RankingManager.save(score, gameState.charDef.name);
+      var rank = RankingManager.getRank(score);
+
+      document.getElementById("resultTitle").textContent = "下克上成功!!";
+      document.getElementById("resultTitle").className = "success-banner";
+      document.getElementById("resultScore").textContent = "石高: " + score;
+      document.getElementById("resultRank").textContent = "お主は " + rank + "位";
+      document.getElementById("resultDetails").textContent =
+        "身分: " + RankSystem.getCurrentName() + "\n仲間の民衆: " + ParadeController.getLength() + "人\n使用キャラ: " + gameState.charDef.name;
+      ConcentrationLines.show(2000);
+      resultScreen.classList.add("active");
+    }
+  };
+
+  // ============================================================
+  // ConcentrationLines
+  // ============================================================
+  var ConcentrationLines = {
+    show: function(duration) {
+      var lCtx = linesCanvas.getContext("2d");
+      linesCanvas.style.display = "block";
+      lCtx.clearRect(0, 0, 800, 600);
+      lCtx.strokeStyle = "rgba(90,60,30,0.2)";
+      lCtx.lineWidth = 2;
+      for (var i = 0; i < 40; i++) {
+        var angle = (Math.PI * 2 / 40) * i;
+        var innerR = 100 + Math.random() * 100;
+        lCtx.beginPath();
+        lCtx.moveTo(400 + Math.cos(angle) * innerR, 300 + Math.sin(angle) * innerR);
+        lCtx.lineTo(400 + Math.cos(angle) * 400, 300 + Math.sin(angle) * 400);
+        lCtx.stroke();
+      }
+      setTimeout(function() { linesCanvas.style.display = "none"; }, duration);
+    }
+  };
+
+  // ============================================================
+  // GameDirector
+  // ============================================================
+  var GameDirector = {
+    init: function() {
+      gameState.gameTime = 0;
+      gameState.paused = false;
+      gameState.phase = "playing";
+
+      // Generate map
+      MapGenerator.generate();
+
+      // Init all systems
+      var startPos = MapGenerator.getPlayerStartPos();
+      PlayerController.init(startPos);
+      CameraController.x = startPos.x - CANVAS_W / 2;
+      CameraController.y = startPos.y - CANVAS_H / 2;
+
+      EnemyManager.init();
+      CivilianManager.init();
+      ParadeController.init();
+      ProjectileManager.init();
+      EffectRenderer.init();
+      AnnouncementSystem.init();
+      ScoreManager.init();
+      TsujigiriSystem.init();
+      IkkiSystem.init();
+      GekokujoSystem.init();
+
+      // Initial spawns
+      for (var i = 0; i < 5; i++) { EnemyManager.spawn(); }
+      for (var j = 0; j < 15; j++) { CivilianManager.spawn(); }
+
+      gameState.lastTimestamp = performance.now();
+      requestAnimationFrame(this.gameLoop.bind(this));
+    },
+
+    showDialog: function(text, callback) {
+      dialogTextEl.textContent = text;
+      dialogCallback = callback;
+      dialogOverlay.classList.add("active");
+      gameState.paused = true;
+    },
+
+    gameLoop: function(timestamp) {
+      if (gameState.phase !== "playing") { return; }
+      var dt = (timestamp - gameState.lastTimestamp) / 1000;
+      gameState.lastTimestamp = timestamp;
+      if (dt > 0.1) { dt = 0.1; }
+
+      if (!gameState.paused) {
+        this.update(dt);
+      }
+      this.render();
+      requestAnimationFrame(this.gameLoop.bind(this));
+    },
+
+    update: function(dt) {
+      gameState.gameTime += dt;
+      InputManager.updateWorldMouse();
+
+      // Time up
+      var remaining = MAX_TIME - gameState.gameTime;
+      if (remaining <= 0 && !GekokujoSystem.battleActive) {
+        this.endGame(false);
+        return;
+      }
+
+      // Handle input
+      if (InputManager.consumeLeftClick()) {
+        CombatSystem.handleAttack();
+      }
+      if (InputManager.consumeRightClick()) {
+        ParadeChargeSystem.start();
+      }
+
+      // Update all systems
+      PlayerController.update(dt);
+      CameraController.follow(PlayerController.x, PlayerController.y);
+      EnemyManager.update(dt);
+      CivilianManager.update(dt);
+      if (!ParadeChargeSystem.active) {
+        ParadeController.update(dt);
+      }
+      ParadeChargeSystem.update(dt);
+      IntimidationSystem.update(dt);
+      ProjectileManager.update(dt);
+      TsujigiriSystem.update(dt);
+      IkkiSystem.update(dt);
+      GekokujoSystem.update(dt);
+      EffectRenderer.update(dt);
+      AnnouncementSystem.update(dt);
+    },
+
+    render: function() {
+      ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+
+      // Background
+      ctx.fillStyle = "#f5f0e5";
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+      // Washi texture
+      ctx.fillStyle = "rgba(200,190,170,0.3)";
+      var startX = -(CameraController.x % 20);
+      var startY = -(CameraController.y % 20);
+      for (var wx = startX; wx < CANVAS_W; wx += 20) {
+        for (var wy = startY; wy < CANVAS_H; wy += 20) {
+          var worldWx = wx + CameraController.x;
+          var worldWy = wy + CameraController.y;
+          if (Math.sin(worldWx * 0.7 + worldWy * 1.3) > 0.5) {
+            ctx.fillRect(wx, wy, 2, 2);
+          }
+        }
+      }
+
+      // Draw terrain blocks
+      for (var bi = 0; bi < TerrainManager.blocks.length; bi++) {
+        var bl = TerrainManager.blocks[bi];
+        var bsp = CameraController.worldToScreen(bl.x, bl.y);
+        // Only draw if visible
+        if (bsp.x + bl.w < -50 || bsp.x > CANVAS_W + 50 || bsp.y + bl.h < -50 || bsp.y > CANVAS_H + 50) { continue; }
+
+        if (bl.type === TERRAIN_TYPES.CASTLE) {
+          ctx.fillStyle = "rgba(100,80,60,0.15)";
+          ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
+          ctx.strokeStyle = "rgba(80,60,40,0.3)";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(bsp.x, bsp.y, bl.w, bl.h);
+          ctx.font = "24px 'Chika', serif";
+          ctx.textAlign = "center";
+          ctx.fillStyle = "#8a7a60";
+          ctx.fillText("\uD83C\uDFEF", bsp.x + bl.w / 2, bsp.y + bl.h / 2 + 8);
+          ctx.font = "14px 'Chika', serif";
+          ctx.fillText("城", bsp.x + bl.w / 2, bsp.y + bl.h / 2 + 30);
+        } else if (bl.type === TERRAIN_TYPES.GRASSLAND) {
+          ctx.fillStyle = "rgba(100,160,80,0.12)";
+          ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
+          // Grass tufts
+          ctx.fillStyle = "rgba(80,130,60,0.2)";
+          for (var g = 0; g < 20; g++) {
+            var gx = bsp.x + Math.sin(bi * 10 + g * 7) * bl.w * 0.4 + bl.w / 2;
+            var gy = bsp.y + Math.cos(bi * 10 + g * 11) * bl.h * 0.4 + bl.h / 2;
+            ctx.beginPath();
+            ctx.arc(gx, gy, 8 + Math.sin(g) * 4, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        } else if (bl.type === TERRAIN_TYPES.CASTLE_TOWN) {
+          ctx.fillStyle = "rgba(160,130,90,0.12)";
+          ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
+          ctx.font = "14px 'Chika', serif";
+          ctx.textAlign = "center";
+          ctx.fillStyle = "#8a7a60";
+          ctx.fillText("城下町", bsp.x + bl.w / 2, bsp.y + bl.h / 2 + 5);
+        } else if (bl.type === TERRAIN_TYPES.MOUNTAIN) {
+          ctx.fillStyle = "rgba(120,100,80,0.12)";
+          ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
+          ctx.font = "20px 'Chika', serif";
+          ctx.textAlign = "center";
+          ctx.fillStyle = "#8a7a60";
+          ctx.fillText("\u26F0\uFE0F", bsp.x + bl.w / 2, bsp.y + bl.h / 2 + 8);
+          ctx.font = "14px 'Chika', serif";
+          ctx.fillText("山道", bsp.x + bl.w / 2, bsp.y + bl.h / 2 + 28);
+        } else if (bl.type === TERRAIN_TYPES.VILLAGE) {
+          ctx.fillStyle = "rgba(180,160,120,0.12)";
+          ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
+          ctx.font = "14px 'Chika', serif";
+          ctx.textAlign = "center";
+          ctx.fillStyle = "#8a7a60";
+          ctx.fillText("村", bsp.x + bl.w / 2, bsp.y + bl.h / 2 + 5);
+        }
+
+        // Block border (subtle grid)
+        ctx.strokeStyle = "rgba(180,170,150,0.15)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(bsp.x, bsp.y, bl.w, bl.h);
+      }
+
+      // River
+      var riverSp = CameraController.worldToScreen(0, TerrainManager.riverY);
+      if (riverSp.y + TerrainManager.riverH > 0 && riverSp.y < CANVAS_H) {
+        ctx.fillStyle = "rgba(120,160,200,0.3)";
+        ctx.fillRect(0, riverSp.y, CANVAS_W, TerrainManager.riverH);
+        // Waves
+        ctx.strokeStyle = "rgba(100,140,180,0.3)";
+        ctx.lineWidth = 1;
+        for (var rw = 0; rw < CANVAS_W; rw += 30) {
+          ctx.beginPath();
+          ctx.moveTo(rw, riverSp.y + TerrainManager.riverH / 2 - 3);
+          ctx.quadraticCurveTo(rw + 15, riverSp.y + TerrainManager.riverH / 2 - 8, rw + 30, riverSp.y + TerrainManager.riverH / 2 - 3);
+          ctx.stroke();
+        }
+      }
+
+      // Bridges
+      for (var bri = 0; bri < TerrainManager.bridges.length; bri++) {
+        var br = TerrainManager.bridges[bri];
+        var brSp = CameraController.worldToScreen(br.x, br.y);
+        if (brSp.x + br.w < 0 || brSp.x > CANVAS_W) { continue; }
+        ctx.fillStyle = "rgba(139,115,85,0.5)";
+        ctx.fillRect(brSp.x, brSp.y, br.w, br.h);
+        ctx.strokeStyle = "rgba(100,80,50,0.4)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(brSp.x, brSp.y, br.w, br.h);
+        ctx.font = "10px 'Chika', serif";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#6a5a40";
+        if (br.safe) {
+          ctx.fillText("大橋", brSp.x + br.w / 2, brSp.y + br.h / 2 + 3);
+        } else {
+          ctx.fillText("小橋", brSp.x + br.w / 2, brSp.y + br.h / 2 + 3);
+        }
+      }
+
+      // Game entities
+      CivilianManager.draw(ctx);
+      ParadeController.draw(ctx);
+      EnemyManager.draw(ctx);
+      PlayerController.draw(ctx);
+      ProjectileManager.draw(ctx);
+      TsujigiriSystem.draw(ctx);
+      GekokujoSystem.draw(ctx);
+      EffectRenderer.draw(ctx);
+
+      // === HUD (screen space) ===
+      ctx.textAlign = "left";
+      var remaining = Math.max(0, Math.ceil(MAX_TIME - gameState.gameTime));
+      if (GekokujoSystem.battleActive) { remaining = Math.max(0, Math.ceil(GekokujoSystem.battleTimer)); }
+      if (remaining <= 10) { ctx.fillStyle = "#c03030"; }
+      else { ctx.fillStyle = "#3a3020"; }
+      ctx.font = "bold 24px 'Chika', serif";
+      ctx.fillText("残り " + remaining + "秒", 20, 35);
+
+      if (GekokujoSystem.battleActive) {
+        ctx.fillStyle = "#c04030";
+        ctx.font = "bold 18px 'Chika', serif";
+        ctx.fillText("下克上チャレンジ!", 20, 58);
+      }
+
+      ctx.fillStyle = "#5a4020";
+      ctx.font = "20px 'Chika', serif";
+      ctx.textAlign = "right";
+      ctx.fillText("石高: " + ScoreManager.finalScore, MINIMAP_X - 10, 30);
+      ctx.fillStyle = "#8a7a60";
+      ctx.font = "16px 'Chika', serif";
+      ctx.fillText("身分: " + RankSystem.getCurrentName(), MINIMAP_X - 10, 52);
+      ctx.fillText("民衆: " + ParadeController.getLength() + "人", MINIMAP_X - 10, 72);
+      ctx.fillText(gameState.charDef.name + " " + gameState.charDef.emoji, MINIMAP_X - 10, 92);
+
+      // Dodge/charge indicators
+      ctx.textAlign = "left";
+      if (PlayerController.dodgeCooldown > 0) {
+        ctx.fillStyle = "#aaa";
+        ctx.font = "12px 'Chika', serif";
+        ctx.fillText("回避 [再使用まで]", 20, CANVAS_H - 15);
+      } else {
+        ctx.fillStyle = "#5a8a5a";
+        ctx.font = "12px 'Chika', serif";
+        ctx.fillText("回避 [SPACE] 準備完了", 20, CANVAS_H - 15);
+      }
+      if (PlayerController.chargeCooldown > 0) {
+        ctx.fillStyle = "#aaa";
+        ctx.font = "12px 'Chika', serif";
+        ctx.fillText("突撃 [右クリック] " + Math.ceil(PlayerController.chargeCooldown) + "秒", 20, CANVAS_H - 30);
+      } else {
+        ctx.fillStyle = "#5a8a5a";
+        ctx.font = "12px 'Chika', serif";
+        ctx.fillText("突撃 [右クリック] 準備完了", 20, CANVAS_H - 30);
+      }
+
+      // Ikki indicator
+      if (IkkiSystem.active) {
+        ctx.fillStyle = "#c06030";
+        ctx.font = "bold 20px 'Chika', serif";
+        ctx.textAlign = "center";
+        ctx.fillText("一揆発動中! 残り " + Math.ceil(IkkiSystem.timer) + "秒", CANVAS_W / 2, CANVAS_H - 20);
+      }
+
+      // Castle direction arrow
+      if (!GekokujoSystem.battleActive) {
+        var castlePos = MapGenerator.getCastleWorldPos();
+        var cdx = castlePos.x - PlayerController.x;
+        var cdy = castlePos.y - PlayerController.y;
+        var cDist = Math.sqrt(cdx * cdx + cdy * cdy);
+        if (cDist > 300) {
+          var cAngle = Math.atan2(cdy, cdx);
+          var arrowX = CANVAS_W / 2 + Math.cos(cAngle) * 250;
+          var arrowY = CANVAS_H / 2 + Math.sin(cAngle) * 200;
+          // Clamp to screen
+          if (arrowX < 30) { arrowX = 30; }
+          if (arrowX > CANVAS_W - 30) { arrowX = CANVAS_W - 30; }
+          if (arrowY < 30) { arrowY = 30; }
+          if (arrowY > CANVAS_H - 50) { arrowY = CANVAS_H - 50; }
+          ctx.save();
+          ctx.translate(arrowX, arrowY);
+          ctx.rotate(cAngle);
+          ctx.fillStyle = "rgba(200, 60, 60, 0.4)";
+          ctx.beginPath();
+          ctx.moveTo(15, 0);
+          ctx.lineTo(-8, -8);
+          ctx.lineTo(-8, 8);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+          ctx.fillStyle = "rgba(200, 60, 60, 0.4)";
+          ctx.font = "10px 'Chika', serif";
+          ctx.textAlign = "center";
+          ctx.fillText("城", arrowX, arrowY + 18);
+        }
+      }
+
+      // Controls hint
+      if (gameState.gameTime < 5) {
+        ctx.fillStyle = "rgba(100,90,70,0.5)";
+        ctx.font = "13px 'Chika', serif";
+        ctx.textAlign = "center";
+        ctx.fillText("WASD:移動  左クリック:攻撃  右クリック:行列突撃  SPACE:回避", CANVAS_W / 2, CANVAS_H - 50);
+      }
+
+      // Announcements
+      AnnouncementSystem.draw(ctx);
+
+      // Minimap (always on top)
+      MinimapRenderer.draw(ctx);
+    },
+
+    endGame: function(gekokujoWin) {
+      gameState.phase = "result";
+      ScoreManager.recalculate();
+      if (gekokujoWin) {
+        ResultRenderer.showGekokujoSuccess();
+      } else {
+        ResultRenderer.showNormal();
+      }
+    }
+  };
+
+  // ============================================================
+  // Scene Management (UI event wiring)
+  // ============================================================
+  document.getElementById("startBtn").addEventListener("click", function() {
+    titleScreen.classList.remove("active");
+    charSelect.classList.add("active");
+    gameState.phase = "charSelect";
+  });
+
+  var charCards = document.querySelectorAll(".char-card");
+  for (var i = 0; i < charCards.length; i++) {
+    charCards[i].addEventListener("click", function() {
+      var charKey = this.getAttribute("data-char");
+      gameState.selectedChar = charKey;
+      gameState.charDef = CHAR_DEFS[charKey];
+      charSelect.classList.remove("active");
+      GameDirector.init();
+    });
+  }
+
+  document.getElementById("replayBtn").addEventListener("click", function() {
+    resultScreen.classList.remove("active");
+    titleScreen.classList.add("active");
+    gameState.phase = "title";
+  });
+
+  document.getElementById("skullReplayBtn").addEventListener("click", function() {
+    skullScreen.classList.remove("active");
+    titleScreen.classList.add("active");
+    gameState.phase = "title";
+  });
+
+  dialogYesBtn.addEventListener("click", function() {
+    dialogOverlay.classList.remove("active");
+    gameState.paused = false;
+    if (dialogCallback) { dialogCallback(true); dialogCallback = null; }
+  });
+
+  dialogNoBtn.addEventListener("click", function() {
+    dialogOverlay.classList.remove("active");
+    gameState.paused = false;
+    if (dialogCallback) { dialogCallback(false); dialogCallback = null; }
+  });
+
+  // Init input
+  InputManager.init();
+
+})();
+</script>
+</body>
+</html>
