@@ -230,6 +230,14 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
   var TILE_MARGIN = 1;
   var TILE_STEP = TILE_SIZE + TILE_MARGIN; // 17px per tile
   var RENDER_TILE_SIZE = 32; // Rendered size on screen
+
+  var FONT_FAMILY = "'Chika', 'MokoMori', sans-serif";
+  var FONT = {
+    h1: "bold 48px " + FONT_FAMILY,
+    h2: "bold 28px " + FONT_FAMILY,
+    h3: "bold 20px " + FONT_FAMILY,
+    h5: "12px " + FONT_FAMILY
+  };
   var TILES_PER_BLOCK_X = Math.ceil(BLOCK_W / RENDER_TILE_SIZE); // 25
   var TILES_PER_BLOCK_Y = Math.ceil(BLOCK_H / RENDER_TILE_SIZE); // 19
 
@@ -361,6 +369,10 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
     ],
     castleTower: { col: 52, row: 9 },     // tower tile (TMX roof 2 uses)
     castleDoor: { col: 23, row: 24 },     // gate/door tile (TMX roof 1 use)
+    treeTall: [
+      { top: { col: 16, row: 9 }, bottom: { col: 16, row: 10 } },
+      { top: { col: 9, row: 7 }, bottom: { col: 9, row: 8 } }
+    ],
     house: [
       { col: 46, row: 10 }, // house top-left (TMX 3 uses)
       { col: 47, row: 10 }, // house top-right (TMX 3 uses)
@@ -723,11 +735,6 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
 
     consumeSpace: function() {
       if (this.keys.space) { this.keys.space = false; return true; }
-      return false;
-    },
-
-    consumeQ: function() {
-      if (this.keys.q) { this.keys.q = false; return true; }
       return false;
     },
 
@@ -1103,11 +1110,6 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
     hp: 100, maxHp: 100,
     size: 36,
     facingLeft: false,
-    dodging: false,
-    dodgeTimer: 0,
-    dodgeCooldown: 0,
-    dodgeDirX: 0,
-    dodgeDirY: 0,
     knockbackTimer: 0,
     knockbackDirX: 0,
     knockbackDirY: 0,
@@ -1122,9 +1124,6 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
       this.maxHp = 100;
       this.size = 36;
       this.facingLeft = false;
-      this.dodging = false;
-      this.dodgeTimer = 0;
-      this.dodgeCooldown = 0;
       this.knockbackTimer = 0;
       this.attackCooldown = 0;
       this.chargeCooldown = 0;
@@ -1133,7 +1132,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
     update: function(dt) {
       var def = gameState.charDef;
       if (this.attackCooldown > 0) { this.attackCooldown -= dt; }
-      if (this.dodgeCooldown > 0) { this.dodgeCooldown -= dt; }
+
       if (this.chargeCooldown > 0) { this.chargeCooldown -= dt; }
 
       // HP regen
@@ -1151,13 +1150,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
         this.knockbackDirY *= 0.9;
       }
 
-      // Dodge
-      if (this.dodging) {
-        this.x += this.dodgeDirX;
-        this.y += this.dodgeDirY;
-        this.dodgeTimer -= dt;
-        if (this.dodgeTimer <= 0) { this.dodging = false; }
-      } else if (this.knockbackTimer <= 0) {
+      if (this.knockbackTimer <= 0) {
         // WASD movement
         var spd = def.speed + (ScoreManager.rankIndex * 0.3);
         // Farmer buff from parade (2.5% per follower to all stats)
@@ -1176,19 +1169,6 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
       this.y = clamped.y;
 
       // SPACE is reserved for Tsujigiri QTE only
-    },
-
-    startDodge: function() {
-      this.dodging = true;
-      this.dodgeTimer = 0.25;
-      this.dodgeCooldown = 1.0;
-      var dx = InputManager.mouseWorldX - this.x;
-      var dy = InputManager.mouseWorldY - this.y;
-      var dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < 1) { dist = 1; }
-      // Dodge perpendicular
-      this.dodgeDirX = -(dy / dist) * 10;
-      this.dodgeDirY = (dx / dist) * 10;
     },
 
     applyKnockback: function(dirX, dirY, force) {
@@ -1218,7 +1198,6 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
 
     draw: function(ctx) {
       var sp = CameraController.worldToScreen(this.x, this.y);
-      if (this.dodging) { ctx.globalAlpha = 0.5; }
       if (this.knockbackTimer > 0) { ctx.globalAlpha = 0.6 + Math.sin(performance.now() * 0.05) * 0.3; }
 
       var spriteKey = CHAR_SPRITE_MAP[gameState.selectedChar];
@@ -1360,7 +1339,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
         }
 
         // Melee attack on player
-        if (dist < PlayerController.size + en.size && !PlayerController.dodging) {
+        if (dist < PlayerController.size + en.size) {
           en.attackTimer += dt;
           if (en.attackTimer > 0.8) {
             en.attackTimer = 0;
@@ -2429,7 +2408,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
           boss.x += (bdx / bDist) * boss.speed;
           boss.y += (bdy / bDist) * boss.speed;
         }
-        if (bDist < PlayerController.size + boss.size && !PlayerController.dodging) {
+        if (bDist < PlayerController.size + boss.size) {
           boss.attackTimer += dt;
           if (boss.attackTimer > 1.0) {
             boss.attackTimer = 0;
@@ -3136,9 +3115,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
       if (InputManager.consumeRightClick()) {
         ParadeChargeSystem.start();
       }
-      if (InputManager.consumeQ()) {
-        IkkiSystem.tryActivate();
-      }
+      // Q input is consumed by IkkiSystem.update() directly
 
       // Update all systems
       PlayerController.update(dt);
@@ -3432,7 +3409,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
         ctx.fillStyle = "rgba(0,0,0,0.4)";
         ctx.font = "13px 'Chika', 'MokoMori', sans-serif";
         ctx.textAlign = "center";
-        var controlsText = "WASD:移動  左クリック:攻撃  右クリック:行列突撃  SPACE:回避";
+        var controlsText = "WASD:移動  左クリック:攻撃  右クリック:行列突撃  SPACE:辻斬り返し";
         if (gameState.selectedChar === "farmer") {
           controlsText += "  Q:一揆";
         }
