@@ -1,0 +1,156 @@
+/* ========================================
+   Gekokujo Online - Stylesheet
+   ======================================== */
+
+/* --- CSS Variables --- */
+:root {
+  --color-primary: #1a1a1a;
+  --color-bg: #fafafa;
+  --color-white: #fff;
+  --color-gray-light: #f0f0f0;
+  --color-gray-mid: #ddd;
+  --color-gray-dark: #666;
+  --color-text-secondary: #2a2a2a;
+  --color-accent-yellow: #ffe033;
+  --color-danger: #c04040;
+  --color-overlay-light: rgba(255, 255, 255, 0.97);
+  --color-overlay-dark: rgba(0, 0, 0, 0.4);
+  --color-overlay-skull: rgba(10, 10, 10, 0.97);
+  --font-main: 'Chika', 'MokoMori', sans-serif;
+  --border-main: 3px solid var(--color-primary);
+  --game-width: 800px;
+  --game-height: 600px;
+}
+
+/* --- Fonts --- */
+@font-face {
+  font-family: 'Chika';
+  src: url('../sprites/chika-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'MokoMori';
+  src: url('../sprites/mikiyu-newpenji-p.ttf') format('truetype');
+}
+
+/* --- Reset / Base --- */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--color-bg);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  font-family: var(--font-main);
+  color: var(--color-primary);
+  overflow: hidden;
+}
+
+/* --- Layout --- */
+#game-container { position: relative; width: var(--game-width); height: var(--game-height); }
+canvas { display: block; border: var(--border-main); cursor: crosshair; }
+
+/* --- Overlay (shared) --- */
+.screen-overlay {
+  position: absolute; top: 0; left: 0;
+  width: var(--game-width); height: var(--game-height);
+  display: none; flex-direction: column; justify-content: center; align-items: center;
+  background: var(--color-overlay-light); z-index: 10;
+}
+.screen-overlay.active { display: flex; }
+
+/* --- Title Screen --- */
+#title-screen { text-align: center; }
+.title-image-wrapper { width: 500px; margin: 0 auto 20px auto; }
+.title-image-wrapper img { display: block; width: 100%; }
+
+/* --- Buttons --- */
+.btn {
+  background: var(--color-white);
+  color: var(--color-primary);
+  border: var(--border-main);
+  padding: 14px 48px;
+  border-radius: 40px;
+  font-size: 30px;
+  font-family: inherit;
+  cursor: pointer;
+  letter-spacing: 4px;
+  transition: all 0.2s;
+}
+.btn:hover { background: var(--color-gray-light); transform: scale(1.05); }
+.btn:active { transform: scale(0.98); }
+
+/* --- Character Select --- */
+#char-select { text-align: center; }
+#char-select h2 { font-size: 38px; color: var(--color-primary); margin-bottom: 30px; letter-spacing: 4px; }
+.char-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; padding: 0 10px; }
+.char-card {
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid var(--color-gray-mid);
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+.char-card:hover { border-color: var(--color-primary); background: var(--color-white); transform: translateY(-2px); }
+.char-img { display: block; height: 90px; margin: 0 auto 4px auto; image-rendering: pixelated; }
+.char-card .char-name { font-size: 26px; font-weight: bold; color: var(--color-primary); margin-bottom: 4px; }
+.char-card .char-type { font-size: 16px; color: var(--color-gray-dark); margin-bottom: 8px; }
+.char-card .char-desc { font-size: 16px; color: var(--color-text-secondary); line-height: 1.6; }
+.char-stats { margin-top: 8px; }
+.stat-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.stat-label { font-size: 16px; color: var(--color-gray-dark); }
+.stat-value { font-size: 18px; letter-spacing: 2px; }
+
+/* --- Result Screen --- */
+#result-screen { text-align: center; }
+#result-screen .result-score { font-size: 32px; color: var(--color-primary); margin-bottom: 6px; margin-top: 16px; }
+#result-screen .result-rank { margin-bottom: 30px; display: inline-block; text-align: left; }
+#result-screen .rank-label { font-size: 30px; font-weight: 700; color: var(--color-primary); margin-bottom: 4px; }
+#result-screen .rank-number {
+  font-size: 80px;
+  font-weight: 900;
+  color: var(--color-accent-yellow);
+  -webkit-text-stroke: 1px var(--color-primary);
+  text-stroke: 4px var(--color-primary);
+  letter-spacing: 4px;
+}
+#result-screen h2 { font-size: 48px; margin-bottom: 20px; letter-spacing: 4px; }
+#result-screen .result-details { font-size: 22px; color: var(--color-text-secondary); margin-bottom: 30px; line-height: 1.8; white-space: pre-line; }
+
+/* --- Dialog --- */
+.dialog-overlay {
+  position: absolute; top: 0; left: 0;
+  width: var(--game-width); height: var(--game-height);
+  display: none; justify-content: center; align-items: center;
+  background: var(--color-overlay-dark); z-index: 20;
+}
+.dialog-overlay.active { display: flex; }
+.dialog-box { background: var(--color-white); border: var(--border-main); padding: 30px 40px; text-align: center; max-width: 400px; }
+.dialog-box p { font-size: 26px; margin-bottom: 20px; line-height: 1.6; color: var(--color-primary); }
+.dialog-buttons { display: flex; gap: 16px; justify-content: center; }
+.dialog-btn {
+  background: var(--color-white);
+  color: var(--color-primary);
+  border: 2px solid var(--color-primary);
+  padding: 10px 30px;
+  font-size: 24px;
+  font-family: inherit;
+  cursor: pointer;
+  letter-spacing: 2px;
+}
+.dialog-btn:hover { background: #eee; }
+.dialog-btn.yes { border-color: var(--color-primary); color: var(--color-primary); font-weight: bold; }
+.dialog-btn.no { border-color: #999; color: var(--color-gray-dark); }
+
+/* --- Skull Screen --- */
+#skull-screen { background: var(--color-overlay-skull); }
+#skull-screen .skull-emoji { font-size: 100px; margin-bottom: 20px; }
+#skull-screen h2 { font-size: 48px; color: var(--color-danger); margin-bottom: 30px; letter-spacing: 6px; }
+
+/* --- Effects --- */
+.success-banner { color: var(--color-primary); text-shadow: 0 0 10px rgba(0, 0, 0, 0.2); }
+.concentration-lines {
+  position: absolute; top: 0; left: 0;
+  width: var(--game-width); height: var(--game-height);
+  pointer-events: none; z-index: 11; display: none;
+}
