@@ -837,7 +837,7 @@ var ProjectileManager = {
       ctx.save();
       ctx.translate(sp.x, sp.y);
       ctx.rotate(p.rotation);
-      ctx.font = "16px " + FONT_FAMILY;
+      ctx.font = "32px " + FONT_FAMILY;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(p.emoji, 0, 0);

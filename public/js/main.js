@@ -127,6 +127,10 @@ var GekokujoSystem = {
   declineCooldown: 0,
   declinedGatePos: null,
 
+  slowTimer: 0,
+  slowMultiplier: 1.0,
+  flashTimer: 0,
+
   init: function() {
     this.available = true;
     this.gateActive = false;
@@ -137,6 +141,26 @@ var GekokujoSystem = {
     this.scheduleTime = 30 + Math.random() * 20;
     this.declineCooldown = 0;
     this.declinedGatePos = null;
+    this.slowTimer = 0;
+    this.slowMultiplier = 1.0;
+    this.flashTimer = 0;
+  },
+
+  // Called with raw (unslowed) dt from gameLoop, before dt is multiplied
+  updateTimers: function(rawDt) {
+    if (this.slowTimer > 0) {
+      this.slowTimer -= rawDt;
+      if (this.slowTimer <= 0) {
+        this.slowTimer = 0;
+        this.slowMultiplier = 1.0;
+      }
+    }
+    if (this.flashTimer > 0) {
+      this.flashTimer -= rawDt;
+      if (this.flashTimer <= 0) {
+        this.flashTimer = 0;
+      }
+    }
   },
 
   update: function(dt) {
@@ -229,6 +253,28 @@ var GekokujoSystem = {
   },
 
   success: function() {
+    // Save boss position before clearing
+    var bossX = this.boss.x;
+    var bossY = this.boss.y;
+
+    // Slow-motion: 0.5 second at 0.1x speed
+    this.slowTimer = 0.5;
+    this.slowMultiplier = 0.1;
+
+    // Screen flash: 0.3 second white flash
+    this.flashTimer = 0.3;
+
+    // Announcement
+    AnnouncementSystem.add("下克上成就!!");
+
+    // Destroy effects at boss position (3-4 scattered)
+    var destroyCount = 3 + Math.floor(Math.random() * 2);
+    for (var di = 0; di < destroyCount; di++) {
+      var offsetX = (Math.random() - 0.5) * 80;
+      var offsetY = (Math.random() - 0.5) * 80;
+      EffectRenderer.add(bossX + offsetX, bossY + offsetY, "destroy");
+    }
+
     this.battleActive = false;
     this.boss = null;
     ScoreManager.addRaw(200 + ScoreManager.rankIndex * 100);
@@ -363,10 +409,14 @@ var HouseManager = {
     }
 
     // Filter out houses that overlap with the river
+    // Check center and edges (collisionRadius) to prevent visual overlap
     for (var hi = 0; hi < rawHouses.length; hi++) {
       var worldX = bl.x + rawHouses[hi].x;
       var worldY = bl.y + rawHouses[hi].y;
-      if (TerrainManager.isInRiver(worldX, worldY)) {
+      var hRadius = rawHouses[hi].collisionRadius;
+      if (TerrainManager.isInRiver(worldX, worldY)
+        || TerrainManager.isInRiver(worldX - hRadius, worldY)
+        || TerrainManager.isInRiver(worldX + hRadius, worldY)) {
         continue;
       }
       houses.push(rawHouses[hi]);
@@ -564,9 +614,14 @@ var GameDirector = {
 
   gameLoop: function(timestamp) {
     if (gameState.phase !== "playing") { return; }
-    var dt = (timestamp - gameState.lastTimestamp) / 1000;
+    var rawDt = (timestamp - gameState.lastTimestamp) / 1000;
     gameState.lastTimestamp = timestamp;
-    if (dt > 0.1) { dt = 0.1; }
+    if (rawDt > 0.1) { rawDt = 0.1; }
+
+    // Update slow-mo / flash timers with real (unslowed) dt
+    GekokujoSystem.updateTimers(rawDt);
+
+    var dt = rawDt * GekokujoSystem.slowMultiplier;
 
     if (!gameState.paused) {
       this.update(dt);
@@ -1131,6 +1186,13 @@ var GameDirector = {
     if (BaishuSystem.flashTimer > 0) {
       var dFlashAlpha = BaishuSystem.flashTimer / 0.3;
       ctx.fillStyle = "rgba(255,200,200," + (dFlashAlpha * 0.5) + ")";
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    }
+
+    // Gekokujo success flash (white)
+    if (GekokujoSystem.flashTimer > 0) {
+      var gFlashAlpha = GekokujoSystem.flashTimer / 0.3;
+      ctx.fillStyle = "rgba(255,255,255," + gFlashAlpha + ")";
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     }
 
