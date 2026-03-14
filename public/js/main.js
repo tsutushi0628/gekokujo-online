@@ -345,10 +345,21 @@ var HouseManager = {
     }
     if (!bl) { return houses; }
 
+    var rawHouses;
     if (bl.type === TERRAIN_TYPES.CASTLE_TOWN) {
-      houses = this._generateGrid(seed);
+      rawHouses = this._generateGrid(seed);
     } else {
-      houses = this._generateClusters(seed);
+      rawHouses = this._generateClusters(seed);
+    }
+
+    // Filter out houses that overlap with the river
+    for (var hi = 0; hi < rawHouses.length; hi++) {
+      var worldX = bl.x + rawHouses[hi].x;
+      var worldY = bl.y + rawHouses[hi].y;
+      if (TerrainManager.isInRiver(worldX, worldY)) {
+        continue;
+      }
+      houses.push(rawHouses[hi]);
     }
     return houses;
   },
@@ -597,10 +608,8 @@ var GameDirector = {
   },
 
   render: function() {
-    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-
-    // Background (solid fill prevents tile gap artifacts)
-    ctx.fillStyle = "#ffffff";
+    // Background: ground color fill (prevents tile gap artifacts)
+    ctx.fillStyle = "#d4c8a0";
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
     // Washi texture
@@ -641,18 +650,26 @@ var GameDirector = {
         ctx.fillStyle = "rgba(140, 130, 100, 0.2)";
         ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
       } else if (bl.type === TERRAIN_TYPES.EMPTY) {
-        // Tile tsuchi.png on empty terrain
+        // Tile tsuchi.png sparsely on empty terrain (background color matches ground)
         if (spritesLoaded && spriteImages.tsuchi) {
           var tsuchiImg = spriteImages.tsuchi;
           var tileSize = 64;
           var tsStartX = bsp.x;
           var tsStartY = bsp.y;
+          var tileCol = 0;
           for (var ttx = tsStartX; ttx < tsStartX + bl.w; ttx += tileSize) {
+            var tileRow = 0;
             for (var tty = tsStartY; tty < tsStartY + bl.h; tty += tileSize) {
-              var drawTW = Math.min(tileSize, tsStartX + bl.w - ttx);
-              var drawTH = Math.min(tileSize, tsStartY + bl.h - tty);
-              ctx.drawImage(tsuchiImg, 0, 0, SPRITE_DEFS.tsuchi.w * (drawTW / tileSize), SPRITE_DEFS.tsuchi.h * (drawTH / tileSize), ttx, tty, drawTW, drawTH);
+              // Seed-based sparse placement (~65%)
+              var tileSeed = ((bl.row * 7919 + bl.col * 6271 + tileCol * 131 + tileRow * 97) & 0x7fffffff) % 100;
+              if (tileSeed < 65) {
+                var drawTW = Math.min(tileSize, tsStartX + bl.w - ttx);
+                var drawTH = Math.min(tileSize, tsStartY + bl.h - tty);
+                ctx.drawImage(tsuchiImg, 0, 0, SPRITE_DEFS.tsuchi.w * (drawTW / tileSize), SPRITE_DEFS.tsuchi.h * (drawTH / tileSize), ttx, tty, drawTW, drawTH);
+              }
+              tileRow++;
             }
+            tileCol++;
           }
           ctx.fillStyle = "rgba(80, 120, 60, 0.05)";
           ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);

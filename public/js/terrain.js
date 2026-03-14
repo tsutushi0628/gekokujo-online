@@ -102,6 +102,26 @@ var MapGenerator = {
     // Random river width: 60px to 150px
     var riverWidth = 60 + Math.floor(Math.random() * 91);
 
+    // Ensure river does not overlap with the castle block
+    var castleLeft = this.castleBlock.c * BLOCK_W;
+    var castleRight = castleLeft + BLOCK_W;
+    var riverRight = riverX + riverWidth;
+    if (riverX < castleRight && riverRight > castleLeft) {
+      // River overlaps castle block — push river away
+      var pushLeft = castleRight - riverX;
+      var pushRight = riverRight - castleLeft;
+      if (pushLeft < pushRight) {
+        // Easier to push river to the right of castle
+        riverX = castleRight + 20;
+      } else {
+        // Push river to the left of castle
+        riverX = castleLeft - riverWidth - 20;
+      }
+      // Re-clamp
+      if (riverX < 100) { riverX = 100; }
+      if (riverX > MAP_W - riverWidth - 100) { riverX = MAP_W - riverWidth - 100; }
+    }
+
     this.riverPath = {
       x: riverX,
       width: riverWidth
