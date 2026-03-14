@@ -10,12 +10,16 @@ var MinimapRenderer = {
     var scaleX = MINIMAP_W / MAP_W;
     var scaleY = MINIMAP_H / MAP_H;
 
-    // Background
-    ctx.fillStyle = "rgba(240, 240, 240, 0.85)";
-    ctx.fillRect(mx, my, MINIMAP_W, MINIMAP_H);
-    ctx.strokeStyle = "rgba(0, 0, 0, 0.6)";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(mx, my, MINIMAP_W, MINIMAP_H);
+    // Background (washi panel style)
+    ctx.fillStyle = "rgba(245, 238, 225, 0.88)";
+    ctx.beginPath();
+    ctx.roundRect(mx, my, MINIMAP_W, MINIMAP_H, 10);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(160, 130, 90, 0.5)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(mx, my, MINIMAP_W, MINIMAP_H, 10);
+    ctx.stroke();
 
     // Terrain blocks
     for (var i = 0; i < TerrainManager.blocks.length; i++) {

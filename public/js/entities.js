@@ -274,6 +274,9 @@ var EnemyManager = {
         continue;
       }
 
+      // Skip normal AI if under doushiuchi (handled by DoushiuchiSystem)
+      if (en.doushiuchi) { continue; }
+
       // AI: move toward player
       var dx = px - en.x;
       var dy = py - en.y;
@@ -332,8 +335,12 @@ var EnemyManager = {
       var sp = CameraController.worldToScreen(en.x, en.y);
       ctx.textAlign = "center";
 
-      // Red border for enemies
-      ctx.strokeStyle = "rgba(255, 60, 60, 0.5)";
+      // Red border for enemies (purple if doushiuchi)
+      if (en.doushiuchi) {
+        ctx.strokeStyle = "rgba(180, 60, 255, 0.7)";
+      } else {
+        ctx.strokeStyle = "rgba(255, 60, 60, 0.5)";
+      }
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(sp.x, sp.y, en.size + 4, 0, Math.PI * 2);

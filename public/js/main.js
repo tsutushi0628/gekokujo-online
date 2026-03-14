@@ -204,13 +204,13 @@ var GekokujoSystem = {
         }
       }
 
-      if (this.battleTimer <= 0) { this.fail(); }
+      if (this.battleTimer <= 0) { this.retreat(); }
     }
   },
 
   startBattle: function() {
     this.battleActive = true;
-    this.battleTimer = 15;
+    this.battleTimer = 20;
     EnemyManager.enemies = [];
     var rIdx = Math.min(ScoreManager.rankIndex + 2, RANKS.length - 1);
     // Parade reduces boss HP
@@ -225,7 +225,7 @@ var GekokujoSystem = {
       size: 52,
       attackTimer: 0
     };
-    AnnouncementSystem.add("下克上チャレンジ! 15秒で城主を倒せ!");
+    AnnouncementSystem.add("下克上チャレンジ! 殿様出現! 20秒以内に倒せ!");
   },
 
   success: function() {
@@ -235,6 +235,16 @@ var GekokujoSystem = {
     ScoreManager.rankIndex = Math.min(ScoreManager.rankIndex + 2, RANKS.length - 1);
     ScoreManager.recalculate();
     GameDirector.endGame(true);
+  },
+
+  retreat: function() {
+    this.battleActive = false;
+    this.boss = null;
+    AnnouncementSystem.add("殿様は去った...");
+    // Allow re-challenge after 5 seconds
+    var castlePos = MapGenerator.getCastleWorldPos();
+    this.declineCooldown = 5;
+    this.declinedGatePos = { x: castlePos.x, y: castlePos.y };
   },
 
   fail: function() {
@@ -489,6 +499,8 @@ var GameDirector = {
     ScoreManager.init();
     TsujigiriSystem.init();
     IkkiSystem.init();
+    JumonjiSystem.init();
+    DoushiuchiSystem.init();
     ShoninSystem.init();
     GekokujoSystem.init();
 
@@ -586,7 +598,11 @@ var GameDirector = {
     if (InputManager.consumeRightClick()) {
       ParadeChargeSystem.start();
     }
-    if (InputManager.consumeQ()) { IkkiSystem.tryActivate(); }
+    if (InputManager.consumeQ()) {
+      if (gameState.selectedChar === "farmer") { IkkiSystem.tryActivate(); }
+      else if (gameState.selectedChar === "ashigaru") { JumonjiSystem.tryActivate(); }
+      else if (gameState.selectedChar === "merchant") { DoushiuchiSystem.tryActivate(); }
+    }
 
     // Update all systems
     PlayerController.update(dt);
@@ -601,6 +617,8 @@ var GameDirector = {
     ProjectileManager.update(dt);
     TsujigiriSystem.update(dt);
     IkkiSystem.update(dt);
+    JumonjiSystem.update(dt);
+    DoushiuchiSystem.update(dt);
     ShoninSystem.update(dt);
     GekokujoSystem.update(dt);
     EffectRenderer.update(dt);
@@ -829,78 +847,181 @@ var GameDirector = {
     GekokujoSystem.draw(ctx);
     EffectRenderer.draw(ctx);
 
-    // === HUD (screen space) ===
+    // === HUD (screen space) - 和紙パネルスタイル ===
+    var remaining = Math.max(0, MAX_TIME - gameState.gameTime);
+    var remainingCeil = Math.ceil(remaining);
+    if (GekokujoSystem.battleActive) {
+      remaining = Math.max(0, GekokujoSystem.battleTimer);
+      remainingCeil = Math.ceil(remaining);
+    }
+
+    // --- Top-left panel (timer) ---
+    var tlPanelW = 200;
+    var tlPanelH = GekokujoSystem.battleActive ? 70 : 48;
+    ctx.fillStyle = "rgba(245, 238, 225, 0.82)";
+    ctx.beginPath();
+    ctx.roundRect(10, 10, tlPanelW, tlPanelH, 12);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(160, 130, 90, 0.45)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(10, 10, tlPanelW, tlPanelH, 12);
+    ctx.stroke();
+
     ctx.textAlign = "left";
-    var remaining = Math.max(0, Math.ceil(MAX_TIME - gameState.gameTime));
-    if (GekokujoSystem.battleActive) { remaining = Math.max(0, Math.ceil(GekokujoSystem.battleTimer)); }
-    if (remaining <= 10) { ctx.fillStyle = "#c03030"; }
-    else { ctx.fillStyle = "#1a1a1a"; }
+    if (remainingCeil <= 10) { ctx.fillStyle = "#c03030"; }
+    else { ctx.fillStyle = "#3a2a1a"; }
     ctx.font = FONT.h2;
-    ctx.fillText("残り " + remaining + "秒", 20, 35);
+    ctx.fillText("残り " + remainingCeil + "秒", 22, 45);
 
     if (GekokujoSystem.battleActive) {
-      ctx.fillStyle = "#1a1a1a";
-      ctx.font = FONT.h3;
-      ctx.fillText("下克上チャレンジ!", 20, 58);
+      ctx.fillStyle = "#c03030";
+      ctx.font = FONT.h4;
+      ctx.fillText("殿様出現!", 22, 68);
     }
 
-    ctx.fillStyle = "#1a1a1a";
+    // --- Top-right panel (score/rank) ---
+    var trPanelW = 180;
+    var trPanelH = 58;
+    if (gameState.selectedChar === "merchant") { trPanelH = 78; }
+    var trPanelX = MINIMAP_X - trPanelW - 10;
+    ctx.fillStyle = "rgba(245, 238, 225, 0.82)";
+    ctx.beginPath();
+    ctx.roundRect(trPanelX, 10, trPanelW, trPanelH, 12);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(160, 130, 90, 0.45)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(trPanelX, 10, trPanelW, trPanelH, 12);
+    ctx.stroke();
+
+    ctx.fillStyle = "#3a2a1a";
     ctx.font = FONT.h3;
     ctx.textAlign = "right";
-    ctx.fillText("石高: " + ScoreManager.finalScore, MINIMAP_X - 10, 30);
-    ctx.fillStyle = "#2a2a2a";
+    ctx.fillText("石高: " + ScoreManager.finalScore, trPanelX + trPanelW - 12, 35);
     ctx.font = FONT.h4;
-    ctx.fillText("身分: " + RankSystem.getCurrentName(), MINIMAP_X - 10, 52);
-    ctx.fillText("民衆: " + ParadeController.getLength() + "人", MINIMAP_X - 10, 72);
-    ctx.fillText(gameState.charDef.name + " " + gameState.charDef.emoji, MINIMAP_X - 10, 92);
+    ctx.fillText("身分: " + RankSystem.getCurrentName(), trPanelX + trPanelW - 12, 58);
 
-    // Charge indicator
-    ctx.textAlign = "left";
-    if (PlayerController.chargeCooldown > 0) {
-      ctx.fillStyle = "#aaa";
+    // Merchant koku (3rd line in top-right panel)
+    if (gameState.selectedChar === "merchant") {
       ctx.font = FONT.h5;
-      ctx.fillText("突撃 [右クリック] " + Math.ceil(PlayerController.chargeCooldown) + "秒", 20, CANVAS_H - 30);
-    } else {
-      ctx.fillStyle = "#1a1a1a";
-      ctx.font = FONT.h5;
-      ctx.fillText("突撃 [右クリック] 準備完了", 20, CANVAS_H - 30);
+      var kokuText = "石高: " + Math.floor(gameState.koku);
+      if (ShoninSystem.currentTerrainLabel) {
+        kokuText += " (" + ShoninSystem.currentTerrainLabel + ")";
+      }
+      ctx.fillText(kokuText, trPanelX + trPanelW - 12, 78);
     }
 
-    // Ikki flash effect
+    // --- Bottom ability bar (2 slots) ---
+    var slotW = 180;
+    var slotH = 40;
+    var slotY = CANVAS_H - slotH - 12;
+    var slotGap = 12;
+
+    // Slot 1: 突撃 [右]
+    var slot1X = 12;
+    ctx.fillStyle = "rgba(245, 238, 225, 0.82)";
+    ctx.beginPath();
+    ctx.roundRect(slot1X, slotY, slotW, slotH, 12);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(160, 130, 90, 0.45)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(slot1X, slotY, slotW, slotH, 12);
+    ctx.stroke();
+
+    ctx.textAlign = "left";
+    ctx.font = FONT.h5;
+    if (PlayerController.chargeCooldown > 0) {
+      ctx.fillStyle = "#aaa";
+      ctx.fillText("突撃 [右] " + Math.ceil(PlayerController.chargeCooldown) + "秒", slot1X + 10, slotY + 26);
+    } else {
+      ctx.fillStyle = "#c03030";
+      ctx.fillText("突撃 [右] 準備完了", slot1X + 10, slotY + 26);
+    }
+
+    // Slot 2: Q ability
+    var slot2X = slot1X + slotW + slotGap;
+    var slot2W = 200;
+    ctx.fillStyle = "rgba(245, 238, 225, 0.82)";
+    ctx.beginPath();
+    ctx.roundRect(slot2X, slotY, slot2W, slotH, 12);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(160, 130, 90, 0.45)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(slot2X, slotY, slot2W, slotH, 12);
+    ctx.stroke();
+
+    ctx.textAlign = "left";
+    ctx.font = FONT.h5;
+    if (gameState.selectedChar === "farmer") {
+      if (IkkiSystem.cooldown > 0) {
+        ctx.fillStyle = "#aaa";
+        ctx.fillText("揆 [Q] " + Math.ceil(IkkiSystem.cooldown) + "秒", slot2X + 10, slotY + 26);
+      } else if (ParadeController.getLength() < 1) {
+        ctx.fillStyle = "#aaa";
+        ctx.fillText("揆 [Q] 仲間1人必要", slot2X + 10, slotY + 26);
+      } else {
+        ctx.fillStyle = "#c03030";
+        ctx.fillText("揆 [Q] 準備完了!", slot2X + 10, slotY + 26);
+      }
+    } else if (gameState.selectedChar === "ashigaru") {
+      if (JumonjiSystem.cooldown > 0) {
+        ctx.fillStyle = "#aaa";
+        ctx.fillText("十 [Q] " + Math.ceil(JumonjiSystem.cooldown) + "秒", slot2X + 10, slotY + 26);
+      } else if (ParadeController.getLength() < 1) {
+        ctx.fillStyle = "#aaa";
+        ctx.fillText("十 [Q] 仲間1人必要", slot2X + 10, slotY + 26);
+      } else {
+        ctx.fillStyle = "#c03030";
+        ctx.fillText("十 [Q] 準備完了!", slot2X + 10, slotY + 26);
+      }
+    } else if (gameState.selectedChar === "merchant") {
+      if (DoushiuchiSystem.cooldown > 0) {
+        ctx.fillStyle = "#aaa";
+        ctx.fillText("討 [Q] " + Math.ceil(DoushiuchiSystem.cooldown) + "秒", slot2X + 10, slotY + 26);
+      } else if (gameState.koku < 100) {
+        ctx.fillStyle = "#aaa";
+        ctx.fillText("討 [Q] 石高100必要", slot2X + 10, slotY + 26);
+      } else {
+        ctx.fillStyle = "#c03030";
+        ctx.fillText("討 [Q] 準備完了!", slot2X + 10, slotY + 26);
+      }
+    }
+
+    // Q ability flash effects
     if (IkkiSystem.flashTimer > 0) {
       var flashAlpha = IkkiSystem.flashTimer / 0.3;
       ctx.fillStyle = "rgba(255,255,255," + (flashAlpha * 0.7) + ")";
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     }
-
-    // Ikki HUD (farmer only)
-    if (IkkiSystem.available) {
-      ctx.textAlign = "left";
-      if (IkkiSystem.cooldown > 0) {
-        ctx.fillStyle = "#aaa";
-        ctx.font = FONT.h5;
-        ctx.fillText("一揆 [Q] " + Math.ceil(IkkiSystem.cooldown) + "秒", 20, CANVAS_H - 45);
-      } else if (ParadeController.getLength() < 1) {
-        ctx.fillStyle = "#aaa";
-        ctx.font = FONT.h5;
-        ctx.fillText("一揆 [Q] 仲間1人必要", 20, CANVAS_H - 45);
-      } else {
-        ctx.fillStyle = "#c03030";
-        ctx.font = FONT.h5;
-        ctx.fillText("一揆 [Q] 準備完了!", 20, CANVAS_H - 45);
-      }
+    if (JumonjiSystem.flashTimer > 0) {
+      var jFlashAlpha = JumonjiSystem.flashTimer / 0.3;
+      ctx.fillStyle = "rgba(255,255,255," + (jFlashAlpha * 0.7) + ")";
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    }
+    if (DoushiuchiSystem.flashTimer > 0) {
+      var dFlashAlpha = DoushiuchiSystem.flashTimer / 0.3;
+      ctx.fillStyle = "rgba(255,200,200," + (dFlashAlpha * 0.5) + ")";
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     }
 
-    // Merchant koku display
-    if (gameState.selectedChar === "merchant") {
-      ctx.fillStyle = "#1a1a1a";
-      ctx.font = FONT.h5;
-      ctx.textAlign = "left";
-      var kokuText = "石高: " + Math.floor(gameState.koku);
-      if (ShoninSystem.currentTerrainLabel) {
-        kokuText += " (" + ShoninSystem.currentTerrainLabel + ")";
+    // End-game countdown overlay (残り5秒)
+    if (remaining <= 5 && remaining > 0 && !GekokujoSystem.battleActive) {
+      var countdownNum = Math.ceil(remaining);
+      ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+      ctx.font = "bold 120px " + FONT_FAMILY;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      if (countdownNum <= 2) {
+        ctx.fillStyle = "#c03030";
+      } else {
+        ctx.fillStyle = "#3a2a1a";
       }
-      ctx.fillText(kokuText, 20, CANVAS_H - 60);
+      ctx.fillText("" + countdownNum, CANVAS_W / 2, CANVAS_H / 2);
+      ctx.textBaseline = "alphabetic";
     }
 
     // Castle direction arrow
@@ -941,11 +1062,8 @@ var GameDirector = {
       ctx.fillStyle = "rgba(0,0,0,0.4)";
       ctx.font = FONT.h4;
       ctx.textAlign = "center";
-      var controlsText = "WASD:移動  左クリック:攻撃  右クリック:行列突撃  SPACE:辻斬り返し";
-      if (gameState.selectedChar === "farmer") {
-        controlsText += "  Q:一揆";
-      }
-      ctx.fillText(controlsText, CANVAS_W / 2, CANVAS_H - 55);
+      var controlsText = "WASD:移動  左クリック:攻撃  右クリック:突撃  SPACE:辻斬り返し  Q:固有能力";
+      ctx.fillText(controlsText, CANVAS_W / 2, CANVAS_H - 65);
     }
 
     // Announcements
