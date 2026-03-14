@@ -130,6 +130,8 @@ var GekokujoSystem = {
   slowTimer: 0,
   slowMultiplier: 1.0,
   flashTimer: 0,
+  endGamePending: false,
+  gekokujoWin: false,
 
   init: function() {
     this.available = true;
@@ -144,6 +146,8 @@ var GekokujoSystem = {
     this.slowTimer = 0;
     this.slowMultiplier = 1.0;
     this.flashTimer = 0;
+    this.endGamePending = false;
+    this.gekokujoWin = false;
   },
 
   // Called with raw (unslowed) dt from gameLoop, before dt is multiplied
@@ -153,6 +157,10 @@ var GekokujoSystem = {
       if (this.slowTimer <= 0) {
         this.slowTimer = 0;
         this.slowMultiplier = 1.0;
+        if (this.endGamePending) {
+          this.endGamePending = false;
+          GameDirector.endGame(this.gekokujoWin);
+        }
       }
     }
     if (this.flashTimer > 0) {
@@ -280,7 +288,8 @@ var GekokujoSystem = {
     ScoreManager.addRaw(200 + ScoreManager.rankIndex * 100);
     ScoreManager.rankIndex = Math.min(ScoreManager.rankIndex + 2, RANKS.length - 1);
     ScoreManager.recalculate();
-    GameDirector.endGame(true);
+    this.endGamePending = true;
+    this.gekokujoWin = true;
   },
 
   retreat: function() {

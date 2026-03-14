@@ -396,52 +396,41 @@ var CivilianManager = {
 
   spawn: function() {
     if (this.civilians.length >= 20) { return; }
-    var cx, cy;
 
-    // Build weighted block list based on terrain spawn rates
-    var weightedBlocks = [];
+    // Collect village and castle_town block centers
+    var townCenters = [];
     for (var i = 0; i < TerrainManager.blocks.length; i++) {
       var bl = TerrainManager.blocks[i];
-      var weight = 1.0;
       if (bl.type === TERRAIN_TYPES.VILLAGE || bl.type === TERRAIN_TYPES.CASTLE_TOWN) {
-        weight = 2.0;
-      } else if (bl.type === TERRAIN_TYPES.GRASSLAND) {
-        weight = 1.0;
-      } else if (bl.type === TERRAIN_TYPES.MOUNTAIN || bl.type === TERRAIN_TYPES.RIVER) {
-        weight = 0.5;
-      } else if (bl.type === TERRAIN_TYPES.CASTLE) {
-        weight = 0;
-      }
-      if (weight > 0) {
-        weightedBlocks.push({ block: bl, weight: weight });
+        townCenters.push({
+          x: bl.x + bl.w / 2,
+          y: bl.y + bl.h / 2
+        });
       }
     }
+    if (townCenters.length === 0) { return; }
 
-    // Weighted random selection
-    var totalWeight = 0;
-    for (var wi = 0; wi < weightedBlocks.length; wi++) {
-      totalWeight += weightedBlocks[wi].weight;
-    }
-    var roll = Math.random() * totalWeight;
-    var cumulative = 0;
-    var selectedBlock = null;
-    for (var si = 0; si < weightedBlocks.length; si++) {
-      cumulative += weightedBlocks[si].weight;
-      if (roll <= cumulative) {
-        selectedBlock = weightedBlocks[si].block;
-        break;
-      }
-    }
+    // Pick a random town/village as spawn origin
+    var origin = townCenters[Math.floor(Math.random() * townCenters.length)];
 
-    if (selectedBlock) {
-      cx = selectedBlock.x + 50 + Math.random() * (selectedBlock.w - 100);
-      cy = selectedBlock.y + 50 + Math.random() * (selectedBlock.h - 100);
-    } else {
-      cx = 50 + Math.random() * (MAP_W - 100);
-      cy = 50 + Math.random() * (MAP_H - 100);
-    }
+    // Distance decay: Math.random() * Math.random() biases toward 0 (close to origin)
+    var maxSpawnRadius = 600;
+    var dist = Math.random() * Math.random() * maxSpawnRadius;
+    var angle = Math.random() * Math.PI * 2;
+    var cx = origin.x + Math.cos(angle) * dist;
+    var cy = origin.y + Math.sin(angle) * dist;
 
-    if (TerrainManager.isInRiver(cx, cy)) { cx = TerrainManager.riverX - 30; }
+    // Clamp to map bounds
+    if (cx < 50) { cx = 50; }
+    if (cx > MAP_W - 50) { cx = MAP_W - 50; }
+    if (cy < 50) { cy = 50; }
+    if (cy > MAP_H - 50) { cy = MAP_H - 50; }
+
+    // Skip river and castle
+    if (TerrainManager.isInRiver(cx, cy)) { return; }
+    var terrain = TerrainManager.getTerrainAt(cx, cy);
+    if (terrain === TERRAIN_TYPES.CASTLE) { return; }
+
     this.civilians.push({
       x: cx, y: cy,
       wanderAngle: Math.random() * Math.PI * 2,
