@@ -266,12 +266,12 @@ var GekokujoSystem = {
     var bossX = this.boss.x;
     var bossY = this.boss.y;
 
-    // Slow-motion: 0.5 second at 0.1x speed
-    this.slowTimer = 0.5;
-    this.slowMultiplier = 0.1;
+    // Slow-motion: 2 seconds at 0.05x speed (nearly frozen)
+    this.slowTimer = 2.0;
+    this.slowMultiplier = 0.05;
 
-    // Screen flash: 0.3 second white flash
-    this.flashTimer = 0.3;
+    // Screen flash: 0.8 second white flash
+    this.flashTimer = 0.8;
 
     // Announcement
     AnnouncementSystem.add("下克上成就!!");
