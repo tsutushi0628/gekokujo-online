@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Tile Viewer - Kenney Roguelike RPG Pack</title>
+<style>
+body { background: #222; color: #fff; font-family: monospace; margin: 20px; }
+#info { margin-bottom: 10px; font-size: 14px; }
+#hover-info { position: fixed; top: 10px; right: 10px; background: #000; padding: 10px; border: 2px solid #0f0; font-size: 16px; z-index: 10; }
+#hover-preview { image-rendering: pixelated; width: 64px; height: 64px; border: 1px solid #fff; margin-top: 5px; }
+canvas { image-rendering: pixelated; cursor: crosshair; }
+</style>
+</head>
+<body>
+<h2>Kenney Roguelike RPG Pack - Tile Map Viewer</h2>
+<div id="info">Loading...</div>
+<div id="hover-info">
+  <div>Col: <span id="hCol">-</span>, Row: <span id="hRow">-</span></div>
+  <div>TileID: <span id="hTid">-</span></div>
+  <canvas id="hover-preview" width="16" height="16"></canvas>
+</div>
+<canvas id="viewer"></canvas>
+
+<script>
+var TILE_SIZE = 16;
+var TILE_MARGIN = 1;
+var TILE_STEP = TILE_SIZE + TILE_MARGIN;
+var SCALE = 3;
+var CELL = TILE_SIZE * SCALE;
+var LABEL_W = 30;
+var LABEL_H = 20;
+
+var img = new Image();
+img.onload = function() {
+  var cols = Math.floor((img.width + TILE_MARGIN) / TILE_STEP);
+  var rows = Math.floor((img.height + TILE_MARGIN) / TILE_STEP);
+  document.getElementById("info").textContent = "Image: " + img.width + "x" + img.height + " | Tiles: " + cols + " cols x " + rows + " rows = " + (cols * rows) + " tiles";
+
+  var canvas = document.getElementById("viewer");
+  canvas.width = LABEL_W + cols * (CELL + 1);
+  canvas.height = LABEL_H + rows * (CELL + 1);
+  var ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+
+  // Background
+  ctx.fillStyle = "#333";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Column labels
+  ctx.fillStyle = "#0f0";
+  ctx.font = "10px monospace";
+  ctx.textAlign = "center";
+  for (var c = 0; c < cols; c++) {
+    ctx.fillText(c.toString(), LABEL_W + c * (CELL + 1) + CELL / 2, LABEL_H - 4);
+  }
+
+  // Row labels + tiles
+  for (var r = 0; r < rows; r++) {
+    ctx.fillStyle = "#0f0";
+    ctx.textAlign = "right";
+    ctx.fillText(r.toString(), LABEL_W - 4, LABEL_H + r * (CELL + 1) + CELL / 2 + 4);
+
+    for (var c2 = 0; c2 < cols; c2++) {
+      var sx = c2 * TILE_STEP;
+      var sy = r * TILE_STEP;
+      var dx = LABEL_W + c2 * (CELL + 1);
+      var dy = LABEL_H + r * (CELL + 1);
+
+      // Checkerboard bg for transparency
+      ctx.fillStyle = (c2 + r) % 2 === 0 ? "#444" : "#555";
+      ctx.fillRect(dx, dy, CELL, CELL);
+
+      ctx.drawImage(img, sx, sy, TILE_SIZE, TILE_SIZE, dx, dy, CELL, CELL);
+    }
+  }
+
+  // Hover
+  var previewCanvas = document.getElementById("hover-preview");
+  var previewCtx = previewCanvas.getContext("2d");
+  previewCtx.imageSmoothingEnabled = false;
+
+  canvas.addEventListener("mousemove", function(e) {
+    var rect = canvas.getBoundingClientRect();
+    var mx = e.clientX - rect.left;
+    var my = e.clientY - rect.top;
+    var col = Math.floor((mx - LABEL_W) / (CELL + 1));
+    var row = Math.floor((my - LABEL_H) / (CELL + 1));
+    if (col < 0 || row < 0 || col >= cols || row >= rows) { return; }
+
+    document.getElementById("hCol").textContent = col;
+    document.getElementById("hRow").textContent = row;
+    document.getElementById("hTid").textContent = row * cols + col + 1;
+
+    previewCtx.clearRect(0, 0, 16, 16);
+    previewCtx.drawImage(img, col * TILE_STEP, row * TILE_STEP, TILE_SIZE, TILE_SIZE, 0, 0, 16, 16);
+  });
+
+  canvas.addEventListener("click", function(e) {
+    var rect = canvas.getBoundingClientRect();
+    var mx = e.clientX - rect.left;
+    var my = e.clientY - rect.top;
+    var col = Math.floor((mx - LABEL_W) / (CELL + 1));
+    var row = Math.floor((my - LABEL_H) / (CELL + 1));
+    if (col < 0 || row < 0 || col >= cols || row >= rows) { return; }
+    var str = "{ col: " + col + ", row: " + row + " }";
+    navigator.clipboard.writeText(str);
+    document.getElementById("info").textContent = "Copied: " + str;
+  });
+};
+img.src = "../docs/findings/sozai/kenney_roguelike-rpg-pack/Spritesheet/roguelikeSheet_transparent.png";
+</script>
+</body>
+</html>
