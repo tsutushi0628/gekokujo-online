@@ -15,6 +15,12 @@ var dialogYesBtn = document.getElementById("dialogYes");
 var dialogNoBtn = document.getElementById("dialogNo");
 var linesCanvas = document.getElementById("linesCanvas");
 var ikkiOverlay = document.getElementById("ikki-overlay");
+var bgm = document.getElementById("bgm");
+var muteBtn = document.getElementById("muteBtn");
+var howtoLink = document.getElementById("howtoLink");
+var creditsLink = document.getElementById("creditsLink");
+var howtoOverlay = document.getElementById("howto-overlay");
+var creditsOverlay = document.getElementById("credits-overlay");
 
 // ============================================================
 // Shared Game State (minimal globals)
@@ -328,6 +334,8 @@ var GekokujoSystem = {
   fail: function() {
     this.battleActive = false;
     this.boss = null;
+    bgm.pause();
+    bgm.currentTime = 0;
     gameState.phase = "result";
     skullScreen.classList.add("active");
   },
@@ -564,6 +572,9 @@ var GameDirector = {
     gameState.gameTime = 0;
     gameState.paused = false;
     gameState.phase = "countdown";
+
+    bgm.volume = 0.3;
+    bgm.play();
 
     // Clear house cache for new map
     HouseManager.clear();
@@ -829,13 +840,6 @@ var GameDirector = {
         } else {
           BuildingRenderer.drawCastleTown(ctx, bsp.x, bsp.y, bl.w, bl.h, bi);
         }
-      } else if (bl.type === TERRAIN_TYPES.MOUNTAIN) {
-        ctx.font = FONT.h3;
-        ctx.textAlign = "center";
-        ctx.fillStyle = "#1a1a1a";
-        ctx.fillText("\u26F0\uFE0F", bsp.x + bl.w / 2, bsp.y + bl.h / 2 + 8);
-        ctx.font = FONT.h4;
-        ctx.fillText("山道", bsp.x + bl.w / 2, bsp.y + bl.h / 2 + 28);
       } else if (bl.type === TERRAIN_TYPES.VILLAGE) {
         // Village sprites
         if (spritesLoaded) {
@@ -949,6 +953,12 @@ var GameDirector = {
     PlayerController.draw(ctx);
     ProjectileManager.draw(ctx);
     TsujigiriSystem.draw(ctx);
+
+    // death_cutin中は全画面白塗りの上に描画済みなので、後続の描画をすべてスキップ
+    if (TsujigiriSystem.phase === "death_cutin") {
+      return;
+    }
+
     GekokujoSystem.draw(ctx);
     EffectRenderer.draw(ctx);
 
@@ -1308,12 +1318,16 @@ var GameDirector = {
   },
 
   endGame: function(gekokujoWin) {
+    bgm.pause();
+    bgm.currentTime = 0;
     gameState.phase = "result";
     ScoreManager.recalculate();
     if (gekokujoWin) {
       ResultRenderer.showGekokujoSuccess();
     } else if (PlayerController.hp <= 0) {
       // Player died - show skull screen with 下克上失敗
+      bgm.pause();
+      bgm.currentTime = 0;
       skullScreen.classList.add("active");
     } else {
       ResultRenderer.showNormal();
@@ -1386,6 +1400,45 @@ dialogNoBtn.addEventListener("click", function() {
   dialogOverlay.classList.remove("active");
   gameState.paused = false;
   if (dialogCallback) { dialogCallback(false); dialogCallback = null; }
+});
+
+// --- Mute toggle ---
+muteBtn.addEventListener("click", function(e) {
+  e.stopPropagation();
+  if (bgm.muted) {
+    bgm.muted = false;
+    muteBtn.textContent = "\uD83D\uDD0A";
+    localStorage.setItem("gekokujo_muted", "false");
+  } else {
+    bgm.muted = true;
+    muteBtn.textContent = "\uD83D\uDD07";
+    localStorage.setItem("gekokujo_muted", "true");
+  }
+});
+
+if (localStorage.getItem("gekokujo_muted") === "true") {
+  bgm.muted = true;
+  muteBtn.textContent = "\uD83D\uDD07";
+}
+
+// --- How to play overlay ---
+howtoLink.addEventListener("click", function(e) {
+  e.stopPropagation();
+  howtoOverlay.classList.add("active");
+});
+
+document.getElementById("howtoCloseBtn").addEventListener("click", function() {
+  howtoOverlay.classList.remove("active");
+});
+
+// --- Credits overlay ---
+creditsLink.addEventListener("click", function(e) {
+  e.stopPropagation();
+  creditsOverlay.classList.add("active");
+});
+
+document.getElementById("creditsCloseBtn").addEventListener("click", function() {
+  creditsOverlay.classList.remove("active");
 });
 
 // Init input

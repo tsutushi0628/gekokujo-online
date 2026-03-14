@@ -181,10 +181,10 @@ var CombatSystem = {
       }
     } else if (gameState.selectedChar === "merchant") {
       // Weak: short range single shot
-      ProjectileManager.add(PlayerController.x, PlayerController.y, Math.cos(angle) * 4, Math.sin(angle) * 4, damage, 15, 4, "#1a1a1a", false);
+      ProjectileManager.add(PlayerController.x, PlayerController.y, Math.cos(angle) * 4, Math.sin(angle) * 4, damage, 30, 4, "#1a1a1a", false);
     } else {
       // Farmer: 短射程・狭範囲・単発 (blast:2, 弾速6, 寿命28)
-      ProjectileManager.add(PlayerController.x, PlayerController.y, Math.cos(angle) * 6, Math.sin(angle) * 6, damage, 28, 2, "#1a1a1a", false);
+      ProjectileManager.add(PlayerController.x, PlayerController.y, Math.cos(angle) * 6, Math.sin(angle) * 6, damage, 56, 2, "#1a1a1a", false);
     }
     PlayerController.attackCooldown = 0.25;
 
@@ -201,11 +201,17 @@ var CombatSystem = {
 var TsujigiriSystem = {
   checkTimer: 0,
   phase: "idle",
-  // phases: idle -> cutin -> input -> resolve
+  // phases: idle -> cutin -> input -> resolve / death_cutin
   sequenceTimer: 0,
   inputMaxTimer: 1.0,
   inputAccepted: false,
   attackerIndex: -1,
+  needlePosition: 0,
+  needleSpeed: 0,
+  needleDirection: 1,
+  hitZoneStart: 0,
+  hitZoneEnd: 0,
+  qteTimeLeft: 0,
 
   init: function() {
     this.checkTimer = 0;
@@ -214,6 +220,12 @@ var TsujigiriSystem = {
     this.inputMaxTimer = 1.0;
     this.inputAccepted = false;
     this.attackerIndex = -1;
+    this.needlePosition = 0;
+    this.needleSpeed = 0;
+    this.needleDirection = 1;
+    this.hitZoneStart = 0;
+    this.hitZoneEnd = 0;
+    this.qteTimeLeft = 0;
   },
 
   update: function(dt) {
@@ -230,25 +242,57 @@ var TsujigiriSystem = {
       this.sequenceTimer -= dt;
       if (this.sequenceTimer <= 0) {
         this.phase = "input";
-        var qteCharMult = 1.0;
-        if (gameState.selectedChar === "ashigaru") { qteCharMult = 1.3; }
-        if (gameState.selectedChar === "farmer") { qteCharMult = 0.8; }
-        var qteTime = 1.8 * qteCharMult * (0.7 + Math.random() * 0.6);
-        this.sequenceTimer = qteTime;
-        this.inputMaxTimer = qteTime;
         this.inputAccepted = false;
+
+        // Set needle speed (2x base, bounces back and forth)
+        var baseSpeed = 1.0;
+        if (gameState.selectedChar === "ashigaru") { baseSpeed = 0.8; }
+        if (gameState.selectedChar === "farmer") { baseSpeed = 1.2; }
+        if (gameState.selectedChar === "merchant") { baseSpeed = 1.0; }
+        this.needleSpeed = baseSpeed * (0.8 + Math.random() * 0.4);
+        this.needleDirection = 1;
+
+        // Set hit zone position
+        this.needlePosition = 0;
+        this.hitZoneStart = 0.15 + Math.random() * 0.5;
+        this.hitZoneEnd = this.hitZoneStart + 0.2;
+        if (this.hitZoneEnd > 0.85) {
+          this.hitZoneEnd = 0.85;
+          this.hitZoneStart = this.hitZoneEnd - 0.2;
+        }
+
+        // Time limit for QTE
+        this.qteTimeLeft = 4.0;
       }
       return;
     }
 
     if (this.phase === "input") {
+      this.needlePosition += this.needleSpeed * this.needleDirection * dt;
+
+      // Bounce at edges
+      if (this.needlePosition >= 1.0) {
+        this.needlePosition = 1.0;
+        this.needleDirection = -1;
+      }
+      if (this.needlePosition <= 0.0) {
+        this.needlePosition = 0.0;
+        this.needleDirection = 1;
+      }
+
       if (InputManager.consumeSpace()) {
-        this.inputAccepted = true;
-        this._resolve(true);
+        if (this.needlePosition >= this.hitZoneStart && this.needlePosition <= this.hitZoneEnd) {
+          this.inputAccepted = true;
+          this._resolve(true);
+        } else {
+          this._resolve(false);
+        }
         return;
       }
-      this.sequenceTimer -= dt;
-      if (this.sequenceTimer <= 0) {
+
+      // Time limit
+      this.qteTimeLeft -= dt;
+      if (this.qteTimeLeft <= 0) {
         this._resolve(false);
       }
       return;
@@ -259,6 +303,18 @@ var TsujigiriSystem = {
       if (this.sequenceTimer <= 0) {
         this.phase = "idle";
         gameState.paused = false;
+      }
+      return;
+    }
+
+    if (this.phase === "death_cutin") {
+      this.sequenceTimer -= dt;
+      if (this.sequenceTimer <= 0) {
+        gameState.paused = false;
+        gameState.phase = "result";
+        ScoreManager.recalculate();
+        ResultRenderer.showNormal("辻斬りにあってしまった");
+        this.phase = "idle";
       }
       return;
     }
@@ -321,15 +377,13 @@ var TsujigiriSystem = {
       ScoreManager.addRaw(100);
       ShoninSystem.addKokuForKill(100);
     } else {
-      // Failure: instant death
+      // Failure: start death cutscene
       PlayerController.hp = 0;
       EffectRenderer.add(PlayerController.x, PlayerController.y, "playerHit");
-      AnnouncementSystem.add("辻斬りに斬られた!");
-      gameState.paused = false;
-      gameState.phase = "result";
-      skullScreen.classList.add("active");
-      this.phase = "idle";
-      return;
+      bgm.pause();
+      bgm.currentTime = 0;
+      this.phase = "death_cutin";
+      this.sequenceTimer = 2.0;
     }
   },
 
@@ -356,18 +410,53 @@ var TsujigiriSystem = {
       ctx.textAlign = "center";
       ctx.fillStyle = "#c03030";
       ctx.fillText("辻斬りがあらわれた！", CANVAS_W / 2, CANVAS_H / 2 + 30);
-      var blink = Math.sin(performance.now() * 0.01) > 0;
-      if (blink) {
-        ctx.fillStyle = "#ffffff";
-        ctx.font = FONT.h2;
-        ctx.fillText("SPACEで回避!", CANVAS_W / 2, CANVAS_H / 2 + 40);
-      }
-      var barWidth = 200 * (this.sequenceTimer / this.inputMaxTimer);
-      ctx.fillStyle = "#c03030";
-      ctx.fillRect(CANVAS_W / 2 - 100, CANVAS_H / 2 + 60, barWidth, 8);
+
+      // QTE gauge bar
+      var barW = 300;
+      var barH = 10;
+      var barX = CANVAS_W / 2 - barW / 2;
+      var barY = CANVAS_H / 2 + 70;
+
+      // "SPACEで回避!" text above the bar
+      ctx.font = FONT.h3;
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.fillText("SPACEで回避!", CANVAS_W / 2, barY - 30);
+
+      // Bar background (dark gray)
+      ctx.fillStyle = "#333333";
+      ctx.fillRect(barX, barY, barW, barH);
+
+      // Hit zone (bulging section - taller and green)
+      var zoneX = barX + this.hitZoneStart * barW;
+      var zoneW = (this.hitZoneEnd - this.hitZoneStart) * barW;
+      var bulgeH = 24;
+      var bulgeY = barY - (bulgeH - barH) / 2;
+      ctx.fillStyle = "#33cc33";
+      ctx.fillRect(zoneX, bulgeY, zoneW, bulgeH);
+
+      // Bar outline
       ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(CANVAS_W / 2 - 100, CANVAS_H / 2 + 60, 200, 8);
+      ctx.lineWidth = 2;
+      ctx.strokeRect(barX, barY, barW, barH);
+
+      // Needle (vertical line that sweeps)
+      var needleX = barX + this.needlePosition * barW;
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(needleX, barY - 15);
+      ctx.lineTo(needleX, barY + barH + 15);
+      ctx.stroke();
+
+      // Small triangle above needle
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.moveTo(needleX - 6, barY - 18);
+      ctx.lineTo(needleX + 6, barY - 18);
+      ctx.lineTo(needleX, barY - 10);
+      ctx.closePath();
+      ctx.fill();
     }
 
     if (this.phase === "resolve" && this.inputAccepted) {
@@ -377,6 +466,72 @@ var TsujigiriSystem = {
       ctx.textAlign = "center";
       ctx.fillStyle = "#33cc33";
       ctx.fillText("撃退成功！", CANVAS_W / 2, CANVAS_H / 2);
+    }
+
+    if (this.phase === "death_cutin") {
+      // White background
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+      if (spritesLoaded) {
+        // Draw tsujigiri_end sprite (right side)
+        drawSpriteCentered(ctx, "tsujigiri_end", CANVAS_W / 2 + 60, CANVAS_H / 2 - 40, 160, false);
+
+        // Draw fallen player character (left side, rotated 90deg CCW)
+        var charKey = gameState.selectedChar;
+        var spriteKey = CHAR_SPRITE_MAP[charKey];
+        var pDef = SPRITE_DEFS[spriteKey];
+        var pImg = spriteImages[spriteKey];
+        if (pDef && pImg) {
+          var pH = 100;
+          var pAspect = pDef.w / pDef.h;
+          var pW = pH * pAspect;
+          var pX = CANVAS_W / 2 - 80;
+          var pY = CANVAS_H / 2 - 20;
+          var needFlip = (charKey === "farmer" || charKey === "ashigaru");
+          ctx.save();
+          ctx.translate(pX, pY);
+          ctx.rotate(-Math.PI / 2);
+          if (needFlip) {
+            ctx.scale(-1, 1);
+          }
+          ctx.drawImage(pImg, -pW / 2, -pH / 2, pW, pH);
+          ctx.restore();
+        }
+      }
+
+      // Double-bordered banner with text
+      var bannerText = "辻斬りにあってしまった";
+      ctx.font = FONT.h2;
+      ctx.textAlign = "center";
+      var textWidth = ctx.measureText(bannerText).width;
+      var bannerW = textWidth + 60;
+      var bannerH = 50;
+      var bannerX = CANVAS_W / 2 - bannerW / 2;
+      var bannerY = CANVAS_H / 2 + 50;
+
+      // Outer border (rounded)
+      ctx.strokeStyle = "#1a1a1a";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(bannerX, bannerY, bannerW, bannerH, 12);
+      ctx.stroke();
+
+      // Inner border (rounded, 4px inset)
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(bannerX + 4, bannerY + 4, bannerW - 8, bannerH - 8, 8);
+      ctx.stroke();
+
+      // Banner background (rounded)
+      ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+      ctx.beginPath();
+      ctx.roundRect(bannerX + 5, bannerY + 5, bannerW - 10, bannerH - 10, 7);
+      ctx.fill();
+
+      // Text
+      ctx.fillStyle = "#1a1a1a";
+      ctx.fillText(bannerText, CANVAS_W / 2, bannerY + 34);
     }
   }
 };

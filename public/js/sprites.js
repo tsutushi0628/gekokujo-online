@@ -8,6 +8,7 @@ var SPRITE_DEFS = {
   nobushi: { src: "sprites/nobushi.png", w: 465, h: 504 },
   nomin_npc: { src: "sprites/nomin_npc.png", w: 334, h: 470 },
   tsujigiri: { src: "sprites/tsujigiri.png", w: 438, h: 488 },
+  tsujigiri_end: { src: "sprites/tsujigiri_end.png", w: 1056, h: 976 },
   tonosama: { src: "sprites/tonosama.png", w: 524, h: 713 },
   castle: { src: "sprites/castle.png", w: 517, h: 452 },
   house_town: { src: "sprites/house_town.png", w: 496, h: 474 },

@@ -261,12 +261,21 @@ var AnnouncementSystem = {
 // ResultRenderer
 // ============================================================
 var ResultRenderer = {
-  showNormal: function() {
+  _hideImage: function() {
+    var img = document.getElementById("resultImage");
+    img.style.display = "none";
+    img.src = "";
+  },
+
+  showNormal: function(customTitle) {
     var score = ScoreManager.finalScore;
     RankingManager.save(score, gameState.charDef.name);
     var rank = RankingManager.getRank(score);
 
-    document.getElementById("resultTitle").textContent = "時間切れ";
+    var title = "時間切れ";
+    if (customTitle) { title = customTitle; }
+    this._hideImage();
+    document.getElementById("resultTitle").textContent = title;
     document.getElementById("resultTitle").className = "";
     document.getElementById("rankLabel").textContent = "お主は";
     document.getElementById("rankNumber").textContent = rank + "位";
@@ -281,6 +290,7 @@ var ResultRenderer = {
     RankingManager.save(score, gameState.charDef.name);
     var rank = RankingManager.getRank(score);
 
+    this._hideImage();
     document.getElementById("resultTitle").textContent = "下克上成功!!";
     document.getElementById("resultTitle").className = "success-banner";
     document.getElementById("rankLabel").textContent = "お主は";
@@ -300,15 +310,15 @@ var ConcentrationLines = {
   show: function(duration) {
     var lCtx = linesCanvas.getContext("2d");
     linesCanvas.style.display = "block";
-    lCtx.clearRect(0, 0, 800, 600);
+    lCtx.clearRect(0, 0, CANVAS_W, CANVAS_H);
     lCtx.strokeStyle = "rgba(0,0,0,0.2)";
     lCtx.lineWidth = 2;
     for (var i = 0; i < 40; i++) {
       var angle = (Math.PI * 2 / 40) * i;
       var innerR = 100 + Math.random() * 100;
       lCtx.beginPath();
-      lCtx.moveTo(400 + Math.cos(angle) * innerR, 300 + Math.sin(angle) * innerR);
-      lCtx.lineTo(400 + Math.cos(angle) * 400, 300 + Math.sin(angle) * 400);
+      lCtx.moveTo(CANVAS_W / 2 + Math.cos(angle) * innerR, CANVAS_H / 2 + Math.sin(angle) * innerR);
+      lCtx.lineTo(CANVAS_W / 2 + Math.cos(angle) * 400, CANVAS_H / 2 + Math.sin(angle) * 400);
       lCtx.stroke();
     }
     setTimeout(function() { linesCanvas.style.display = "none"; }, duration);

@@ -8,12 +8,15 @@
 </head>
 <body>
 <div id="game-container">
-  <canvas id="gameCanvas" width="800" height="600"></canvas>
+  <canvas id="gameCanvas" width="1280" height="720"></canvas>
+  <button id="muteBtn">&#x1F50A;</button>
   <div id="title-screen" class="screen-overlay active">
     <div class="title-image-wrapper">
       <img src="../docs/findings/sozai/title3.jpg" alt="下克上オンライン">
     </div>
     <button class="btn" id="startBtn">START</button>
+    <span id="howtoLink">遊び方</span>
+    <span id="creditsLink">クレジット</span>
   </div>
   <div id="char-select" class="screen-overlay">
     <h2>身分を選べ</h2>
@@ -70,6 +73,7 @@
   </div>
   <div id="result-screen" class="screen-overlay">
     <h2 id="resultTitle"></h2>
+    <img id="resultImage" class="result-image" src="" alt="" style="display:none;">
     <div class="result-rank">
       <div class="rank-label" id="rankLabel"></div>
       <div class="rank-number" id="rankNumber"></div>
@@ -93,6 +97,40 @@
       </div>
     </div>
   </div>
+  <div id="howto-overlay" class="screen-overlay">
+    <h2>遊び方</h2>
+    <div class="howto-controls">
+      <div class="howto-row"><span class="howto-key">WASD</span><span class="howto-desc">移動</span></div>
+      <div class="howto-row"><span class="howto-key">左クリック</span><span class="howto-desc">攻撃（押しっぱなしで連撃）</span></div>
+      <div class="howto-row"><span class="howto-key">SPACE</span><span class="howto-desc">辻斬り回避</span></div>
+      <div class="howto-row"><span class="howto-key">Q</span><span class="howto-desc">一揆発動（農民・一揆モードのみ）</span></div>
+    </div>
+    <p class="howto-flavor">制限時間内に敵を倒し、民衆を集めて<br>城の殿様を倒せば「下克上」達成！</p>
+    <button class="btn" id="howtoCloseBtn">閉じる</button>
+  </div>
+  <div id="credits-overlay" class="screen-overlay">
+    <h2>クレジット</h2>
+    <div class="credits-section">
+      <p class="credits-label">ゲームデザイン・プログラム</p>
+      <p class="credits-value">tsutushi0628</p>
+    </div>
+    <div class="credits-section">
+      <p class="credits-label">フォント</p>
+      <p class="credits-value">Chika（ちか） - ゲームフォント</p>
+      <p class="credits-value">みきゆフォント - 手書きフォント</p>
+    </div>
+    <div class="credits-section">
+      <p class="credits-label">BGM</p>
+      <p class="credits-value">8bit三味線サムライロック</p>
+    </div>
+    <div class="credits-section">
+      <p class="credits-label">スプライト素材</p>
+      <p class="credits-value">Kenney Roguelike/RPG Pack (CC0)</p>
+    </div>
+    <p class="credits-note">※本作はファンメイド作品です</p>
+    <p class="credits-version">v1.0</p>
+    <button class="btn" id="creditsCloseBtn">閉じる</button>
+  </div>
   <div id="dialog-overlay" class="dialog-overlay">
     <div class="dialog-box">
       <p id="dialogText"></p>
@@ -102,8 +140,10 @@
       </div>
     </div>
   </div>
-  <canvas id="linesCanvas" class="concentration-lines" width="800" height="600"></canvas>
+  <canvas id="linesCanvas" class="concentration-lines" width="1280" height="720"></canvas>
 </div>
+
+  <audio id="bgm" src="sprites/8bit-shamisen-samurai-rock.mp3" loop preload="auto"></audio>
 
   <script src="js/constants.js"></script>
   <script src="js/sprites.js"></script>

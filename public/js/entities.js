@@ -331,6 +331,8 @@ var EnemyManager = {
           var dead = PlayerController.takeDamage(en.attack);
           if (dead) {
             gameState.phase = "result";
+            bgm.pause();
+            bgm.currentTime = 0;
             skullScreen.classList.add("active");
             return;
           }
@@ -393,10 +395,10 @@ var EnemyManager = {
       if (en.hp < en.maxHp && !en.surrendering) {
         var hpR = en.hp / en.maxHp;
         ctx.fillStyle = "#ddd";
-        ctx.fillRect(sp.x - 12, sp.y - en.size - 4, 24, 4);
+        ctx.fillRect(sp.x - 12, sp.y - en.size - 14, 24, 4);
         if (hpR > 0.5) { ctx.fillStyle = "#4a8"; }
         else { ctx.fillStyle = "#c44"; }
-        ctx.fillRect(sp.x - 12, sp.y - en.size - 4, 24 * hpR, 4);
+        ctx.fillRect(sp.x - 12, sp.y - en.size - 14, 24 * hpR, 4);
       }
     }
   }

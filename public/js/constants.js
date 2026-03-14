@@ -1,10 +1,10 @@
 // 定数定義: キャンバス・マップサイズ、キャラクター、ランク、敵、地形、フォント
-var CANVAS_W = 800;
-var CANVAS_H = 600;
-var MAP_W = 2400;
-var MAP_H = 1800;
-var BLOCK_W = 800;
-var BLOCK_H = 600;
+var CANVAS_W = 1280;
+var CANVAS_H = 720;
+var MAP_W = 3840;
+var MAP_H = 2160;
+var BLOCK_W = 1280;
+var BLOCK_H = 720;
 var HISTORY_SPACING = 8;
 var MAX_TIME = 90;
 var MINIMAP_W = 128;
