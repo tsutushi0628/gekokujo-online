@@ -66,7 +66,13 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
 #result-screen .result-score { font-size: 32px; color: #1a1a1a; margin-bottom: 6px; margin-top: 16px; }
 #result-screen .result-rank { margin-bottom: 30px; display: inline-block; text-align: left; }
 #result-screen .rank-label { font-size: 30px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; }
-#result-screen .rank-number { font-size: 80px; font-weight: 900; color: #ffe033; -webkit-text-stroke: 4px #1a1a1a; text-stroke: 4px #1a1a1a; letter-spacing: 4px; }
+#result-screen .rank-number { 
+  font-size: 80px; 
+  font-weight: 900; color: #ffe033; 
+  -webkit-text-stroke: 1px #1a1a1a; 
+  text-stroke: 4px #1a1a1a; 
+  letter-spacing: 4px; 
+}
 #result-screen h2 { font-size: 48px; margin-bottom: 20px; letter-spacing: 4px; }
 #result-screen .result-details { font-size: 22px; color: #2a2a2a; margin-bottom: 30px; line-height: 1.8; white-space: pre-line; }
 .dialog-overlay {
@@ -250,14 +256,6 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
     EMPTY: "empty"
   };
 
-  // ============================================================
-  // Tilesheet Constants
-  // ============================================================
-  var TILE_SIZE = 16;
-  var TILE_MARGIN = 1;
-  var TILE_STEP = TILE_SIZE + TILE_MARGIN; // 17px per tile
-  var RENDER_TILE_SIZE = 32; // Rendered size on screen
-
   var FONT_FAMILY = "'Chika', 'MokoMori', sans-serif";
   var FONT = {
     h1: "bold 48px " + FONT_FAMILY,
@@ -276,13 +274,6 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
     effect: "24px " + FONT_FAMILY,
     warning: "bold 56px " + FONT_FAMILY
   };
-  var TILES_PER_BLOCK_X = Math.ceil(BLOCK_W / RENDER_TILE_SIZE); // 25
-  var TILES_PER_BLOCK_Y = Math.ceil(BLOCK_H / RENDER_TILE_SIZE); // 19
-
-  // Tilesheet image
-  var tilesheetImg = new Image();
-  var tilesheetLoaded = false;
-
   // Sprite images
   var spriteImages = {};
   var spritesLoaded = false;
@@ -353,337 +344,6 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
     }
   }
 
-  // Helper: get source x,y for a tile at (col, row) in the spritesheet
-  function tileSourceX(col) { return col * TILE_STEP; }
-  function tileSourceY(row) { return row * TILE_STEP; }
-
-  // ============================================================
-  // TileMapper - sprite coordinates for each terrain element
-  // ============================================================
-  var TileMapper = {
-    // Ground tiles (col, row in spritesheet)
-    // Based on Kenney Roguelike RPG Pack layout: 57 cols x 31 rows, 16px+1px margin
-    grass: [
-      { col: 5, row: 1 },   // green floor tile (main, TMX 9858 uses)
-      { col: 3, row: 1 },   // green floor variant (TMX 62 uses)
-      { col: 4, row: 1 },   // green floor variant (TMX 9 uses)
-      { col: 2, row: 1 },   // green floor variant (TMX 8 uses)
-      { col: 1, row: 1 }    // green floor variant (TMX 1 use)
-    ],
-    grassDecor: [
-      { col: 8, row: 16 },  // grass/flower decor (TMX overlay 58 uses)
-      { col: 7, row: 16 },  // grass decor variant (TMX overlay 13 uses)
-      { col: 8, row: 17 },  // grass decor variant (TMX overlay 5 uses)
-      { col: 22, row: 10 }, // small plant (TMX objects 9 uses)
-      { col: 7, row: 17 }   // grass decor variant
-    ],
-    trees: [
-      { col: 16, row: 10 }, // pine tree top (TMX 66 uses)
-      { col: 9, row: 7 },   // round tree top (TMX 51 uses)
-      { col: 13, row: 10 }, // tree variant (TMX 9 uses)
-      { col: 13, row: 9 },  // tree variant top (TMX 8 uses)
-      { col: 9, row: 8 }    // round tree bottom (TMX 28 uses)
-    ],
-    water: [
-      { col: 3, row: 2 },   // water center (TMX 6 uses)
-      { col: 4, row: 2 },   // water variant (TMX 3 uses)
-      { col: 2, row: 2 }    // water variant (TMX 2 uses)
-    ],
-    waterEdgeTop: { col: 5, row: 0 },     // grass-to-water top edge (TMX 36 uses)
-    waterEdgeBottom: { col: 3, row: 2 },   // water bottom edge
-    waterEdgeLeft: { col: 0, row: 1 },     // water left edge (TMX 2 uses)
-    waterEdgeRight: { col: 5, row: 1 },    // water right edge
-    stonePath: [
-      { col: 9, row: 14 },  // gray stone floor (TMX 21 uses)
-      { col: 16, row: 15 }, // stone variant (TMX 5 uses)
-      { col: 14, row: 15 }, // stone variant (TMX 4 uses)
-      { col: 13, row: 15 }  // stone variant (TMX 4 uses)
-    ],
-    stoneWall: [
-      { col: 20, row: 21 }, // castle wall block (TMX roof 3 uses)
-      { col: 21, row: 21 }, // wall variant (TMX roof 3 uses)
-      { col: 20, row: 22 }, // wall variant (TMX roof 2 uses)
-      { col: 21, row: 22 }  // wall variant (TMX roof 3 uses)
-    ],
-    castleTower: { col: 52, row: 9 },     // tower tile (TMX roof 2 uses)
-    castleDoor: { col: 23, row: 24 },     // gate/door tile (TMX roof 1 use)
-    treeTall: [
-      { top: { col: 16, row: 9 }, bottom: { col: 16, row: 10 } },
-      { top: { col: 9, row: 7 }, bottom: { col: 9, row: 8 } }
-    ],
-    house: [
-      { col: 46, row: 10 }, // house top-left (TMX 3 uses)
-      { col: 47, row: 10 }, // house top-right (TMX 3 uses)
-      { col: 46, row: 11 }, // house bottom-left (TMX 3 uses)
-      { col: 47, row: 11 }, // house bottom-right (TMX 3 uses)
-      { col: 34, row: 21 }  // building variant (TMX 2 uses)
-    ],
-    dirtPath: [
-      { col: 18, row: 15 }, // brown dirt path (TMX 11 uses)
-      { col: 17, row: 15 }, // dirt variant (TMX 6 uses)
-      { col: 19, row: 15 }, // dirt variant (TMX 6 uses)
-      { col: 8, row: 14 }   // dirt path variant
-    ],
-    mountain: [
-      { col: 48, row: 24 }, // rock/mountain (TMX 10 uses)
-      { col: 51, row: 24 }, // rock variant (TMX 2 uses)
-      { col: 50, row: 10 }, // rock outcrop
-      { col: 48, row: 24 }  // mountain repeat
-    ],
-    mountainRock: [
-      { col: 48, row: 24 }, // big rock (TMX 10 uses)
-      { col: 51, row: 24 }  // rock pile (TMX 2 uses)
-    ],
-    bridgeHorizontal: [
-      { col: 28, row: 9 },  // bridge plank (TMX 4 uses)
-      { col: 29, row: 9 },  // bridge plank variant (TMX 4 uses)
-      { col: 28, row: 8 },  // bridge rail
-      { col: 29, row: 8 }   // bridge rail variant (TMX 2 uses)
-    ],
-
-    // Get a random tile from an array using a seeded-ish approach
-    pickTile: function(tileArray, seed) {
-      var idx = Math.abs(seed) % tileArray.length;
-      return tileArray[idx];
-    },
-
-    // Draw a single tile from the spritesheet
-    drawTile: function(ctx, tileCoord, destX, destY, destSize) {
-      if (!tilesheetLoaded) { return; }
-      var sx = tileSourceX(tileCoord.col);
-      var sy = tileSourceY(tileCoord.row);
-      var flooredX = Math.floor(destX);
-      var flooredY = Math.floor(destY);
-      ctx.drawImage(
-        tilesheetImg,
-        sx, sy, TILE_SIZE, TILE_SIZE,
-        flooredX, flooredY, destSize + 1, destSize + 1
-      );
-    }
-  };
-
-  // ============================================================
-  // TerrainTileCache - pre-rendered terrain block canvases
-  // ============================================================
-  var TerrainTileCache = {
-    blockCanvases: {},
-    decorations: {},
-
-    clear: function() {
-      this.blockCanvases = {};
-      this.decorations = {};
-    },
-
-    // Generate a pseudo-random number from block position
-    _seed: function(r, c, x, y) {
-      return ((r * 7919 + c * 6271 + x * 3571 + y * 2089) & 0x7fffffff);
-    },
-
-    buildBlockCanvas: function(blockType, blockRow, blockCol) {
-      var key = blockRow + "_" + blockCol;
-      if (this.blockCanvases[key]) { return this.blockCanvases[key]; }
-
-      var offCanvas = document.createElement("canvas");
-      offCanvas.width = BLOCK_W;
-      offCanvas.height = BLOCK_H;
-      var offCtx = offCanvas.getContext("2d");
-
-      this._renderBlockTiles(offCtx, blockType, blockRow, blockCol);
-
-      this.blockCanvases[key] = offCanvas;
-      return offCanvas;
-    },
-
-    _renderBlockTiles: function(offCtx, blockType, blockRow, blockCol) {
-      var self = this;
-
-      if (blockType === TERRAIN_TYPES.GRASSLAND) {
-        self._fillGrass(offCtx, blockRow, blockCol);
-        self._scatterGrassDecor(offCtx, blockRow, blockCol);
-      } else if (blockType === TERRAIN_TYPES.VILLAGE) {
-        self._fillGrass(offCtx, blockRow, blockCol);
-        self._placeHouses(offCtx, blockRow, blockCol, 4);
-        self._scatterGrassDecor(offCtx, blockRow, blockCol);
-      } else if (blockType === TERRAIN_TYPES.CASTLE_TOWN) {
-        self._fillStonePath(offCtx, blockRow, blockCol);
-        self._placeHouses(offCtx, blockRow, blockCol, 6);
-      } else if (blockType === TERRAIN_TYPES.CASTLE) {
-        self._fillCastle(offCtx, blockRow, blockCol);
-      } else if (blockType === TERRAIN_TYPES.MOUNTAIN) {
-        self._fillDirt(offCtx, blockRow, blockCol);
-        self._scatterMountainRocks(offCtx, blockRow, blockCol);
-      } else if (blockType === TERRAIN_TYPES.EMPTY) {
-        self._fillForest(offCtx, blockRow, blockCol);
-      }
-    },
-
-    _fillGrass: function(offCtx, bRow, bCol) {
-      for (var tx = 0; tx < TILES_PER_BLOCK_X; tx++) {
-        for (var ty = 0; ty < TILES_PER_BLOCK_Y; ty++) {
-          var seed = this._seed(bRow, bCol, tx, ty);
-          var tile = TileMapper.pickTile(TileMapper.grass, seed);
-          TileMapper.drawTile(offCtx, tile, tx * RENDER_TILE_SIZE, ty * RENDER_TILE_SIZE, RENDER_TILE_SIZE);
-        }
-      }
-    },
-
-    _scatterGrassDecor: function(offCtx, bRow, bCol) {
-      for (var d = 0; d < 12; d++) {
-        var seed = this._seed(bRow, bCol, d, 999);
-        var dx = (seed % (TILES_PER_BLOCK_X - 2)) + 1;
-        var seed2 = this._seed(bRow, bCol, d, 888);
-        var dy = (seed2 % (TILES_PER_BLOCK_Y - 2)) + 1;
-        var tile = TileMapper.pickTile(TileMapper.grassDecor, seed + d);
-        TileMapper.drawTile(offCtx, tile, dx * RENDER_TILE_SIZE, dy * RENDER_TILE_SIZE, RENDER_TILE_SIZE);
-      }
-    },
-
-    _fillStonePath: function(offCtx, bRow, bCol) {
-      for (var tx = 0; tx < TILES_PER_BLOCK_X; tx++) {
-        for (var ty = 0; ty < TILES_PER_BLOCK_Y; ty++) {
-          var seed = this._seed(bRow, bCol, tx, ty);
-          var tile = TileMapper.pickTile(TileMapper.stonePath, seed);
-          TileMapper.drawTile(offCtx, tile, tx * RENDER_TILE_SIZE, ty * RENDER_TILE_SIZE, RENDER_TILE_SIZE);
-        }
-      }
-    },
-
-    _fillDirt: function(offCtx, bRow, bCol) {
-      for (var tx = 0; tx < TILES_PER_BLOCK_X; tx++) {
-        for (var ty = 0; ty < TILES_PER_BLOCK_Y; ty++) {
-          var seed = this._seed(bRow, bCol, tx, ty);
-          var tile = TileMapper.pickTile(TileMapper.dirtPath, seed);
-          TileMapper.drawTile(offCtx, tile, tx * RENDER_TILE_SIZE, ty * RENDER_TILE_SIZE, RENDER_TILE_SIZE);
-        }
-      }
-    },
-
-    _fillCastle: function(offCtx, bRow, bCol) {
-      // Stone floor base
-      for (var tx = 0; tx < TILES_PER_BLOCK_X; tx++) {
-        for (var ty = 0; ty < TILES_PER_BLOCK_Y; ty++) {
-          var seed = this._seed(bRow, bCol, tx, ty);
-          var tile = TileMapper.pickTile(TileMapper.stonePath, seed);
-          TileMapper.drawTile(offCtx, tile, tx * RENDER_TILE_SIZE, ty * RENDER_TILE_SIZE, RENDER_TILE_SIZE);
-        }
-      }
-      // Castle walls along the edges
-      for (var wx = 0; wx < TILES_PER_BLOCK_X; wx++) {
-        var seedTop = this._seed(bRow, bCol, wx, 0);
-        TileMapper.drawTile(offCtx, TileMapper.pickTile(TileMapper.stoneWall, seedTop), wx * RENDER_TILE_SIZE, 0, RENDER_TILE_SIZE);
-        TileMapper.drawTile(offCtx, TileMapper.pickTile(TileMapper.stoneWall, seedTop + 1), wx * RENDER_TILE_SIZE, RENDER_TILE_SIZE, RENDER_TILE_SIZE);
-        var seedBot = this._seed(bRow, bCol, wx, TILES_PER_BLOCK_Y - 1);
-        TileMapper.drawTile(offCtx, TileMapper.pickTile(TileMapper.stoneWall, seedBot), wx * RENDER_TILE_SIZE, (TILES_PER_BLOCK_Y - 2) * RENDER_TILE_SIZE, RENDER_TILE_SIZE);
-        TileMapper.drawTile(offCtx, TileMapper.pickTile(TileMapper.stoneWall, seedBot + 1), wx * RENDER_TILE_SIZE, (TILES_PER_BLOCK_Y - 1) * RENDER_TILE_SIZE, RENDER_TILE_SIZE);
-      }
-      for (var wy = 2; wy < TILES_PER_BLOCK_Y - 2; wy++) {
-        var seedL = this._seed(bRow, bCol, 0, wy);
-        TileMapper.drawTile(offCtx, TileMapper.pickTile(TileMapper.stoneWall, seedL), 0, wy * RENDER_TILE_SIZE, RENDER_TILE_SIZE);
-        TileMapper.drawTile(offCtx, TileMapper.pickTile(TileMapper.stoneWall, seedL + 1), RENDER_TILE_SIZE, wy * RENDER_TILE_SIZE, RENDER_TILE_SIZE);
-        var seedR = this._seed(bRow, bCol, TILES_PER_BLOCK_X - 1, wy);
-        TileMapper.drawTile(offCtx, TileMapper.pickTile(TileMapper.stoneWall, seedR), (TILES_PER_BLOCK_X - 2) * RENDER_TILE_SIZE, wy * RENDER_TILE_SIZE, RENDER_TILE_SIZE);
-        TileMapper.drawTile(offCtx, TileMapper.pickTile(TileMapper.stoneWall, seedR + 1), (TILES_PER_BLOCK_X - 1) * RENDER_TILE_SIZE, wy * RENDER_TILE_SIZE, RENDER_TILE_SIZE);
-      }
-      // Castle towers at corners
-      TileMapper.drawTile(offCtx, TileMapper.castleTower, RENDER_TILE_SIZE, RENDER_TILE_SIZE, RENDER_TILE_SIZE * 2);
-      TileMapper.drawTile(offCtx, TileMapper.castleTower, (TILES_PER_BLOCK_X - 3) * RENDER_TILE_SIZE, RENDER_TILE_SIZE, RENDER_TILE_SIZE * 2);
-      TileMapper.drawTile(offCtx, TileMapper.castleTower, RENDER_TILE_SIZE, (TILES_PER_BLOCK_Y - 4) * RENDER_TILE_SIZE, RENDER_TILE_SIZE * 2);
-      TileMapper.drawTile(offCtx, TileMapper.castleTower, (TILES_PER_BLOCK_X - 3) * RENDER_TILE_SIZE, (TILES_PER_BLOCK_Y - 4) * RENDER_TILE_SIZE, RENDER_TILE_SIZE * 2);
-      // Gate in center
-      var cx = Math.floor(TILES_PER_BLOCK_X / 2);
-      var cy = Math.floor(TILES_PER_BLOCK_Y / 2);
-      TileMapper.drawTile(offCtx, TileMapper.castleDoor, cx * RENDER_TILE_SIZE, cy * RENDER_TILE_SIZE, RENDER_TILE_SIZE * 2);
-    },
-
-    _fillForest: function(offCtx, bRow, bCol) {
-      // Grass base
-      this._fillGrass(offCtx, bRow, bCol);
-      // 2タイル高の木（treeTall）を先に描画（下のレイヤー）
-      for (var t = 0; t < 8; t++) {
-        var tallSeed = this._seed(bRow, bCol, t, 888);
-        var tallIdx = Math.abs(tallSeed) % TileMapper.treeTall.length;
-        var tallTree = TileMapper.treeTall[tallIdx];
-        var tallSeed2 = this._seed(bRow, bCol, t, 899);
-        var tx = tallSeed % (TILES_PER_BLOCK_X - 1);
-        var ty = tallSeed2 % (TILES_PER_BLOCK_Y - 2);
-        // 上部タイルを描画
-        TileMapper.drawTile(offCtx, tallTree.top, tx * RENDER_TILE_SIZE, ty * RENDER_TILE_SIZE, RENDER_TILE_SIZE);
-        // 下部タイルを描画（1タイル下）
-        TileMapper.drawTile(offCtx, tallTree.bottom, tx * RENDER_TILE_SIZE, (ty + 1) * RENDER_TILE_SIZE, RENDER_TILE_SIZE);
-      }
-    },
-
-    _placeHouses: function(offCtx, bRow, bCol, count) {
-      // Houses are now drawn as game objects, not terrain tiles
-      // This function is intentionally empty
-    },
-
-    _scatterMountainRocks: function(offCtx, bRow, bCol) {
-      // Mountain tiles removed - fill with dense forest instead
-      this._fillForest(offCtx, bRow, bCol);
-    },
-
-    // Build a vertical river strip canvas (full map height)
-    buildRiverCanvas: function(riverX, riverW) {
-      var key = "river_" + riverX + "_" + riverW;
-      if (this.blockCanvases[key]) { return this.blockCanvases[key]; }
-
-      var offCanvas = document.createElement("canvas");
-      offCanvas.width = riverW + RENDER_TILE_SIZE * 2; // extra for edge tiles
-      offCanvas.height = MAP_H;
-      var offCtx = offCanvas.getContext("2d");
-
-      var tilesWide = Math.ceil(riverW / RENDER_TILE_SIZE);
-      var tilesHigh = Math.ceil(MAP_H / RENDER_TILE_SIZE);
-
-      // Left edge
-      for (var ey = 0; ey < tilesHigh; ey++) {
-        TileMapper.drawTile(offCtx, TileMapper.waterEdgeLeft, 0, ey * RENDER_TILE_SIZE, RENDER_TILE_SIZE);
-      }
-
-      // Water body
-      for (var wx = 0; wx < tilesWide; wx++) {
-        for (var wy = 0; wy < tilesHigh; wy++) {
-          var seed = (wx * 3571 + wy * 2089) & 0x7fffffff;
-          var tile = TileMapper.pickTile(TileMapper.water, seed);
-          TileMapper.drawTile(offCtx, tile, (wx + 1) * RENDER_TILE_SIZE, wy * RENDER_TILE_SIZE, RENDER_TILE_SIZE);
-        }
-      }
-
-      // Right edge
-      for (var ry = 0; ry < tilesHigh; ry++) {
-        TileMapper.drawTile(offCtx, TileMapper.waterEdgeRight, (tilesWide + 1) * RENDER_TILE_SIZE, ry * RENDER_TILE_SIZE, RENDER_TILE_SIZE);
-      }
-
-      this.blockCanvases[key] = offCanvas;
-      return offCanvas;
-    },
-
-    // Build a bridge canvas
-    buildBridgeCanvas: function(bridgeW, bridgeH, bridgeIdx) {
-      var key = "bridge_" + bridgeIdx;
-      if (this.blockCanvases[key]) { return this.blockCanvases[key]; }
-
-      var offCanvas = document.createElement("canvas");
-      offCanvas.width = bridgeW;
-      offCanvas.height = bridgeH;
-      var offCtx = offCanvas.getContext("2d");
-
-      var tilesWide = Math.ceil(bridgeW / RENDER_TILE_SIZE);
-      var tilesHigh = Math.ceil(bridgeH / RENDER_TILE_SIZE);
-
-      for (var bx = 0; bx < tilesWide; bx++) {
-        for (var by = 0; by < tilesHigh; by++) {
-          var seed = (bx * 127 + by * 311 + bridgeIdx * 997) & 0x7fffffff;
-          var tile = TileMapper.pickTile(TileMapper.bridgeHorizontal, seed);
-          TileMapper.drawTile(offCtx, tile, bx * RENDER_TILE_SIZE, by * RENDER_TILE_SIZE, RENDER_TILE_SIZE);
-        }
-      }
-
-      this.blockCanvases[key] = offCanvas;
-      return offCanvas;
-    }
-  };
 
   // ============================================================
   // DOM References
@@ -1979,7 +1639,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
       PlayerController.attackCooldown = 0.25;
 
       // Farmer: attack hits can attract civilians (30% chance)
-      if (gameState.selectedChar === "farmer" && Math.random() < 0.2) {
+      if (gameState.selectedChar === "farmer" && Math.random() < 0.3) {
         CivilianManager.spawn();
       }
     }
@@ -2330,8 +1990,8 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
         return;
       }
 
-      // Consume 20% of parade members (min 1)
-      var consumeCount = Math.max(1, Math.floor(paradeLen * 0.2));
+      // Consume 10% of parade members (min 1)
+      var consumeCount = Math.max(1, Math.floor(paradeLen * 0.1));
       var damageAmount = paradeLen * 8;
 
       // Remove consumed members from the end (loop-based)
@@ -2369,7 +2029,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
       // Flash + announcement
       this.flashTimer = 0.3;
       AnnouncementSystem.add("一揆!");
-      this.cooldown = 20;
+      this.cooldown = 15;
       ScoreManager.recalculate();
     }
   };
@@ -2386,7 +2046,12 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
       this.hireCooldown = 0;
       this.removeCooldown = 0;
       this.currentTerrainLabel = "";
-      gameState.koku = 0;
+      var def = gameState.charDef;
+      if (def && def.initialKoku) {
+        gameState.koku = def.initialKoku;
+      } else {
+        gameState.koku = 0;
+      }
       gameState.kokuPerSecond = 0;
     },
 
@@ -2394,19 +2059,22 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
       if (gameState.selectedChar !== "merchant") { return; }
       var terrain = TerrainManager.getTerrainAt(PlayerController.x, PlayerController.y);
       var incomeRate = 0;
-      if (terrain === TERRAIN_TYPES.VILLAGE) {
-        incomeRate = 2;
-        this.currentTerrainLabel = "村 +2/s";
-      } else if (terrain === TERRAIN_TYPES.CASTLE_TOWN) {
-        incomeRate = 5;
-        this.currentTerrainLabel = "城下町 +5/s";
+      if (terrain === TERRAIN_TYPES.CASTLE_TOWN) {
+        incomeRate = 10;
+        this.currentTerrainLabel = "城下町 +10/s";
+      } else if (terrain === TERRAIN_TYPES.VILLAGE) {
+        incomeRate = 4;
+        this.currentTerrainLabel = "村 +4/s";
+      } else if (terrain === TERRAIN_TYPES.GRASSLAND) {
+        incomeRate = 1;
+        this.currentTerrainLabel = "草原 +1/s";
       } else {
         incomeRate = 0;
         this.currentTerrainLabel = "";
       }
       gameState.kokuPerSecond = incomeRate;
       gameState.koku += incomeRate * dt;
-      var upkeepCost = ParadeController.getLength() * 0.2 * dt;
+      var upkeepCost = ParadeController.getLength() * 0.15 * dt;
       gameState.koku -= upkeepCost;
       if (this.removeCooldown > 0) { this.removeCooldown -= dt; }
       if (gameState.koku < 0) {
@@ -3078,7 +2746,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
 
     init: function() {
       var self = this;
-      if (tilesheetLoaded && spritesLoaded) {
+      if (spritesLoaded) {
         self._initSystems();
         return;
       }
@@ -3091,30 +2759,9 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
       ctx.textAlign = "center";
       ctx.fillText("読み込み中...", CANVAS_W / 2, CANVAS_H / 2);
 
-      var tilesheetDone = tilesheetLoaded;
-      var spritesDone = spritesLoaded;
-
-      function checkAllLoaded() {
-        if (tilesheetDone && spritesDone) {
-          self._initSystems();
-        }
-      }
-
-      if (!tilesheetLoaded) {
-        tilesheetImg.onload = function() {
-          tilesheetLoaded = true;
-          tilesheetDone = true;
-          checkAllLoaded();
-        };
-        tilesheetImg.src = "../docs/findings/sozai/kenney_roguelike-rpg-pack/Spritesheet/roguelikeSheet_transparent.png";
-      }
-
-      if (!spritesLoaded) {
-        loadAllSprites(function() {
-          spritesDone = true;
-          checkAllLoaded();
-        });
-      }
+      loadAllSprites(function() {
+        self._initSystems();
+      });
     },
 
     _initSystems: function() {
@@ -3122,8 +2769,7 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
       gameState.paused = false;
       gameState.phase = "countdown";
 
-      // Clear tile cache and house cache, rebuild for new map
-      TerrainTileCache.clear();
+      // Clear house cache for new map
       HouseManager.clear();
 
       // Generate map
@@ -3290,9 +2936,25 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
         // Only draw if visible
         if (bsp.x + bl.w < -50 || bsp.x > CANVAS_W + 50 || bsp.y + bl.h < -50 || bsp.y > CANVAS_H + 50) { continue; }
 
-        if (tilesheetLoaded) {
-          var blockCanvas = TerrainTileCache.buildBlockCanvas(bl.type, bl.row, bl.col);
-          ctx.drawImage(blockCanvas, bsp.x, bsp.y);
+        // Colored fill for terrain blocks
+        if (bl.type === TERRAIN_TYPES.GRASSLAND) {
+          ctx.fillStyle = "rgba(120, 180, 80, 0.25)";
+          ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
+        } else if (bl.type === TERRAIN_TYPES.VILLAGE) {
+          ctx.fillStyle = "rgba(120, 180, 80, 0.15)";
+          ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
+        } else if (bl.type === TERRAIN_TYPES.CASTLE_TOWN) {
+          ctx.fillStyle = "rgba(160, 150, 130, 0.2)";
+          ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
+        } else if (bl.type === TERRAIN_TYPES.CASTLE) {
+          ctx.fillStyle = "rgba(160, 150, 130, 0.3)";
+          ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
+        } else if (bl.type === TERRAIN_TYPES.MOUNTAIN) {
+          ctx.fillStyle = "rgba(140, 130, 100, 0.2)";
+          ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
+        } else if (bl.type === TERRAIN_TYPES.EMPTY) {
+          ctx.fillStyle = "rgba(80, 120, 60, 0.1)";
+          ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
         }
 
         if (bl.type === TERRAIN_TYPES.CASTLE) {
@@ -3346,18 +3008,17 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
       // River (vertical)
       var riverSp = CameraController.worldToScreen(TerrainManager.riverX, 0);
       if (riverSp.x + TerrainManager.riverW > 0 && riverSp.x < CANVAS_W) {
-        if (tilesheetLoaded) {
-          var riverCanvas = TerrainTileCache.buildRiverCanvas(TerrainManager.riverX, TerrainManager.riverW);
-          var srcY = CameraController.y;
-          if (srcY < 0) { srcY = 0; }
-          var drawY = -CameraController.y;
-          if (drawY < 0) { drawY = 0; }
-          ctx.drawImage(
-            riverCanvas,
-            0, srcY, riverCanvas.width, CANVAS_H,
-            riverSp.x - RENDER_TILE_SIZE, drawY, riverCanvas.width, CANVAS_H
-          );
-        }
+        ctx.fillStyle = "rgba(100, 150, 210, 0.4)";
+        ctx.fillRect(riverSp.x, 0, TerrainManager.riverW, CANVAS_H);
+        // River edges
+        ctx.strokeStyle = "rgba(70, 120, 180, 0.5)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(riverSp.x, 0);
+        ctx.lineTo(riverSp.x, CANVAS_H);
+        ctx.moveTo(riverSp.x + TerrainManager.riverW, 0);
+        ctx.lineTo(riverSp.x + TerrainManager.riverW, CANVAS_H);
+        ctx.stroke();
       }
 
       // Bridges
@@ -3365,10 +3026,12 @@ canvas { display: block; border: 3px solid #1a1a1a; cursor: crosshair; }
         var br = TerrainManager.bridges[bri];
         var brSp = CameraController.worldToScreen(br.x, br.y);
         if (brSp.x + br.w < 0 || brSp.x > CANVAS_W || brSp.y + br.h < 0 || brSp.y > CANVAS_H) { continue; }
-        if (tilesheetLoaded) {
-          var bridgeCanvas = TerrainTileCache.buildBridgeCanvas(br.w, br.h, bri);
-          ctx.drawImage(bridgeCanvas, brSp.x, brSp.y);
-        }
+        // Bridge colored fill
+        ctx.fillStyle = "rgba(160, 130, 80, 0.5)";
+        ctx.fillRect(brSp.x, brSp.y, br.w, br.h);
+        ctx.strokeStyle = "rgba(120, 90, 50, 0.6)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(brSp.x, brSp.y, br.w, br.h);
         ctx.font = FONT.h5;
         ctx.textAlign = "center";
         ctx.fillStyle = "#1a1a1a";
