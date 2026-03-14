@@ -609,7 +609,7 @@ var GameDirector = {
 
   render: function() {
     // Background: ground color fill (prevents tile gap artifacts)
-    ctx.fillStyle = "#d4c8a0";
+    ctx.fillStyle = "#d4bdb3";
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
     // Washi texture
@@ -661,14 +661,14 @@ var GameDirector = {
             var tileRow = 0;
             for (var tty = tsStartY; tty < tsStartY + bl.h; tty += tileSize) {
               // Seed-based sparse placement (~38%)
-              var tileSeed = ((bl.row * 7919 + bl.col * 6271 + tileCol * 131 + tileRow * 97) & 0x7fffffff) % 100;
+              var tileSeed = ((bl.row * 7919 + bl.col * 6271 + tileCol * 48271 + tileRow * 31547 + tileCol * tileRow * 2969) & 0x7fffffff) % 100;
               var tileWorldX = bl.x + tileCol * tileSize;
               var tileWorldY = bl.y + tileRow * tileSize;
               if (TerrainManager.isInRiver(tileWorldX, tileWorldY)) {
                 tileRow++;
                 continue;
               }
-              if (tileSeed < 38) {
+              if (tileSeed < 20) {
                 var drawTW = Math.min(tileSize, tsStartX + bl.w - ttx);
                 var drawTH = Math.min(tileSize, tsStartY + bl.h - tty);
                 ctx.drawImage(tsuchiImg, 0, 0, SPRITE_DEFS.tsuchi.w * (drawTW / tileSize), SPRITE_DEFS.tsuchi.h * (drawTH / tileSize), ttx, tty, drawTW, drawTH);
