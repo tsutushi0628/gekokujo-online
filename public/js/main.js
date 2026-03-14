@@ -633,56 +633,74 @@ var GameDirector = {
       // Only draw if visible
       if (bsp.x + bl.w < -50 || bsp.x > CANVAS_W + 50 || bsp.y + bl.h < -50 || bsp.y > CANVAS_H + 50) { continue; }
 
-      // Colored fill for terrain blocks
+      // Tsuchi texture on all non-river terrain
+      if (bl.type !== TERRAIN_TYPES.RIVER && spritesLoaded && spriteImages.tsuchi) {
+        var tsuchiImg = spriteImages.tsuchi;
+        var tileSize = 64;
+        var tsStartX = bsp.x;
+        var tsStartY = bsp.y;
+        var tileCol = 0;
+        for (var ttx = tsStartX; ttx < tsStartX + bl.w; ttx += tileSize) {
+          var tileRow = 0;
+          for (var tty = tsStartY; tty < tsStartY + bl.h; tty += tileSize) {
+            var tileSeed = ((bl.row * 7919 + bl.col * 6271 + tileCol * 48271 + tileRow * 31547 + tileCol * tileRow * 2969) & 0x7fffffff) % 100;
+            var tileWorldX = bl.x + tileCol * tileSize;
+            var tileWorldY = bl.y + tileRow * tileSize;
+            if (TerrainManager.isInRiver(tileWorldX, tileWorldY)) {
+              tileRow++;
+              continue;
+            }
+            if (tileSeed < 30) {
+              var drawTW = Math.min(tileSize, tsStartX + bl.w - ttx);
+              var drawTH = Math.min(tileSize, tsStartY + bl.h - tty);
+              ctx.drawImage(tsuchiImg, 0, 0, SPRITE_DEFS.tsuchi.w * (drawTW / tileSize), SPRITE_DEFS.tsuchi.h * (drawTH / tileSize), ttx, tty, drawTW, drawTH);
+            }
+            tileRow++;
+          }
+          tileCol++;
+        }
+      }
+
+      // Terrain-specific overlays
       if (bl.type === TERRAIN_TYPES.GRASSLAND) {
-        ctx.fillStyle = "rgba(120, 180, 80, 0.25)";
+        ctx.fillStyle = "rgba(120, 180, 80, 0.2)";
         ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
       } else if (bl.type === TERRAIN_TYPES.VILLAGE) {
-        ctx.fillStyle = "rgba(120, 180, 80, 0.15)";
-        ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
-      } else if (bl.type === TERRAIN_TYPES.CASTLE_TOWN) {
-        ctx.fillStyle = "rgba(160, 150, 130, 0.2)";
+        ctx.fillStyle = "rgba(120, 180, 80, 0.12)";
         ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
       } else if (bl.type === TERRAIN_TYPES.CASTLE) {
-        ctx.fillStyle = "rgba(160, 150, 130, 0.3)";
+        // Cobblestone pattern for castle area
+        ctx.fillStyle = "rgba(140, 135, 125, 0.25)";
         ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
-      } else if (bl.type === TERRAIN_TYPES.MOUNTAIN) {
-        ctx.fillStyle = "rgba(140, 130, 100, 0.2)";
-        ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
-      } else if (bl.type === TERRAIN_TYPES.EMPTY) {
-        // Tile tsuchi.png sparsely on empty terrain (background color matches ground)
-        if (spritesLoaded && spriteImages.tsuchi) {
-          var tsuchiImg = spriteImages.tsuchi;
-          var tileSize = 64;
-          var tsStartX = bsp.x;
-          var tsStartY = bsp.y;
-          var tileCol = 0;
-          for (var ttx = tsStartX; ttx < tsStartX + bl.w; ttx += tileSize) {
-            var tileRow = 0;
-            for (var tty = tsStartY; tty < tsStartY + bl.h; tty += tileSize) {
-              // Seed-based sparse placement (~38%)
-              var tileSeed = ((bl.row * 7919 + bl.col * 6271 + tileCol * 48271 + tileRow * 31547 + tileCol * tileRow * 2969) & 0x7fffffff) % 100;
-              var tileWorldX = bl.x + tileCol * tileSize;
-              var tileWorldY = bl.y + tileRow * tileSize;
-              if (TerrainManager.isInRiver(tileWorldX, tileWorldY)) {
-                tileRow++;
-                continue;
-              }
-              if (tileSeed < 20) {
-                var drawTW = Math.min(tileSize, tsStartX + bl.w - ttx);
-                var drawTH = Math.min(tileSize, tsStartY + bl.h - tty);
-                ctx.drawImage(tsuchiImg, 0, 0, SPRITE_DEFS.tsuchi.w * (drawTW / tileSize), SPRITE_DEFS.tsuchi.h * (drawTH / tileSize), ttx, tty, drawTW, drawTH);
-              }
-              tileRow++;
-            }
-            tileCol++;
+        ctx.strokeStyle = "rgba(100, 95, 85, 0.15)";
+        ctx.lineWidth = 1;
+        var stoneW = 24;
+        var stoneH = 16;
+        for (var sy = bsp.y; sy < bsp.y + bl.h; sy += stoneH) {
+          var rowIdx = Math.floor((sy - bsp.y) / stoneH);
+          var offsetX = (rowIdx % 2 === 0) ? 0 : stoneW / 2;
+          for (var sx = bsp.x - stoneW + offsetX; sx < bsp.x + bl.w; sx += stoneW) {
+            ctx.strokeRect(sx, sy, stoneW, stoneH);
           }
-          ctx.fillStyle = "rgba(80, 120, 60, 0.05)";
-          ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
-        } else {
-          ctx.fillStyle = "rgba(80, 120, 60, 0.1)";
-          ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
         }
+      } else if (bl.type === TERRAIN_TYPES.CASTLE_TOWN) {
+        // Lighter cobblestone for castle town
+        ctx.fillStyle = "rgba(150, 145, 135, 0.15)";
+        ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
+        ctx.strokeStyle = "rgba(120, 115, 105, 0.08)";
+        ctx.lineWidth = 1;
+        var ctStoneW = 28;
+        var ctStoneH = 18;
+        for (var cty = bsp.y; cty < bsp.y + bl.h; cty += ctStoneH) {
+          var ctRowIdx = Math.floor((cty - bsp.y) / ctStoneH);
+          var ctOffsetX = (ctRowIdx % 2 === 0) ? 0 : ctStoneW / 2;
+          for (var ctsx = bsp.x - ctStoneW + ctOffsetX; ctsx < bsp.x + bl.w; ctsx += ctStoneW) {
+            ctx.strokeRect(ctsx, cty, ctStoneW, ctStoneH);
+          }
+        }
+      } else if (bl.type === TERRAIN_TYPES.MOUNTAIN) {
+        ctx.fillStyle = "rgba(140, 130, 100, 0.15)";
+        ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
       }
 
       if (bl.type === TERRAIN_TYPES.CASTLE) {

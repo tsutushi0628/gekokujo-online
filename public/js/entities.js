@@ -281,12 +281,13 @@ var EnemyManager = {
 
       if (dist > 1) {
         var enemySpd = en.speed;
-        // Enemies slow down in river too
-        if (TerrainManager.isInRiver(en.x, en.y)) {
-          enemySpd = enemySpd * 0.3;
-        }
         var newX = en.x + (dx / dist) * enemySpd;
         var newY = en.y + (dy / dist) * enemySpd;
+        // Block river crossing (allow only on bridge)
+        if (TerrainManager.isInRiver(newX, newY) && !TerrainManager.isOnBridge(newX, newY)) {
+          newX = en.x;
+          newY = en.y;
+        }
         // Track facing direction
         if (dx < 0) { en.facingLeft = true; }
         if (dx > 0) { en.facingLeft = false; }
@@ -458,8 +459,15 @@ var CivilianManager = {
       // Wander
       civ.wanderTimer += dt;
       if (civ.wanderTimer > 2) { civ.wanderTimer = 0; civ.wanderAngle = Math.random() * Math.PI * 2; }
-      civ.x += Math.cos(civ.wanderAngle) * 0.3;
-      civ.y += Math.sin(civ.wanderAngle) * 0.3;
+      var civNewX = civ.x + Math.cos(civ.wanderAngle) * 0.3;
+      var civNewY = civ.y + Math.sin(civ.wanderAngle) * 0.3;
+      // Block river crossing (allow only on bridge)
+      if (TerrainManager.isInRiver(civNewX, civNewY) && !TerrainManager.isOnBridge(civNewX, civNewY)) {
+        civ.wanderAngle = civ.wanderAngle + Math.PI;
+      } else {
+        civ.x = civNewX;
+        civ.y = civNewY;
+      }
 
       // Bounds
       if (civ.x < 20) { civ.x = 20; civ.wanderAngle = 0; }
@@ -602,15 +610,19 @@ var ParadeController = {
       if (histIdx >= this.positionHistory.length) { histIdx = this.positionHistory.length - 1; }
       var target = this.positionHistory[histIdx];
       if (target) {
-        // Smooth follow (slower in river)
+        // Smooth follow
         var followSpeed = 0.2;
-        if (TerrainManager.isInRiver(m.x, m.y)) {
-          followSpeed = 0.06;
-        }
         var dx = target.x - m.x;
         var dy = target.y - m.y;
-        m.x += dx * followSpeed;
-        m.y += dy * followSpeed;
+        var mNewX = m.x + dx * followSpeed;
+        var mNewY = m.y + dy * followSpeed;
+        // Block river crossing (allow only on bridge)
+        if (TerrainManager.isInRiver(mNewX, mNewY) && !TerrainManager.isOnBridge(mNewX, mNewY)) {
+          mNewX = m.x;
+          mNewY = m.y;
+        }
+        m.x = mNewX;
+        m.y = mNewY;
       }
 
       // Building collision for parade members
