@@ -726,7 +726,13 @@ var ProjectileManager = {
   init: function() { this.projectiles = []; },
 
   add: function(x, y, vx, vy, damage, life, size, color, homing) {
-    this.projectiles.push({ x: x, y: y, vx: vx, vy: vy, damage: damage, life: life, size: size, color: color, homing: homing });
+    var emoji = "\uD83E\uDE93"; // default: axe (farmer)
+    if (gameState.selectedChar === "ashigaru") {
+      emoji = "\uD83C\uDF19"; // crescent moon
+    } else if (gameState.selectedChar === "merchant") {
+      emoji = "\uD83E\uDDEE"; // abacus
+    }
+    this.projectiles.push({ x: x, y: y, vx: vx, vy: vy, damage: damage, life: life, size: size, color: color, homing: homing, emoji: emoji, rotation: 0 });
   },
 
   _findNearestEnemy: function(x, y) {
@@ -776,6 +782,7 @@ var ProjectileManager = {
 
       p.x += p.vx;
       p.y += p.vy;
+      p.rotation += 6 * dt;
       p.life--;
       if (p.life <= 0 || p.x < -20 || p.x > MAP_W + 20 || p.y < -20 || p.y > MAP_H + 20) {
         this.projectiles.splice(i, 1);
@@ -827,10 +834,14 @@ var ProjectileManager = {
       var p = this.projectiles[i];
       if (!CameraController.isVisible(p.x, p.y, 10)) { continue; }
       var sp = CameraController.worldToScreen(p.x, p.y);
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(sp.x, sp.y, p.size, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.save();
+      ctx.translate(sp.x, sp.y);
+      ctx.rotate(p.rotation);
+      ctx.font = "16px " + FONT_FAMILY;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(p.emoji, 0, 0);
+      ctx.restore();
     }
   }
 };
