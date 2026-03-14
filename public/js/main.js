@@ -609,7 +609,7 @@ var GameDirector = {
 
   render: function() {
     // Background: ground color fill (prevents tile gap artifacts)
-    ctx.fillStyle = "#c7c2a4";
+    ctx.fillStyle = "#d8c5b4";
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
 
@@ -627,8 +627,6 @@ var GameDirector = {
         var tileSize = 64;
         var tsStartX = bsp.x;
         var tsStartY = bsp.y;
-        ctx.globalCompositeOperation = "multiply";
-        ctx.globalAlpha = 0.6;
         var tileCol = 0;
         for (var ttx = tsStartX; ttx < tsStartX + bl.w; ttx += tileSize) {
           var tileRow = 0;
@@ -649,8 +647,6 @@ var GameDirector = {
           }
           tileCol++;
         }
-        ctx.globalCompositeOperation = "source-over";
-        ctx.globalAlpha = 1.0;
       }
 
       // Terrain-specific overlays (castle/castle_town only)
