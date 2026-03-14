@@ -218,8 +218,28 @@ var EnemyManager = {
     // Don't spawn in river
     if (TerrainManager.isInRiver(ex, ey)) { ex = TerrainManager.riverX - 30; }
 
-    // Castle town enemies are stronger
+    // Reduce spawn rate near castle town (well-guarded area)
     var terrType = TerrainManager.getTerrainAt(ex, ey);
+    if (terrType === TERRAIN_TYPES.CASTLE_TOWN) {
+      // Find distance to nearest castle_town center
+      var nearestDist = 9999;
+      for (var ti = 0; ti < TerrainManager.blocks.length; ti++) {
+        var tbl = TerrainManager.blocks[ti];
+        if (tbl.type === TERRAIN_TYPES.CASTLE_TOWN) {
+          var tcx = tbl.x + tbl.w / 2;
+          var tcy = tbl.y + tbl.h / 2;
+          var tdx = ex - tcx;
+          var tdy = ey - tcy;
+          var tDist = Math.sqrt(tdx * tdx + tdy * tdy);
+          if (tDist < nearestDist) { nearestDist = tDist; }
+        }
+      }
+      // Closer to center = less likely to spawn (70% rejection at center, 0% at 400px+)
+      var rejectChance = 0.7 * Math.max(0, 1 - nearestDist / 400);
+      if (Math.random() < rejectChance) { return; }
+    }
+
+    // Castle town enemies are stronger
     var hpMult = 1;
     if (terrType === TERRAIN_TYPES.CASTLE_TOWN) { hpMult = 1.5; }
     if (terrType === TERRAIN_TYPES.MOUNTAIN) { hpMult = 1.3; }
