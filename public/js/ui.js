@@ -25,7 +25,7 @@ var MinimapRenderer = {
       var bw = bl.w * scaleX;
       var bh = bl.h * scaleY;
       if (bl.type === TERRAIN_TYPES.CASTLE) {
-        ctx.fillStyle = "rgba(200, 60, 60, 0.5)";
+        ctx.fillStyle = "rgba(140, 135, 125, 0.5)";
         ctx.fillRect(bx, by, bw, bh);
       } else if (bl.type === TERRAIN_TYPES.GRASSLAND) {
         ctx.fillStyle = "rgba(100, 160, 80, 0.3)";

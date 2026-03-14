@@ -609,7 +609,7 @@ var GameDirector = {
 
   render: function() {
     // Background: ground color fill (prevents tile gap artifacts)
-    ctx.fillStyle = "#d4bdb3";
+    ctx.fillStyle = "#c7c2a4";
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
     // Washi texture
@@ -633,8 +633,8 @@ var GameDirector = {
       // Only draw if visible
       if (bsp.x + bl.w < -50 || bsp.x > CANVAS_W + 50 || bsp.y + bl.h < -50 || bsp.y > CANVAS_H + 50) { continue; }
 
-      // Tsuchi texture on all non-river terrain
-      if (bl.type !== TERRAIN_TYPES.RIVER && spritesLoaded && spriteImages.tsuchi) {
+      // Tsuchi texture on non-river, non-castle terrain only
+      if (bl.type !== TERRAIN_TYPES.RIVER && bl.type !== TERRAIN_TYPES.CASTLE && bl.type !== TERRAIN_TYPES.CASTLE_TOWN && spritesLoaded && spriteImages.tsuchi) {
         var tsuchiImg = spriteImages.tsuchi;
         var tileSize = 64;
         var tsStartX = bsp.x;
@@ -678,7 +678,8 @@ var GameDirector = {
         var stoneH = 16;
         for (var sy = bsp.y; sy < bsp.y + bl.h; sy += stoneH) {
           var rowIdx = Math.floor((sy - bsp.y) / stoneH);
-          var offsetX = (rowIdx % 2 === 0) ? 0 : stoneW / 2;
+          var offsetX = 0;
+          if (rowIdx % 2 !== 0) { offsetX = stoneW / 2; }
           for (var sx = bsp.x - stoneW + offsetX; sx < bsp.x + bl.w; sx += stoneW) {
             ctx.strokeRect(sx, sy, stoneW, stoneH);
           }
@@ -693,7 +694,8 @@ var GameDirector = {
         var ctStoneH = 18;
         for (var cty = bsp.y; cty < bsp.y + bl.h; cty += ctStoneH) {
           var ctRowIdx = Math.floor((cty - bsp.y) / ctStoneH);
-          var ctOffsetX = (ctRowIdx % 2 === 0) ? 0 : ctStoneW / 2;
+          var ctOffsetX = 0;
+          if (ctRowIdx % 2 !== 0) { ctOffsetX = ctStoneW / 2; }
           for (var ctsx = bsp.x - ctStoneW + ctOffsetX; ctsx < bsp.x + bl.w; ctsx += ctStoneW) {
             ctx.strokeRect(ctsx, cty, ctStoneW, ctStoneH);
           }
