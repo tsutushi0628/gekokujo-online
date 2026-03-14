@@ -352,12 +352,12 @@ var TsujigiriSystem = {
       ctx.fillStyle = "rgba(0,0,0,0.5)";
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
       if (spritesLoaded) {
-        drawSpriteCentered(ctx, "tsujigiri", CANVAS_W / 2, CANVAS_H / 2 - 80, 120, false);
+        drawSpriteCentered(ctx, "tsujigiri", CANVAS_W / 2, CANVAS_H / 2 - 60, 120, false);
       }
       ctx.font = FONT.h1;
       ctx.textAlign = "center";
       ctx.fillStyle = "#c03030";
-      ctx.fillText("辻斬りがあらわれた！", CANVAS_W / 2, CANVAS_H / 2 - 10);
+      ctx.fillText("辻斬りがあらわれた！", CANVAS_W / 2, CANVAS_H / 2 + 30);
       var blink = Math.sin(performance.now() * 0.01) > 0;
       if (blink) {
         ctx.fillStyle = "#ffffff";

@@ -660,9 +660,15 @@ var GameDirector = {
           for (var ttx = tsStartX; ttx < tsStartX + bl.w; ttx += tileSize) {
             var tileRow = 0;
             for (var tty = tsStartY; tty < tsStartY + bl.h; tty += tileSize) {
-              // Seed-based sparse placement (~65%)
+              // Seed-based sparse placement (~38%)
               var tileSeed = ((bl.row * 7919 + bl.col * 6271 + tileCol * 131 + tileRow * 97) & 0x7fffffff) % 100;
-              if (tileSeed < 65) {
+              var tileWorldX = bl.x + tileCol * tileSize;
+              var tileWorldY = bl.y + tileRow * tileSize;
+              if (TerrainManager.isInRiver(tileWorldX, tileWorldY)) {
+                tileRow++;
+                continue;
+              }
+              if (tileSeed < 38) {
                 var drawTW = Math.min(tileSize, tsStartX + bl.w - ttx);
                 var drawTH = Math.min(tileSize, tsStartY + bl.h - tty);
                 ctx.drawImage(tsuchiImg, 0, 0, SPRITE_DEFS.tsuchi.w * (drawTW / tileSize), SPRITE_DEFS.tsuchi.h * (drawTH / tileSize), ttx, tty, drawTW, drawTH);
