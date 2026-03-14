@@ -612,19 +612,7 @@ var GameDirector = {
     ctx.fillStyle = "#c7c2a4";
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-    // Washi texture
-    ctx.fillStyle = "rgba(200,200,200,0.2)";
-    var startX = -(CameraController.x % 20);
-    var startY = -(CameraController.y % 20);
-    for (var wx = startX; wx < CANVAS_W; wx += 20) {
-      for (var wy = startY; wy < CANVAS_H; wy += 20) {
-        var worldWx = wx + CameraController.x;
-        var worldWy = wy + CameraController.y;
-        if (Math.sin(worldWx * 0.7 + worldWy * 1.3) > 0.5) {
-          ctx.fillRect(wx, wy, 2, 2);
-        }
-      }
-    }
+
 
     // Draw terrain blocks
     for (var bi = 0; bi < TerrainManager.blocks.length; bi++) {
