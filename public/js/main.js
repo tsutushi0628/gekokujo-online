@@ -400,6 +400,16 @@ var GekokujoSystem = {
   defeatTimer: 0,
   defeatExplosionTimer: 0,
 
+  // Castle collision rect (always active)
+  castleCollision: null,
+
+  // Boss cutin timers
+  chargeCutinTimer: 0,
+  retreatCutinTimer: 0,
+
+  // Shockwave effect
+  shockwave: null,
+
   init: function() {
     this.available = true;
     this.gateActive = false;
@@ -421,6 +431,18 @@ var GekokujoSystem = {
     this.gekokujoWin = false;
     this.defeatTimer = 0;
     this.defeatExplosionTimer = 0;
+    this.chargeCutinTimer = 0;
+    this.retreatCutinTimer = 0;
+    this.shockwave = null;
+
+    // Setup castle collision (always active, 480x320 centered on castle)
+    var castlePos = MapGenerator.getCastleWorldPos();
+    this.castleCollision = {
+      x: castlePos.x - 240,
+      y: castlePos.y - 160,
+      w: 480,
+      h: 320
+    };
   },
 
   // Called with raw (unslowed) dt from gameLoop, before dt is multiplied
@@ -461,6 +483,97 @@ var GekokujoSystem = {
       this.flashTimer -= rawDt;
       if (this.flashTimer <= 0) {
         this.flashTimer = 0;
+      }
+    }
+    if (this.chargeCutinTimer > 0) {
+      this.chargeCutinTimer -= rawDt;
+      if (this.chargeCutinTimer < 0) { this.chargeCutinTimer = 0; }
+    }
+    if (this.retreatCutinTimer > 0) {
+      this.retreatCutinTimer -= rawDt;
+      if (this.retreatCutinTimer < 0) { this.retreatCutinTimer = 0; }
+    }
+    if (this.shockwave) {
+      this.shockwave.timer -= rawDt;
+      if (this.shockwave.timer <= 0) { this.shockwave = null; }
+    }
+  },
+
+  // Helper: random float between min and max
+  _randRange: function(min, max) {
+    return min + Math.random() * (max - min);
+  },
+
+  // State machine: transition to new AI state
+  _changeState: function(newState) {
+    var boss = this.boss;
+    boss.aiState = newState;
+    boss.stateTimer = 0;
+
+    if (newState === "WINDUP") {
+      boss.stateDuration = this._randRange(TONO_BOSS.windupDurationMin, TONO_BOSS.windupDurationMax);
+      boss.speed = 0;
+    } else if (newState === "CHARGE") {
+      boss.stateDuration = TONO_BOSS.chargeDuration;
+      boss.speed = TONO_BOSS.chargeSpeed;
+      // Lock charge direction toward player at start
+      var cdx = PlayerController.x - boss.x;
+      var cdy = PlayerController.y - boss.y;
+      var cDist = Math.sqrt(cdx * cdx + cdy * cdy);
+      if (cDist < 1) { cDist = 1; }
+      boss.chargeDirX = cdx / cDist;
+      boss.chargeDirY = cdy / cDist;
+      boss.contactHit = false;
+      // Charge cutin (show 0.4s before windup ends, so trigger here at charge start)
+      this.chargeCutinTimer = 0.8;
+    } else if (newState === "DECEL") {
+      boss.stateDuration = TONO_BOSS.decelDuration;
+      boss.decelStartSpeed = TONO_BOSS.chargeSpeed;
+    } else if (newState === "RETREAT") {
+      boss.stateDuration = 999; // ends when reaching castle
+      boss.speed = TONO_BOSS.retreatSpeed;
+      boss.retreatShotTimer = 0;
+      this.retreatCutinTimer = 0.5;
+    } else if (newState === "CASTLE_WAIT") {
+      boss.stateDuration = this._randRange(TONO_BOSS.castleWaitDurationMin, TONO_BOSS.castleWaitDurationMax);
+      boss.speed = 0;
+    } else if (newState === "CHASE") {
+      boss.stateDuration = 3.0;
+      boss.speed = TONO_BOSS.chaseSpeed;
+    }
+  },
+
+  // State machine: pick next state based on transition rules
+  _rollNextState: function(fromState) {
+    var roll = Math.random();
+    if (fromState === "WINDUP") {
+      this._changeState("CHARGE");
+    } else if (fromState === "CHARGE") {
+      this._changeState("DECEL");
+    } else if (fromState === "DECEL") {
+      // 70% RETREAT, 30% WINDUP (consecutive charge)
+      if (roll < 0.7) {
+        this._changeState("RETREAT");
+      } else {
+        this._changeState("WINDUP");
+      }
+    } else if (fromState === "RETREAT") {
+      this._changeState("CASTLE_WAIT");
+    } else if (fromState === "CASTLE_WAIT") {
+      // 50% WINDUP, 30% CHASE, 20% RETREAT
+      if (roll < 0.5) {
+        this._changeState("WINDUP");
+      } else if (roll < 0.8) {
+        this._changeState("CHASE");
+      } else {
+        this._changeState("RETREAT");
+      }
+    } else if (fromState === "CHASE") {
+      // 60% WINDUP, 40% CHASE continue
+      if (roll < 0.6) {
+        this._changeState("WINDUP");
+      } else {
+        this._changeState("CHASE");
       }
     }
   },
@@ -508,31 +621,149 @@ var GekokujoSystem = {
       }
     }
 
-    // Boss battle
+    // Boss battle - state machine AI
     if (this.battleActive) {
       this.battleTimer -= dt;
       this.battleElapsed += dt;
       var boss = this.boss;
+      boss.stateTimer += dt;
 
-      // Boss AI（城下町から出られない制約あり）
+      var castleTarget = MapGenerator.getCastleWorldPos();
       var bdx = PlayerController.x - boss.x;
       var bdy = PlayerController.y - boss.y;
       var bDist = Math.sqrt(bdx * bdx + bdy * bdy);
-      if (bDist > 1) {
-        var bossNewX = boss.x + (bdx / bDist) * boss.speed;
-        var bossNewY = boss.y + (bdy / bDist) * boss.speed;
-        var bossTerrain = TerrainManager.getTerrainAt(bossNewX, bossNewY);
-        if (bossTerrain === TERRAIN_TYPES.CASTLE_TOWN || bossTerrain === TERRAIN_TYPES.CASTLE) {
-          boss.x = bossNewX;
-          boss.y = bossNewY;
+
+      // === State-specific behavior ===
+      if (boss.aiState === "CHASE") {
+        // Move toward player (constrained to castle/castle_town)
+        if (bDist > 1) {
+          var bossNewX = boss.x + (bdx / bDist) * boss.speed;
+          var bossNewY = boss.y + (bdy / bDist) * boss.speed;
+          var bossTerrain = TerrainManager.getTerrainAt(bossNewX, bossNewY);
+          if (bossTerrain === TERRAIN_TYPES.CASTLE_TOWN || bossTerrain === TERRAIN_TYPES.CASTLE) {
+            boss.x = bossNewX;
+            boss.y = bossNewY;
+          }
         }
-      }
-      if (bDist < PlayerController.size + boss.size) {
-        boss.attackTimer += dt;
-        if (boss.attackTimer > 1.0) {
-          boss.attackTimer = 0;
-          var dead = PlayerController.takeDamage(boss.attack);
-          if (dead) { this.fail(); return; }
+        // Contact damage (1s interval, same as old behavior)
+        if (bDist < PlayerController.size + boss.size) {
+          boss.attackTimer += dt;
+          if (boss.attackTimer > 1.0) {
+            boss.attackTimer = 0;
+            var dead = PlayerController.takeDamage(boss.attack);
+            if (dead) { this.fail(); return; }
+          }
+        }
+        // Transition after duration
+        if (boss.stateTimer >= boss.stateDuration) {
+          this._rollNextState("CHASE");
+        }
+
+      } else if (boss.aiState === "WINDUP") {
+        // Stay still, pulse effect handled in draw
+        if (boss.stateTimer >= boss.stateDuration) {
+          this._rollNextState("WINDUP");
+        }
+
+      } else if (boss.aiState === "CHARGE") {
+        // Move in locked direction
+        boss.x += boss.chargeDirX * boss.speed;
+        boss.y += boss.chargeDirY * boss.speed;
+        // Clamp to map bounds
+        if (boss.x < 30) { boss.x = 30; }
+        if (boss.x > MAP_W - 30) { boss.x = MAP_W - 30; }
+        if (boss.y < 30) { boss.y = 30; }
+        if (boss.y > MAP_H - 30) { boss.y = MAP_H - 30; }
+
+        // Check contact with player
+        if (!boss.contactHit && bDist < PlayerController.size + boss.size) {
+          boss.contactHit = true;
+          // 35% HP damage
+          var chargeDmg = Math.floor(PlayerController.maxHp * TONO_BOSS.contactDamageRatio);
+          var chargeDead = PlayerController.takeDamage(chargeDmg);
+          // Knockback
+          var kbDx = PlayerController.x - boss.x;
+          var kbDy = PlayerController.y - boss.y;
+          PlayerController.applyKnockback(kbDx, kbDy, TONO_BOSS.knockbackForce);
+          if (chargeDead) { this.fail(); return; }
+        }
+        // End on contact or time
+        if (boss.contactHit || boss.stateTimer >= boss.stateDuration) {
+          this._rollNextState("CHARGE");
+        }
+
+      } else if (boss.aiState === "DECEL") {
+        // Linear deceleration from chargeSpeed to 1.5
+        var decelProgress = boss.stateTimer / TONO_BOSS.decelDuration;
+        if (decelProgress > 1) { decelProgress = 1; }
+        var currentSpeed = TONO_BOSS.chargeSpeed - (TONO_BOSS.chargeSpeed - 1.5) * decelProgress;
+        // Continue in charge direction
+        boss.x += boss.chargeDirX * currentSpeed;
+        boss.y += boss.chargeDirY * currentSpeed;
+        // Clamp
+        if (boss.x < 30) { boss.x = 30; }
+        if (boss.x > MAP_W - 30) { boss.x = MAP_W - 30; }
+        if (boss.y < 30) { boss.y = 30; }
+        if (boss.y > MAP_H - 30) { boss.y = MAP_H - 30; }
+
+        if (boss.stateTimer >= TONO_BOSS.decelDuration) {
+          // Shockwave at end of decel
+          this.shockwave = { x: boss.x, y: boss.y, timer: 0.3, maxTimer: 0.3 };
+          // Shockwave damage to player and followers
+          var swDx = PlayerController.x - boss.x;
+          var swDy = PlayerController.y - boss.y;
+          var swDist = Math.sqrt(swDx * swDx + swDy * swDy);
+          if (swDist < TONO_BOSS.shockwaveRadius) {
+            var swDead = PlayerController.takeDamage(TONO_BOSS.shockwaveDamage);
+            if (swDead) { this.fail(); return; }
+          }
+          // Shockwave damage to followers
+          for (var si = 0; si < ParadeController.members.length; si++) {
+            var sm = ParadeController.members[si];
+            var smDx = sm.x - boss.x;
+            var smDy = sm.y - boss.y;
+            if (smDx * smDx + smDy * smDy < TONO_BOSS.shockwaveRadius * TONO_BOSS.shockwaveRadius) {
+              // Follower takes shockwave hit (remove from parade)
+              EffectRenderer.add(sm.x, sm.y, "hit");
+            }
+          }
+          this._rollNextState("DECEL");
+        }
+
+      } else if (boss.aiState === "RETREAT") {
+        // Move toward castle front
+        var retreatTargetX = castleTarget.x;
+        var retreatTargetY = castleTarget.y + TONO_BOSS.castleStandoffDistance;
+        var rtDx = retreatTargetX - boss.x;
+        var rtDy = retreatTargetY - boss.y;
+        var rtDist = Math.sqrt(rtDx * rtDx + rtDy * rtDy);
+        if (rtDist > 10) {
+          boss.x += (rtDx / rtDist) * boss.speed;
+          boss.y += (rtDy / rtDist) * boss.speed;
+        }
+
+        // Fire projectiles at player
+        boss.retreatShotTimer += dt;
+        if (boss.retreatShotTimer >= TONO_BOSS.retreatProjectileInterval) {
+          boss.retreatShotTimer = 0;
+          var shotDx = PlayerController.x - boss.x;
+          var shotDy = PlayerController.y - boss.y;
+          var shotDist = Math.sqrt(shotDx * shotDx + shotDy * shotDy);
+          if (shotDist < 1) { shotDist = 1; }
+          var shotVx = (shotDx / shotDist) * TONO_BOSS.retreatProjectileSpeed;
+          var shotVy = (shotDy / shotDist) * TONO_BOSS.retreatProjectileSpeed;
+          ProjectileManager.addBossProjectile(boss.x, boss.y, shotVx, shotVy, TONO_BOSS.retreatProjectileDamage, 120, 6);
+        }
+
+        // Arrived at castle?
+        if (rtDist <= 10) {
+          this._rollNextState("RETREAT");
+        }
+
+      } else if (boss.aiState === "CASTLE_WAIT") {
+        // Stationary, invincible (handled in damage code)
+        if (boss.stateTimer >= boss.stateDuration) {
+          this._rollNextState("CASTLE_WAIT");
         }
       }
 
@@ -546,15 +777,25 @@ var GekokujoSystem = {
     this.battleTimer = 20;
     EnemyManager.enemies = [];
     var rIdx = Math.min(gameState.rankIndex + 2, RANKS.length - 1);
-    var bossHp = 700;
+    var bossHp = TONO_BOSS.hp;
     this.boss = {
       x: MapGenerator.getCastleWorldPos().x,
       y: MapGenerator.getCastleWorldPos().y,
       hp: bossHp, maxHp: bossHp,
       attack: 8 + rIdx * 4,
-      speed: 2.5,
+      speed: TONO_BOSS.chaseSpeed,
       size: 52,
-      attackTimer: 0
+      attackTimer: 0,
+      // State machine
+      aiState: "CHASE",
+      stateTimer: 0,
+      stateDuration: 3.0,
+      chargeDirX: 0,
+      chargeDirY: 0,
+      contactHit: false,
+      decelStartSpeed: 0,
+      retreatShotTimer: 0,
+      scaleMultiplier: 1.0
     };
     AnnouncementSystem.add("下克上チャレンジ! 殿様出現! 20秒以内に倒せ!");
   },
@@ -638,25 +879,72 @@ var GekokujoSystem = {
       ctx.stroke();
     }
 
+    // Shockwave effect
+    if (this.shockwave) {
+      var swSp = CameraController.worldToScreen(this.shockwave.x, this.shockwave.y);
+      var swProgress = 1.0 - (this.shockwave.timer / this.shockwave.maxTimer);
+      var swRadius = TONO_BOSS.shockwaveRadius * swProgress;
+      var swAlpha = 1.0 - swProgress;
+      ctx.strokeStyle = "rgba(255, 255, 255, " + swAlpha + ")";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(swSp.x, swSp.y, swRadius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
     // Boss
     if (this.boss) {
       var bsp = CameraController.worldToScreen(this.boss.x, this.boss.y);
+
+      // WINDUP: red aura ripple
+      if (this.boss.aiState === "WINDUP" && !this.boss.defeated) {
+        var auraPhase = this.boss.stateTimer * 5;
+        var auraRadius = 40 + Math.sin(auraPhase) * 20;
+        var auraAlpha = 0.3 + Math.sin(auraPhase * 0.7) * 0.15;
+        ctx.strokeStyle = "rgba(200, 40, 40, " + auraAlpha + ")";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(bsp.x, bsp.y, auraRadius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // CASTLE_WAIT: blue shield barrier
+      if (this.boss.aiState === "CASTLE_WAIT" && !this.boss.defeated) {
+        ctx.strokeStyle = "rgba(60, 120, 255, 0.4)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(bsp.x, bsp.y, this.boss.size + 10, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = "rgba(60, 120, 255, 0.15)";
+        ctx.beginPath();
+        ctx.arc(bsp.x, bsp.y, this.boss.size + 10, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
       // Rockman-style blinking when defeated (toggle every 0.08s)
       var showBossSprite = true;
       if (this.boss.defeated) {
         showBossSprite = (Math.floor(Date.now() / 80) % 2 === 0);
       }
+
+      // WINDUP scale pulse
+      var drawScale = 1.0;
+      if (this.boss.aiState === "WINDUP" && !this.boss.defeated) {
+        drawScale = 1.0 + 0.15 * Math.sin(this.boss.stateTimer * 8);
+      }
+
       if (showBossSprite) {
         if (spritesLoaded) {
           var bossFlipH = (this.boss.x < PlayerController.x);
-          drawSpriteCentered(ctx, "tonosama", bsp.x, bsp.y, 140, bossFlipH);
+          drawSpriteCentered(ctx, "tonosama", bsp.x, bsp.y, Math.floor(140 * drawScale), bossFlipH);
         } else {
-          ctx.font = FONT.iconLarge;
+          ctx.font = Math.floor(70 * drawScale) + "px " + FONT_FAMILY;
           ctx.textAlign = "center";
           ctx.fillText("\uD83C\uDFEF", bsp.x, bsp.y + 15);
         }
       }
       if (!this.boss.defeated) {
+        // HP bar
         ctx.fillStyle = "#ddd";
         ctx.fillRect(bsp.x - 34, bsp.y - 46, 68, 8);
         ctx.fillStyle = "#c44";
@@ -665,6 +953,12 @@ var GekokujoSystem = {
         ctx.font = FONT.h4;
         ctx.textAlign = "center";
         ctx.fillText("城主", bsp.x, bsp.y - 45);
+
+        // CASTLE_WAIT: shield icon on HP bar
+        if (this.boss.aiState === "CASTLE_WAIT") {
+          ctx.font = "14px " + FONT_FAMILY;
+          ctx.fillText("\uD83D\uDEE1\uFE0F", bsp.x + 40, bsp.y - 42);
+        }
       }
     }
   }
@@ -1605,6 +1899,32 @@ var GameDirector = {
       ctx.strokeText("一揆！！", CANVAS_W / 2, CANVAS_H / 2);
       ctx.fillStyle = "#ff3333";
       ctx.fillText("一揆！！", CANVAS_W / 2, CANVAS_H / 2);
+    }
+
+    // Boss charge cutin
+    if (GekokujoSystem.chargeCutinTimer > 0) {
+      ctx.fillStyle = "rgba(0,0,0,0.3)";
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+      ctx.font = FONT.h1;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 4;
+      ctx.strokeText("\u7A81\u6483\uFF01\uFF01", CANVAS_W / 2, CANVAS_H / 2);
+      ctx.fillStyle = "#ffcc00";
+      ctx.fillText("\u7A81\u6483\uFF01\uFF01", CANVAS_W / 2, CANVAS_H / 2);
+    }
+
+    // Boss retreat cutin
+    if (GekokujoSystem.retreatCutinTimer > 0) {
+      ctx.font = FONT.h1;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 4;
+      ctx.strokeText("\u9000\u5374\uFF01", CANVAS_W / 2, CANVAS_H / 2);
+      ctx.fillStyle = "#9966ff";
+      ctx.fillText("\u9000\u5374\uFF01", CANVAS_W / 2, CANVAS_H / 2);
     }
 
     // Critical hit display

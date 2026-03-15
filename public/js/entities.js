@@ -35,6 +35,31 @@ function resolveHouseCollision(entity, entitySize) {
 }
 
 // ============================================================
+// Castle collision (rectangular push-out)
+// ============================================================
+function resolveCastleCollision(entity, entitySize) {
+  if (!GekokujoSystem.castleCollision) { return; }
+  var cc = GekokujoSystem.castleCollision;
+  var halfW = cc.w / 2;
+  var halfH = cc.h / 2;
+  var cx = cc.x + halfW;
+  var cy = cc.y + halfH;
+  var dx = entity.x - cx;
+  var dy = entity.y - cy;
+  var overlapX = halfW + entitySize - Math.abs(dx);
+  var overlapY = halfH + entitySize - Math.abs(dy);
+  if (overlapX > 0 && overlapY > 0) {
+    if (overlapX < overlapY) {
+      if (dx > 0) { entity.x += overlapX; }
+      else { entity.x -= overlapX; }
+    } else {
+      if (dy > 0) { entity.y += overlapY; }
+      else { entity.y -= overlapY; }
+    }
+  }
+}
+
+// ============================================================
 // PlayerController
 // ============================================================
 var PlayerController = {
@@ -127,6 +152,9 @@ var PlayerController = {
 
     // Building collision (shared function)
     resolveHouseCollision(this, this.size);
+
+    // Castle collision
+    resolveCastleCollision(this, this.size);
 
     // SPACE is reserved for Tsujigiri QTE only
   },
@@ -343,6 +371,9 @@ var EnemyManager = {
 
       // Building collision for enemies
       resolveHouseCollision(en, en.size);
+
+      // Castle collision for enemies
+      resolveCastleCollision(en, en.size);
 
       // Melee attack on player
       if (dist < PlayerController.size + en.size) {
@@ -689,14 +720,17 @@ var ParadeController = {
         // ボスへの攻撃
         if (GekokujoSystem.boss && !GekokujoSystem.boss.defeated && GekokujoSystem.battleActive && m.attackCooldown <= 0) {
           var boss = GekokujoSystem.boss;
-          var bdx = m.x - boss.x;
-          var bdy = m.y - boss.y;
-          if (bdx * bdx + bdy * bdy < paradeAttackRadiusSq) {
-            boss.hp -= paradeDamage;
-            m.attackCooldown = KobuSystem.getAttackCooldown();
-            EffectRenderer.add(boss.x, boss.y, "hit");
-            if (boss.hp <= 0) {
-              GekokujoSystem.success();
+          // CASTLE_WAIT state: invincible to follower attacks
+          if (boss.aiState !== "CASTLE_WAIT") {
+            var bdx = m.x - boss.x;
+            var bdy = m.y - boss.y;
+            if (bdx * bdx + bdy * bdy < paradeAttackRadiusSq) {
+              boss.hp -= paradeDamage;
+              m.attackCooldown = KobuSystem.getAttackCooldown();
+              EffectRenderer.add(boss.x, boss.y, "hit");
+              if (boss.hp <= 0) {
+                GekokujoSystem.success();
+              }
             }
           }
         }
@@ -781,7 +815,11 @@ var ProjectileManager = {
     } else if (gameState.selectedChar === "merchant") {
       emoji = "\uD83E\uDDEE"; // abacus
     }
-    this.projectiles.push({ x: x, y: y, vx: vx, vy: vy, damage: damage, life: life, size: size, color: color, homing: homing, emoji: emoji, rotation: 0 });
+    this.projectiles.push({ x: x, y: y, vx: vx, vy: vy, damage: damage, life: life, size: size, color: color, homing: homing, emoji: emoji, rotation: 0, bossProjectile: false });
+  },
+
+  addBossProjectile: function(x, y, vx, vy, damage, life, size) {
+    this.projectiles.push({ x: x, y: y, vx: vx, vy: vy, damage: damage, life: life, size: size, color: "#555555", homing: false, emoji: null, rotation: 0, bossProjectile: true });
   },
 
   _findNearestEnemy: function(x, y) {
@@ -838,6 +876,30 @@ var ProjectileManager = {
         continue;
       }
 
+      // Castle collision: all projectiles (player and boss) are destroyed on hitting castle
+      if (GekokujoSystem.castleCollision) {
+        var cc = GekokujoSystem.castleCollision;
+        if (p.x >= cc.x && p.x <= cc.x + cc.w && p.y >= cc.y && p.y <= cc.y + cc.h) {
+          this.projectiles.splice(i, 1);
+          continue;
+        }
+      }
+
+      // Boss projectile: hits player, not enemies
+      if (p.bossProjectile) {
+        var bpDx = p.x - PlayerController.x;
+        var bpDy = p.y - PlayerController.y;
+        var bpThresh = PlayerController.size + p.size;
+        if (bpDx * bpDx + bpDy * bpDy < bpThresh * bpThresh) {
+          var bpDead = PlayerController.takeDamage(p.damage);
+          this.projectiles.splice(i, 1);
+          if (bpDead) {
+            GekokujoSystem.fail();
+          }
+        }
+        continue;
+      }
+
       // Hit enemies
       var hitEnemy = false;
       for (var j = EnemyManager.enemies.length - 1; j >= 0; j--) {
@@ -875,6 +937,11 @@ var ProjectileManager = {
             var bdy = bp.y - boss.y;
             var bossHitThresh = boss.size + bp.size;
             if (bdx * bdx + bdy * bdy < bossHitThresh * bossHitThresh) {
+              // CASTLE_WAIT state: invincible to normal attacks
+              if (boss.aiState === "CASTLE_WAIT") {
+                this.projectiles.splice(i, 1);
+                continue;
+              }
               boss.hp -= bp.damage;
               EffectRenderer.add(boss.x, boss.y, "hit");
               this.projectiles.splice(i, 1);
@@ -910,14 +977,27 @@ var ProjectileManager = {
       var p = this.projectiles[i];
       if (!CameraController.isVisible(p.x, p.y, 10)) { continue; }
       var sp = CameraController.worldToScreen(p.x, p.y);
-      ctx.save();
-      ctx.translate(sp.x, sp.y);
-      ctx.rotate(p.rotation);
-      ctx.font = "32px " + FONT_FAMILY;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(p.emoji, 0, 0);
-      ctx.restore();
+      if (p.bossProjectile) {
+        // Boss projectile: gray circle
+        ctx.fillStyle = "#555555";
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#333333";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, 6, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        ctx.save();
+        ctx.translate(sp.x, sp.y);
+        ctx.rotate(p.rotation);
+        ctx.font = "32px " + FONT_FAMILY;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(p.emoji, 0, 0);
+        ctx.restore();
+      }
     }
   }
 };

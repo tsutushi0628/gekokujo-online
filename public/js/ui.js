@@ -446,13 +446,13 @@ var BuildingRenderer = {
   },
 
   drawCastleKeep: function(ctx, x, y, w, h) {
-    // Multi-story castle keep
+    // Multi-story castle keep (3x scale: 300x300)
     var storyH = h / 3;
     // Base story
     ctx.fillStyle = "rgba(230,220,200,0.9)";
     ctx.fillRect(x, y + storyH * 2, w, storyH);
     ctx.strokeStyle = "rgba(50,50,50,0.2)";
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1.5;
     ctx.strokeRect(x, y + storyH * 2, w, storyH);
     // Second story (narrower)
     var s2w = w * 0.8;
@@ -465,35 +465,37 @@ var BuildingRenderer = {
     // Roof
     ctx.fillStyle = "rgba(60,50,30,0.7)";
     ctx.beginPath();
-    ctx.moveTo(x + (w - s3w) / 2 - 5, y + storyH * 0.4);
+    ctx.moveTo(x + (w - s3w) / 2 - 8, y + storyH * 0.4);
     ctx.lineTo(x + w / 2, y - storyH * 0.2);
-    ctx.lineTo(x + (w + s3w) / 2 + 5, y + storyH * 0.4);
+    ctx.lineTo(x + (w + s3w) / 2 + 8, y + storyH * 0.4);
     ctx.closePath();
     ctx.fill();
   },
 
   drawCastle: function(ctx, bx, by, bw, bh) {
-    // Large castle keep in center
-    this.drawCastleKeep(ctx, bx + bw / 2 - 50, by + bh / 2 - 60, 100, 100);
-    // Walls around
+    // Large castle keep in center (3x: 300x300)
+    this.drawCastleKeep(ctx, bx + bw / 2 - 150, by + bh / 2 - 180, 300, 300);
+    // Walls around (scaled up)
     ctx.strokeStyle = "rgba(140,120,90,0.4)";
-    ctx.lineWidth = 3;
-    ctx.strokeRect(bx + bw * 0.15, by + bh * 0.15, bw * 0.7, bh * 0.7);
-    // Corner towers
+    ctx.lineWidth = 4;
+    ctx.strokeRect(bx + bw * 0.1, by + bh * 0.1, bw * 0.8, bh * 0.8);
+    // Corner towers (scaled up)
+    var towerW = 60;
+    var towerH = 50;
     var towers = [
-      [bx + bw * 0.15, by + bh * 0.15],
-      [bx + bw * 0.85 - 25, by + bh * 0.15],
-      [bx + bw * 0.15, by + bh * 0.85 - 25],
-      [bx + bw * 0.85 - 25, by + bh * 0.85 - 25]
+      [bx + bw * 0.1, by + bh * 0.1],
+      [bx + bw * 0.9 - towerW, by + bh * 0.1],
+      [bx + bw * 0.1, by + bh * 0.9 - towerH],
+      [bx + bw * 0.9 - towerW, by + bh * 0.9 - towerH]
     ];
     for (var ti = 0; ti < towers.length; ti++) {
-      this.drawHouse(ctx, towers[ti][0], towers[ti][1], 25, 22);
+      this.drawHouse(ctx, towers[ti][0], towers[ti][1], towerW, towerH);
     }
     // Label
-    ctx.font = FONT.h4;
+    ctx.font = FONT.h3;
     ctx.textAlign = "center";
     ctx.fillStyle = "#1a1a1a";
-    ctx.fillText("城", bx + bw / 2, by + bh / 2 + 70);
+    ctx.fillText("城", bx + bw / 2, by + bh / 2 + 180);
   },
 
   drawCastleTown: function(ctx, bx, by, bw, bh, seed) {

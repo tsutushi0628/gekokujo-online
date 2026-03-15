@@ -64,6 +64,28 @@ var TERRAIN_TYPES = {
   EMPTY: "empty"
 };
 
+var TONO_BOSS = {
+  hp: 600,
+  chargeSpeed: 4.5,
+  retreatSpeed: 2.8,
+  chaseSpeed: 2.5,
+  windupDurationMin: 0.8,
+  windupDurationMax: 1.8,
+  chargeDuration: 3.0,
+  decelDuration: 0.5,
+  castleWaitDurationMin: 1.0,
+  castleWaitDurationMax: 2.0,
+  shockwaveRadius: 80,
+  shockwaveDamage: 20,
+  contactDamageRatio: 0.35,
+  retreatProjectileInterval: 1.5,
+  retreatProjectileSpeed: 4,
+  retreatProjectileDamage: 12,
+  castleStandoffDistance: 160,
+  knockbackForce: 20,
+  contactInvincibleTime: 1.5
+};
+
 var FONT_FAMILY = "'Chika', 'MokoMori', sans-serif";
 var FONT = {
   h1: "bold 48px " + FONT_FAMILY,
