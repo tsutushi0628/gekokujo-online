@@ -42,6 +42,7 @@ var PlayerController = {
   hp: 100, maxHp: 100,
   size: 30,
   facingLeft: false,
+  facingAngle: 0,
   knockbackTimer: 0,
   knockbackDirX: 0,
   knockbackDirY: 0,
@@ -56,6 +57,7 @@ var PlayerController = {
     this.maxHp = 100;
     this.size = 30;
     this.facingLeft = false;
+    this.facingAngle = 0;
     this.knockbackTimer = 0;
     this.attackCooldown = 0;
     this.chargeCooldown = 0;
@@ -102,10 +104,15 @@ var PlayerController = {
       if (TerrainManager.isInRiver(this.x, this.y)) {
         spd = spd * 0.3;
       }
-      if (InputManager.keys.w) { this.y -= spd; }
-      if (InputManager.keys.s) { this.y += spd; }
-      if (InputManager.keys.a) { this.x -= spd; this.facingLeft = true; }
-      if (InputManager.keys.d) { this.x += spd; this.facingLeft = false; }
+      var mdx = 0;
+      var mdy = 0;
+      if (InputManager.keys.w) { this.y -= spd; mdy -= 1; }
+      if (InputManager.keys.s) { this.y += spd; mdy += 1; }
+      if (InputManager.keys.a) { this.x -= spd; this.facingLeft = true; mdx -= 1; }
+      if (InputManager.keys.d) { this.x += spd; this.facingLeft = false; mdx += 1; }
+      if (mdx !== 0 || mdy !== 0) {
+        this.facingAngle = Math.atan2(mdy, mdx);
+      }
     }
 
     // Clamp
@@ -435,7 +442,7 @@ var CivilianManager = {
     var townCenters = [];
     for (var i = 0; i < TerrainManager.blocks.length; i++) {
       var bl = TerrainManager.blocks[i];
-      if (bl.type === TERRAIN_TYPES.VILLAGE) {
+      if (bl.type === TERRAIN_TYPES.VILLAGE || bl.type === TERRAIN_TYPES.CASTLE_TOWN) {
         townCenters.push({
           x: bl.x + bl.w / 2,
           y: bl.y + bl.h / 2
@@ -460,11 +467,10 @@ var CivilianManager = {
     if (cy < 50) { cy = 50; }
     if (cy > MAP_H - 50) { cy = MAP_H - 50; }
 
-    // Skip river, castle, castle_town
+    // Skip river, castle
     if (TerrainManager.isInRiver(cx, cy)) { return; }
     var terrain = TerrainManager.getTerrainAt(cx, cy);
     if (terrain === TERRAIN_TYPES.CASTLE) { return; }
-    if (terrain === TERRAIN_TYPES.CASTLE_TOWN) { return; }
 
     this.civilians.push({
       x: cx, y: cy,
@@ -653,8 +659,8 @@ var ParadeController = {
       // Parade member attack (all characters)
       if (m.attackCooldown > 0) { m.attackCooldown -= dt; }
       if (m.attackCooldown <= 0) {
-        var paradeAttackRadius = 30;
-        var paradeAttackRadiusSq = 900;
+        var paradeAttackRadius = 50;
+        var paradeAttackRadiusSq = 2500;
         var paradeDamage = 3;
         if (gameState.selectedChar === "ashigaru") { paradeDamage = 2; }
         for (var ei = EnemyManager.enemies.length - 1; ei >= 0; ei--) {

@@ -50,13 +50,25 @@ var MapGenerator = {
       }
     }
 
-    // Villages
+    // Villages: 2〜3個のEMPTYマスをVILLAGEに変換
+    var emptyCells = [];
     for (var vr = 0; vr < 3; vr++) {
       for (var vc = 0; vc < 3; vc++) {
-        if (this.grid[vr][vc] === TERRAIN_TYPES.EMPTY && Math.random() < 0.4) {
-          this.grid[vr][vc] = TERRAIN_TYPES.VILLAGE;
+        if (this.grid[vr][vc] === TERRAIN_TYPES.EMPTY) {
+          emptyCells.push({ r: vr, c: vc });
         }
       }
+    }
+    // シャッフル（Fisher-Yates）
+    for (var si = emptyCells.length - 1; si > 0; si--) {
+      var sj = Math.floor(Math.random() * (si + 1));
+      var tmp = emptyCells[si];
+      emptyCells[si] = emptyCells[sj];
+      emptyCells[sj] = tmp;
+    }
+    var villageTarget = Math.min(emptyCells.length, 2 + (Math.random() < 0.5 ? 1 : 0));
+    for (var vi = 0; vi < villageTarget; vi++) {
+      this.grid[emptyCells[vi].r][emptyCells[vi].c] = TERRAIN_TYPES.VILLAGE;
     }
 
     // Generate river between castle and player

@@ -89,6 +89,7 @@ var ParadeChargeSystem = {
   active: false,
   timer: 0,
   regroupTimer: 0,
+  cutinTimer: 0,
   dirX: 0,
   dirY: 0,
 
@@ -109,11 +110,12 @@ var ParadeChargeSystem = {
     this.dirY = dy / dist;
     this.active = true;
     this.timer = 1.2;
+    this.cutinTimer = 0.8;
     PlayerController.chargeCooldown = 6;
-    AnnouncementSystem.add("行列突撃!!");
   },
 
   update: function(dt) {
+    if (this.cutinTimer > 0) { this.cutinTimer -= dt; }
     if (!this.active && this.regroupTimer <= 0) { return; }
 
     if (this.active) {
@@ -177,6 +179,7 @@ var ParadeChargeSystem = {
 // CombatSystem
 // ============================================================
 var CombatSystem = {
+  farmerShotToggle: false,
   handleAttack: function() {
     if (PlayerController.attackCooldown > 0) { return; }
     var def = gameState.charDef;
@@ -194,13 +197,22 @@ var CombatSystem = {
         ProjectileManager.add(PlayerController.x, PlayerController.y, Math.cos(a) * 8, Math.sin(a) * 8, damage, 24, 10, "#1a1a1a", false);
       }
     } else if (gameState.selectedChar === "merchant") {
-      // Weak: short range single shot
-      ProjectileManager.add(PlayerController.x, PlayerController.y, Math.cos(angle) * 4, Math.sin(angle) * 4, damage, 30, 4, "#1a1a1a", false);
+      // Merchant: 2発同時・狭角度（ダブルバレル）・長射程 (弾速5, 寿命50)
+      var mSpread = 0.08;
+      ProjectileManager.add(PlayerController.x, PlayerController.y, Math.cos(angle - mSpread) * 5, Math.sin(angle - mSpread) * 5, damage, 50, 4, "#1a1a1a", false);
+      ProjectileManager.add(PlayerController.x, PlayerController.y, Math.cos(angle + mSpread) * 5, Math.sin(angle + mSpread) * 5, damage, 50, 4, "#1a1a1a", false);
     } else {
-      // Farmer: 短射程・狭範囲・単発 (blast:2, 弾速6, 寿命28)
-      ProjectileManager.add(PlayerController.x, PlayerController.y, Math.cos(angle) * 6, Math.sin(angle) * 6, damage, 56, 2, "#1a1a1a", false);
+      // Farmer: 1発ずつ交互投げ（左右切替）・広角度・中射程 (弾速6, 寿命56)
+      var fSpread = 0.35;
+      var fDir = CombatSystem.farmerShotToggle ? 1 : -1;
+      CombatSystem.farmerShotToggle = !CombatSystem.farmerShotToggle;
+      ProjectileManager.add(PlayerController.x, PlayerController.y, Math.cos(angle + fSpread * fDir) * 6, Math.sin(angle + fSpread * fDir) * 6, damage, 56, 2, "#1a1a1a", false);
     }
-    PlayerController.attackCooldown = 0.25;
+    if (gameState.selectedChar === "farmer") {
+      PlayerController.attackCooldown = 0.125;
+    } else {
+      PlayerController.attackCooldown = 0.25;
+    }
 
     // Farmer: attack hits can attract civilians (30% chance)
     if (gameState.selectedChar === "farmer" && Math.random() < 0.3) {
@@ -437,11 +449,11 @@ var TsujigiriSystem = {
       var barX = CANVAS_W / 2 - barW / 2;
       var barY = CANVAS_H / 2 + 90;
 
-      // "SPACEで回避!" text above the bar
+      // "SPACEで撃退!" text above the bar
       ctx.font = FONT.h3;
       ctx.fillStyle = "#ffffff";
       ctx.textAlign = "center";
-      ctx.fillText("SPACEで回避!", CANVAS_W / 2, barY - 30);
+      ctx.fillText("SPACEで撃退!", CANVAS_W / 2, barY - 30);
 
       // Bar background (dark gray)
       ctx.fillStyle = "#333333";

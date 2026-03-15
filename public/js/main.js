@@ -97,12 +97,14 @@ var IkkiSystem = {
   active: false,
   cooldown: 0,
   flashTimer: 0,
+  cutinTimer: 0,
 
   init: function() {
     this.available = (gameState.selectedChar === "farmer" && gameState.ikkiMode);
     this.active = false;
     this.cooldown = 0;
     this.flashTimer = 0;
+    this.cutinTimer = 0;
   },
 
   update: function(dt) {
@@ -110,6 +112,7 @@ var IkkiSystem = {
 
     if (this.cooldown > 0) { this.cooldown -= dt; }
     if (this.flashTimer > 0) { this.flashTimer -= dt; }
+    if (this.cutinTimer > 0) { this.cutinTimer -= dt; }
 
     // Q key activation is handled in the main game loop
   },
@@ -167,9 +170,9 @@ var IkkiSystem = {
       if (GekokujoSystem.boss.hp <= 0) { GekokujoSystem.success(); }
     }
 
-    // Flash + announcement
+    // Flash + cutin
     this.flashTimer = 0.3;
-    AnnouncementSystem.add("一揆!");
+    this.cutinTimer = 0.8;
     this.cooldown = 10;
   }
 };
@@ -744,25 +747,67 @@ var HouseManager = {
     return houses;
   },
 
-  // Castle town: grid layout (streets like a castle town)
+  // Castle town: 行ベース配置（2つ組 or 4つ組、横軸整列）
   _generateGrid: function(seed) {
     var houses = [];
-    var cols = 4;
-    var rows = 3;
-    var marginX = 120;
-    var marginY = 100;
-    var spacingX = (BLOCK_W - marginX * 2) / (cols - 1);
-    var spacingY = (BLOCK_H - marginY * 2) / (rows - 1);
+    var marginX = 80;
+    var marginY = 60;
+    var areaW = BLOCK_W - marginX * 2;
 
-    for (var r = 0; r < rows; r++) {
-      for (var c = 0; c < cols; c++) {
+    // 5〜6行
+    seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
+    var rowCount = 5 + (seed % 2);
+    var rowSpacing = (BLOCK_H - marginY * 2) / rowCount;
+
+    for (var row = 0; row < rowCount; row++) {
+      // 行のY位置（基準 + 小さなゆらぎ）
+      var rowY = marginY + Math.floor(rowSpacing * (row + 0.5));
+      seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
+      var rowJitter = (seed % 15) - 7;
+      rowY = rowY + rowJitter;
+
+      // 行内のグループ数（4〜6）
+      seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
+      var groupsInRow = 4 + (seed % 3);
+
+      var slotW = Math.floor(areaW / groupsInRow);
+      for (var col = 0; col < groupsInRow; col++) {
+        // X基準位置
+        var slotX = marginX + slotW * col + Math.floor(slotW * 0.5);
         seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
-        var jx = (seed % 21) - 10;
+        var xJitter = (seed % (Math.floor(slotW * 0.2) + 1)) - Math.floor(slotW * 0.1);
+        var bx = slotX + xJitter;
+
+        // 2つ組 or 4つ組を選択
         seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
-        var jy = (seed % 21) - 10;
-        var hx = Math.floor(marginX + c * spacingX + jx);
-        var hy = Math.floor(marginY + r * spacingY + jy);
-        houses.push({ x: hx, y: hy, collisionRadius: 35 });
+        var isQuad = (seed % 3) === 0;
+
+        // 建物間隔（20〜32px）
+        seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
+        var gap = 20 + (seed % 13);
+
+        // 重なりチェック
+        var tooClose = false;
+        for (var h = 0; h < houses.length; h++) {
+          var dx = houses[h].x - bx;
+          var dy = houses[h].y - rowY;
+          if (dx * dx + dy * dy < 2500) { tooClose = true; break; }
+        }
+        if (tooClose) { continue; }
+
+        if (isQuad) {
+          // 4つ組: 2×2の田の字
+          var halfGap = Math.floor(gap * 0.5);
+          var rowGap = Math.floor(gap * 0.6);
+          houses.push({ x: bx - halfGap, y: rowY - rowGap, collisionRadius: 26 });
+          houses.push({ x: bx + halfGap, y: rowY - rowGap, collisionRadius: 26 });
+          houses.push({ x: bx - halfGap, y: rowY + rowGap, collisionRadius: 26 });
+          houses.push({ x: bx + halfGap, y: rowY + rowGap, collisionRadius: 26 });
+        } else {
+          // 2つ組: 横並び
+          houses.push({ x: Math.floor(bx - gap * 0.5), y: rowY, collisionRadius: 30 });
+          houses.push({ x: Math.floor(bx + gap * 0.5), y: rowY, collisionRadius: 30 });
+        }
       }
     }
     return houses;
@@ -781,7 +826,7 @@ var HouseManager = {
       var cy = 150 + (seed % (BLOCK_H - 300));
 
       seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
-      var houseCount = 2 + (seed % 3);
+      var houseCount = 3 + (seed % 3);
 
       for (var h = 0; h < houseCount; h++) {
         seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
@@ -1516,6 +1561,34 @@ var GameDirector = {
       var flashAlpha = IkkiSystem.flashTimer / 0.3;
       ctx.fillStyle = "rgba(255,255,255," + (flashAlpha * 0.7) + ")";
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    }
+
+    // Charge cutin text
+    if (ParadeChargeSystem.cutinTimer > 0) {
+      ctx.fillStyle = "rgba(0,0,0,0.3)";
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+      ctx.font = FONT.h1;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 4;
+      ctx.strokeText("突撃！！", CANVAS_W / 2, CANVAS_H / 2);
+      ctx.fillStyle = "#ffcc00";
+      ctx.fillText("突撃！！", CANVAS_W / 2, CANVAS_H / 2);
+    }
+
+    // Ikki cutin text
+    if (IkkiSystem.cutinTimer > 0) {
+      ctx.fillStyle = "rgba(0,0,0,0.3)";
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+      ctx.font = FONT.h1;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 4;
+      ctx.strokeText("一揆！！", CANVAS_W / 2, CANVAS_H / 2);
+      ctx.fillStyle = "#ff3333";
+      ctx.fillText("一揆！！", CANVAS_W / 2, CANVAS_H / 2);
     }
 
     // Gekokujo success flash (white)
