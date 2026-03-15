@@ -175,7 +175,6 @@ var IkkiSystem = {
 var BridgeBossSystem = {
   bosses: [],
   contactInvincibleTimer: 0,
-  returnSpeed: 2.5,
 
   init: function() {
     this.bosses = [];
@@ -208,76 +207,32 @@ var BridgeBossSystem = {
       var dy = py - boss.y;
       var distToPlayer = Math.sqrt(dx * dx + dy * dy);
 
-      // ホームポジションからの距離
-      var homeDx = boss.x - boss.homeX;
-      var homeDy = boss.y - boss.homeY;
-      var distFromHome = Math.sqrt(homeDx * homeDx + homeDy * homeDy);
-
-      var moveX = 0;
-      var moveY = 0;
-
       if (boss.safe) {
-        // safe=true（幅広い橋）: 橋の幅内をパトロール
+        // safe=true（幅広い橋）: Y軸サイン波パトロールのみ、X移動なし
         boss.patrolTimer += dt;
         var patrolHalfRange = boss.patrolRange / 2;
         var patrolOffset = Math.sin(boss.patrolTimer * boss.patrolSpeed) * patrolHalfRange;
         var targetY = boss.homeY + patrolOffset;
         var patrolDy = targetY - boss.y;
+        var moveY = 0;
         if (Math.abs(patrolDy) > 1) {
           moveY = (patrolDy > 0 ? 1 : -1) * boss.speed;
         }
 
-        // プレイヤーが近ければ追跡に切り替え
-        if (distToPlayer < boss.aggroRange) {
-          if (distFromHome < boss.patrolRange) {
-            moveX = 0;
-            moveY = 0;
-            if (distToPlayer > 1) {
-              moveX = (dx / distToPlayer) * boss.speed;
-              moveY = (dy / distToPlayer) * boss.speed;
-            }
-          }
+        var newY = boss.y + moveY;
+
+        // 川には入らない（橋の上は許可）
+        if (TerrainManager.isInRiver(boss.x, newY) && !TerrainManager.isOnBridge(boss.x, newY)) {
+          newY = boss.y;
         }
 
-        // パトロール範囲外なら帰還
-        if (distFromHome > boss.patrolRange) {
-          if (distFromHome > 1) {
-            moveX = (-homeDx / distFromHome) * this.returnSpeed;
-            moveY = (-homeDy / distFromHome) * this.returnSpeed;
-          }
-        }
-      } else {
-        // safe=false（幅狭い橋）: 中央固定、近接時のみ少し追跡
-        if (distToPlayer < boss.aggroRange && distFromHome < boss.leashRange) {
-          // プレイヤーが近い＆リーシュ範囲内: 少し追跡
-          if (distToPlayer > 1) {
-            moveX = (dx / distToPlayer) * boss.speed * 0.6;
-            moveY = (dy / distToPlayer) * boss.speed * 0.6;
-          }
-        } else if (distFromHome > 3) {
-          // ホームに戻る
-          if (distFromHome > 1) {
-            moveX = (-homeDx / distFromHome) * this.returnSpeed;
-            moveY = (-homeDy / distFromHome) * this.returnSpeed;
-          }
-        }
+        boss.y = newY;
       }
+      // safe=false（幅狭い橋）: 完全固定、移動なし
 
-      var newX = boss.x + moveX;
-      var newY = boss.y + moveY;
-
-      // 川には入らない（橋の上は許可）
-      if (TerrainManager.isInRiver(newX, newY) && !TerrainManager.isOnBridge(newX, newY)) {
-        newX = boss.x;
-        newY = boss.y;
-      }
-
-      // 向き
+      // 向き（プレイヤーの方を向く）
       if (dx < 0) { boss.facingLeft = true; }
       if (dx > 0) { boss.facingLeft = false; }
-
-      boss.x = newX;
-      boss.y = newY;
 
       // 木との衝突
       var treePush = TerrainManager.pushFromTrees(boss.x, boss.y, boss.size);
@@ -323,8 +278,8 @@ var BridgeBossSystem = {
         y: bossY,
         homeX: bossX,
         homeY: bossY,
-        hp: 80,
-        maxHp: 80,
+        hp: 240,
+        maxHp: 240,
         attack: 10,
         speed: 1.8,
         size: 30,
@@ -334,9 +289,7 @@ var BridgeBossSystem = {
         safe: bridge.safe,
         patrolTimer: 0,
         patrolRange: bridge.h * 0.8,
-        patrolSpeed: 1.2,
-        aggroRange: 150,
-        leashRange: 50
+        patrolSpeed: 1.2
       };
 
       this.bosses.push(bossData);
@@ -1569,25 +1522,28 @@ var GameDirector = {
     // --- End-game countdown (last 5 seconds) ---
     var countdownMaxTime = MAX_TIME;
     if (gameState.ikkiMode) { countdownMaxTime = 60; }
-    var normalRemaining = Math.max(0, Math.ceil(countdownMaxTime - gameState.gameTime));
-    if (!GekokujoSystem.battleActive && normalRemaining <= 5 && normalRemaining >= 1) {
+    var countdownRemaining = Math.max(0, Math.ceil(countdownMaxTime - gameState.gameTime));
+    if (GekokujoSystem.battleActive) {
+      countdownRemaining = Math.max(0, Math.ceil(GekokujoSystem.battleTimer));
+    }
+    if (countdownRemaining <= 5 && countdownRemaining >= 1) {
       var cdR = 58;
       var cdG = 42;
       var cdB = 26;
       var cdAlpha = 0.75;
-      if (normalRemaining <= 1) {
+      if (countdownRemaining <= 1) {
         cdR = 176; cdG = 48; cdB = 32; cdAlpha = 0.9;
-      } else if (normalRemaining <= 2) {
+      } else if (countdownRemaining <= 2) {
         cdR = 150; cdG = 46; cdB = 30; cdAlpha = 0.87;
-      } else if (normalRemaining <= 3) {
+      } else if (countdownRemaining <= 3) {
         cdR = 120; cdG = 44; cdB = 28; cdAlpha = 0.85;
-      } else if (normalRemaining <= 4) {
+      } else if (countdownRemaining <= 4) {
         cdR = 90; cdG = 43; cdB = 27; cdAlpha = 0.8;
       }
       ctx.font = "bold 120px " + FONT_FAMILY;
       ctx.textAlign = "center";
       ctx.fillStyle = "rgba(" + cdR + ", " + cdG + ", " + cdB + ", " + cdAlpha + ")";
-      ctx.fillText("" + normalRemaining, CANVAS_W / 2, CANVAS_H / 2 + 40);
+      ctx.fillText("" + countdownRemaining, CANVAS_W / 2, CANVAS_H / 2 + 40);
     }
 
     // Castle direction arrow

@@ -334,9 +334,9 @@ var TsujigiriSystem = {
   },
 
   _terrainChanceTable: {
-    ashigaru: { village: 0.5, castleTown: 0.6, mountain: 0.15, grassland: 0.08 },
-    merchant: { village: 1.5, castleTown: 2.0, mountain: 0.1, grassland: 0.05 },
-    farmer: { village: 0.8, castleTown: 0.8, mountain: 0.2, grassland: 0.1 }
+    ashigaru: { village: 0.5, castleTown: 0.6, grassland: 0.08 },
+    merchant: { village: 1.5, castleTown: 2.0, grassland: 0.05 },
+    farmer: { village: 0.8, castleTown: 0.8, grassland: 0.1 }
   },
 
   _getTerrainChanceMultiplier: function() {
@@ -348,7 +348,7 @@ var TsujigiriSystem = {
     if (terrain === TERRAIN_TYPES.CASTLE) { return 0; }
     var charTable = this._terrainChanceTable[gameState.selectedChar];
     if (!charTable) { charTable = this._terrainChanceTable.farmer; }
-    if (terrain === TERRAIN_TYPES.MOUNTAIN) { return charTable.mountain; }
+
     if (terrain === TERRAIN_TYPES.VILLAGE) { return charTable.village; }
     if (terrain === TERRAIN_TYPES.CASTLE_TOWN) { return charTable.castleTown; }
     if (terrain === TERRAIN_TYPES.GRASSLAND) { return charTable.grassland; }

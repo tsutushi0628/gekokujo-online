@@ -53,7 +53,7 @@ var TERRAIN_TYPES = {
   BRIDGE: "bridge",
   GRASSLAND: "grassland",
   CASTLE_TOWN: "castleTown",
-  MOUNTAIN: "mountain",
+
   VILLAGE: "village",
   EMPTY: "empty"
 };

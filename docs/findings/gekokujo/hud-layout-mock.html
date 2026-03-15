@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>HUD配置モック — 下克上 GEKOKUJO オンライン</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #222; font-family: 'Helvetica Neue', sans-serif; color: #fff; }
+
+  /* Tab navigation */
+  .tab-bar { display: flex; gap: 2px; padding: 12px 20px 0; background: #111; }
+  .tab-btn {
+    padding: 10px 24px; border: none; border-radius: 8px 8px 0 0;
+    font-size: 14px; cursor: pointer; font-weight: bold;
+    background: #333; color: #999; transition: all 0.2s;
+  }
+  .tab-btn.active { background: #555; color: #fff; }
+  .tab-btn:hover { background: #444; color: #ddd; }
+
+  .tab-desc {
+    padding: 12px 20px; background: #333; font-size: 13px; color: #bbb;
+    line-height: 1.6; display: none;
+  }
+  .tab-desc.active { display: block; }
+
+  /* Game screen mock */
+  .screen-wrap { display: flex; justify-content: center; padding: 20px; }
+  .game-screen {
+    position: relative; width: 1280px; height: 720px;
+    background: linear-gradient(135deg, #8B9B6B 0%, #6B7B5B 30%, #5B6B4B 60%, #7B8B5B 100%);
+    border: 3px solid #1a1a1a; overflow: hidden; display: none;
+  }
+  .game-screen.active { display: block; }
+
+  /* Fake terrain */
+  .river {
+    position: absolute; top: 0; width: 80px; height: 100%;
+    background: linear-gradient(90deg, rgba(80,130,180,0.7), rgba(60,110,160,0.8), rgba(80,130,180,0.7));
+    left: 700px;
+  }
+  .bridge {
+    position: absolute; left: 690px; width: 100px; height: 50px;
+    background: #8B7355; border: 2px solid #5a4a3a;
+  }
+  .bridge.b1 { top: 250px; }
+  .bridge.b2 { top: 520px; height: 70px; }
+
+  /* Player dot */
+  .player {
+    position: absolute; left: 620px; top: 340px;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: #FFD700; border: 2px solid #1a1a1a;
+    z-index: 5;
+  }
+  .player::after {
+    content: '▲'; position: absolute; top: -18px; left: 2px;
+    font-size: 10px; color: #1a1a1a;
+  }
+
+  /* HP bar above player */
+  .hp-bar {
+    position: absolute; left: 610px; top: 330px;
+    width: 44px; height: 5px; background: #333; border-radius: 2px; z-index: 5;
+  }
+  .hp-bar-fill {
+    width: 70%; height: 100%; background: #4CAF50; border-radius: 2px;
+  }
+
+  /* Castle */
+  .castle-icon {
+    position: absolute; right: 150px; top: 100px;
+    font-size: 40px; z-index: 3;
+  }
+
+  /* === HUD Elements (shared styles) === */
+
+  /* Washi panel base */
+  .hud-panel {
+    position: absolute; z-index: 10;
+    background: rgba(245, 238, 225, 0.88);
+    border: 1px solid rgba(160, 130, 90, 0.45);
+    border-radius: 4px;
+    font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+    color: #1a1a1a;
+  }
+
+  /* Timer */
+  .hud-timer {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 4px 12px;
+  }
+  .hud-timer .label { font-size: 10px; color: #9a8a6a; }
+  .hud-timer .value { font-size: 26px; font-weight: bold; color: #3a2a1a; }
+
+  /* Score */
+  .hud-score {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 4px 12px;
+  }
+  .hud-score .label { font-size: 10px; color: #9a8a6a; }
+  .hud-score .value { font-size: 20px; font-weight: bold; color: #3a2a1a; }
+
+  /* Minimap */
+  .hud-minimap {
+    width: 128px; height: 96px;
+    background: rgba(30, 50, 30, 0.7);
+    border: 1px solid rgba(160, 130, 90, 0.45);
+    border-radius: 2px;
+  }
+  .minimap-player {
+    position: absolute; left: 40px; top: 35px;
+    width: 6px; height: 6px; background: #FFD700; border-radius: 50%;
+  }
+  .minimap-castle {
+    position: absolute; right: 20px; top: 15px;
+    width: 6px; height: 6px; background: #E84040;
+  }
+  .minimap-river {
+    position: absolute; left: 58px; top: 0; width: 6px; height: 100%;
+    background: rgba(80, 130, 180, 0.6);
+  }
+
+  /* Q ability slot */
+  .hud-q {
+    width: 48px; height: 48px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: bold; color: #3a2a1a;
+  }
+  .hud-q .key-label {
+    position: absolute; bottom: 2px; right: 4px;
+    font-size: 9px; color: #9a8a6a;
+  }
+
+  /* Mute button */
+  .hud-mute {
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; cursor: pointer;
+    background: rgba(245, 238, 225, 0.6);
+    border: 1px solid rgba(160, 130, 90, 0.3);
+    border-radius: 4px;
+  }
+
+  /* === Status Message (the new thing) === */
+  .status-msg {
+    position: absolute; z-index: 15;
+    background: rgba(245, 238, 225, 0.90);
+    border: 1px solid rgba(160, 130, 90, 0.45);
+    border-radius: 3px;
+    padding: 0 14px 0 12px;
+    height: 34px;
+    display: flex; align-items: center;
+    font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+    font-size: 14px; color: #1a1a1a;
+    white-space: nowrap;
+  }
+  .status-msg .accent {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    border-radius: 3px 0 0 3px;
+  }
+  .status-msg .accent.gold { background: #C8A84E; }
+  .status-msg .accent.vermilion { background: #B04020; }
+  .status-msg .accent.gray { background: #808080; }
+
+  /* Annotation labels */
+  .annotation {
+    position: absolute; z-index: 20;
+    background: rgba(0,0,0,0.8); color: #FFD700;
+    font-size: 10px; padding: 3px 8px; border-radius: 3px;
+    pointer-events: none; white-space: nowrap;
+  }
+  .annotation::before {
+    content: '← '; font-size: 8px;
+  }
+
+  /* Dark variant for status message */
+  .status-msg.dark {
+    background: rgba(20, 18, 15, 0.75);
+    border-color: rgba(80, 65, 40, 0.5);
+    color: #e8dcc8;
+  }
+
+  /* Pattern info */
+  .pattern-info {
+    padding: 16px 20px; background: #2a2a2a; font-size: 12px;
+    display: none; line-height: 1.8;
+  }
+  .pattern-info.active { display: block; }
+  .pattern-info h3 { color: #FFD700; margin-bottom: 8px; font-size: 15px; }
+  .pattern-info table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+  .pattern-info th, .pattern-info td {
+    text-align: left; padding: 4px 12px; border-bottom: 1px solid #444;
+    font-size: 12px;
+  }
+  .pattern-info th { color: #C8A84E; }
+</style>
+</head>
+<body>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="showPattern(0)">A: Apex準拠（右上キルログ）</button>
+  <button class="tab-btn" onclick="showPattern(1)">B: PUBG準拠（左上キルログ）</button>
+  <button class="tab-btn" onclick="showPattern(2)">C: Fortnite準拠（上中央バナー）</button>
+</div>
+
+<!-- ===== Pattern A: Apex style ===== -->
+<div class="tab-desc active" id="desc-0">
+  <strong>パターンA — Apex Legends準拠</strong>：キルログ=右上 / ミニマップ=左上 / スコア=左下 / Qスロット=右下。
+  バトロワ系で最も確立された配置。「戦略情報は左、操作情報は右」の原則。
+</div>
+<div class="screen-wrap">
+  <div class="game-screen active" id="screen-0">
+    <div class="river"></div>
+    <div class="bridge b1"></div>
+    <div class="bridge b2"></div>
+    <div class="player"></div>
+    <div class="hp-bar"><div class="hp-bar-fill"></div></div>
+    <div class="castle-icon">🏯</div>
+
+    <!-- Minimap: top-left -->
+    <div class="hud-panel hud-minimap" style="left:10px; top:10px;">
+      <div class="minimap-river"></div>
+      <div class="minimap-player"></div>
+      <div class="minimap-castle"></div>
+    </div>
+
+    <!-- Mute: below minimap -->
+    <div class="hud-mute" style="position:absolute; left:10px; top:115px; z-index:10;">🔊</div>
+
+    <!-- Timer: top-center -->
+    <div class="hud-panel hud-timer" style="left:595px; top:8px; width:90px; height:48px;">
+      <span class="label">のこり</span>
+      <span class="value">45</span>
+    </div>
+
+    <!-- Status message: top-right (Apex kill feed position) -->
+    <div class="status-msg" style="right:10px; top:10px; min-width:280px;">
+      <div class="accent vermilion"></div>
+      橋の辻斬りを討ち取った! +200点!
+    </div>
+    <div class="status-msg" style="right:10px; top:50px; min-width:280px; opacity:0.5;">
+      <div class="accent gold"></div>
+      城門が出現した!
+    </div>
+
+    <!-- Score: bottom-left -->
+    <div class="hud-panel hud-score" style="left:10px; bottom:10px; width:100px; height:44px;">
+      <span class="label">スコア</span>
+      <span class="value">1,250石</span>
+    </div>
+
+    <!-- Q slot: bottom-right -->
+    <div class="hud-panel hud-q" style="right:10px; bottom:10px;">
+      一揆
+      <span class="key-label">Q</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Pattern B: PUBG style ===== -->
+<div class="tab-desc" id="desc-1">
+  <strong>パターンB — PUBG準拠</strong>：キルログ=左上 / ミニマップ=右上 / スコア=左下 / Qスロット=右下。
+  ミニマップを現状の右上に維持しつつ、左上にキルログを配置。既存実装からの変更が最小。
+</div>
+<div class="screen-wrap">
+  <div class="game-screen" id="screen-1">
+    <div class="river"></div>
+    <div class="bridge b1"></div>
+    <div class="bridge b2"></div>
+    <div class="player"></div>
+    <div class="hp-bar"><div class="hp-bar-fill"></div></div>
+    <div class="castle-icon">🏯</div>
+
+    <!-- Status message: top-left (PUBG kill feed) -->
+    <div class="status-msg" style="left:10px; top:10px; min-width:280px;">
+      <div class="accent vermilion"></div>
+      橋の辻斬りを討ち取った! +200点!
+    </div>
+    <div class="status-msg" style="left:10px; top:50px; min-width:280px; opacity:0.5;">
+      <div class="accent gold"></div>
+      城門が出現した!
+    </div>
+
+    <!-- Timer: top-center -->
+    <div class="hud-panel hud-timer" style="left:595px; top:8px; width:90px; height:48px;">
+      <span class="label">一揆</span>
+      <span class="value" style="color:#b03020;">32</span>
+    </div>
+
+    <!-- Minimap: top-right (current position, stays) -->
+    <div class="hud-panel hud-minimap" style="right:10px; top:10px;">
+      <div class="minimap-river"></div>
+      <div class="minimap-player"></div>
+      <div class="minimap-castle"></div>
+    </div>
+    <div class="hud-mute" style="position:absolute; right:10px; top:115px; z-index:10;">🔊</div>
+
+    <!-- Score: bottom-left -->
+    <div class="hud-panel hud-score" style="left:10px; bottom:10px; width:100px; height:44px;">
+      <span class="label">スコア</span>
+      <span class="value">1,250石</span>
+    </div>
+
+    <!-- Q slot: bottom-right -->
+    <div class="hud-panel hud-q" style="right:10px; bottom:10px;">
+      一揆
+      <span class="key-label">Q</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Pattern C: Fortnite style (top center banner) ===== -->
+<div class="tab-desc" id="desc-2">
+  <strong>パターンC — Fortnite準拠</strong>：キルログ=上中央バナー / ミニマップ=左上 / タイマー=右上寄せ。
+  メッセージが画面中央上に横長バナーとして出現。一番目立つが、タイマーとの干渉に注意。ダーク背景で和風テイスト。
+</div>
+<div class="screen-wrap">
+  <div class="game-screen" id="screen-2">
+    <div class="river"></div>
+    <div class="bridge b1"></div>
+    <div class="bridge b2"></div>
+    <div class="player"></div>
+    <div class="hp-bar"><div class="hp-bar-fill"></div></div>
+    <div class="castle-icon">🏯</div>
+
+    <!-- Minimap: top-left -->
+    <div class="hud-panel hud-minimap" style="left:10px; top:10px;">
+      <div class="minimap-river"></div>
+      <div class="minimap-player"></div>
+      <div class="minimap-castle"></div>
+    </div>
+    <div class="hud-mute" style="position:absolute; left:10px; top:115px; z-index:10;">🔊</div>
+
+    <!-- Timer: top-right area -->
+    <div class="hud-panel hud-timer" style="right:10px; top:8px; width:90px; height:48px;">
+      <span class="label">のこり</span>
+      <span class="value">45</span>
+    </div>
+
+    <!-- Status message: top-center banner (Fortnite elimination style) -->
+    <div class="status-msg dark" style="left:50%; top:65px; transform:translateX(-50%); min-width:340px; justify-content:center; height:32px; font-size:13px;">
+      <div class="accent vermilion"></div>
+      橋の辻斬りを討ち取った! +200点!
+    </div>
+
+    <!-- Score: bottom-left -->
+    <div class="hud-panel hud-score" style="left:10px; bottom:10px; width:100px; height:44px;">
+      <span class="label">スコア</span>
+      <span class="value">1,250石</span>
+    </div>
+
+    <!-- Q slot: bottom-right -->
+    <div class="hud-panel hud-q" style="right:10px; bottom:10px;">
+      一揆
+      <span class="key-label">Q</span>
+    </div>
+  </div>
+</div>
+
+<!-- Pattern comparison table -->
+<div class="pattern-info active" id="info">
+  <h3>パターン比較</h3>
+  <table>
+    <tr>
+      <th></th>
+      <th>A: Apex準拠</th>
+      <th>B: PUBG準拠</th>
+      <th>C: Fortnite準拠</th>
+    </tr>
+    <tr>
+      <td>キルログ位置</td>
+      <td>右上（下スタック）</td>
+      <td>左上（下スタック）</td>
+      <td>上中央バナー（1行）</td>
+    </tr>
+    <tr>
+      <td>ミニマップ</td>
+      <td>左上（移動）</td>
+      <td>右上（現状維持）</td>
+      <td>左上（移動）</td>
+    </tr>
+    <tr>
+      <td>タイマー</td>
+      <td>上中央（維持）</td>
+      <td>上中央（維持）</td>
+      <td>右上（移動）</td>
+    </tr>
+    <tr>
+      <td>スコア</td>
+      <td>左下（移動）</td>
+      <td>左下（移動）</td>
+      <td>左下（移動）</td>
+    </tr>
+    <tr>
+      <td>変更コスト</td>
+      <td>中（ミニマップ移動）</td>
+      <td>小（ミニマップ維持）</td>
+      <td>中（タイマー+ミニマップ移動）</td>
+    </tr>
+    <tr>
+      <td>参考元の実績</td>
+      <td>Apex: 月間プレイヤー数最多</td>
+      <td>PUBG: バトロワの元祖</td>
+      <td>Fortnite: カジュアル層に強い</td>
+    </tr>
+    <tr>
+      <td>メッセージ複数表示</td>
+      <td>2件まで下スタック</td>
+      <td>2件まで下スタック</td>
+      <td>1件のみ（キューで順次）</td>
+    </tr>
+    <tr>
+      <td>おすすめ度</td>
+      <td>★★★（王道）</td>
+      <td>★★☆（低コスト）</td>
+      <td>★★☆（目立つ）</td>
+    </tr>
+  </table>
+</div>
+
+<script>
+function showPattern(idx) {
+  var screens = document.querySelectorAll('.game-screen');
+  var btns = document.querySelectorAll('.tab-btn');
+  var descs = document.querySelectorAll('.tab-desc');
+  for (var i = 0; i < screens.length; i++) {
+    screens[i].classList.remove('active');
+    btns[i].classList.remove('active');
+    descs[i].classList.remove('active');
+  }
+  screens[idx].classList.add('active');
+  btns[idx].classList.add('active');
+  descs[idx].classList.add('active');
+}
+</script>
+</body>
+</html>

@@ -25,11 +25,11 @@
 /* --- Fonts --- */
 @font-face {
   font-family: 'Chika';
-  src: url('../sprites/chika-Regular.ttf') format('truetype');
+  src: url('../assets/chika-Regular.ttf') format('truetype');
 }
 @font-face {
   font-family: 'MokoMori';
-  src: url('../sprites/mikiyu-newpenji-p.ttf') format('truetype');
+  src: url('../assets/mikiyu-newpenji-p.ttf') format('truetype');
 }
 
 /* --- Reset / Base --- */
@@ -80,7 +80,7 @@ canvas { display: block; cursor: crosshair; }
   color: var(--color-gray-dark); text-decoration: underline;
 }
 #creditsLink:hover { color: var(--color-primary); }
-.title-image-wrapper { width: 500px; margin: 0 auto 20px auto; }
+.title-image-wrapper { width: 780px; margin: 0 auto 20px auto; }
 .title-image-wrapper img { display: block; width: 100%; }
 
 /* --- Buttons --- */

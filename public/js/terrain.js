@@ -23,12 +23,13 @@ var MapGenerator = {
     this.castleBlock = { r: outerBlocks[castleIdx][0], c: outerBlocks[castleIdx][1] };
     this.grid[this.castleBlock.r][this.castleBlock.c] = TERRAIN_TYPES.CASTLE;
 
-    // Player at least 2 blocks away
+    // Player: different column from castle, not center (1,1), distance >= 2
     var candidates = [];
     for (var pr = 0; pr < 3; pr++) {
       for (var pc = 0; pc < 3; pc++) {
+        if (pr === 1 && pc === 1) { continue; }
         var dist = Math.abs(pr - this.castleBlock.r) + Math.abs(pc - this.castleBlock.c);
-        if (dist >= 2) { candidates.push({ r: pr, c: pc }); }
+        if (dist >= 2 && pc !== this.castleBlock.c) { candidates.push({ r: pr, c: pc }); }
       }
     }
     var pIdx = Math.floor(Math.random() * candidates.length);
@@ -41,13 +42,6 @@ var MapGenerator = {
         this.grid[adjList[ai].r][adjList[ai].c] = TERRAIN_TYPES.CASTLE_TOWN;
         break;
       }
-    }
-
-    // Mountain on shortest path
-    var midR = Math.round((this.castleBlock.r + this.playerBlock.r) / 2);
-    var midC = Math.round((this.castleBlock.c + this.playerBlock.c) / 2);
-    if (this.grid[midR][midC] === TERRAIN_TYPES.EMPTY) {
-      this.grid[midR][midC] = TERRAIN_TYPES.MOUNTAIN;
     }
 
     // Grasslands near player
@@ -77,6 +71,9 @@ var MapGenerator = {
     // Generate river between castle and player
     this._generateRiver();
 
+    // Guarantee at least one village on player's side of the river
+    this._ensureVillageOnPlayerSide();
+
     // Build terrain data
     TerrainManager.buildFromGrid(this.grid, this.bridges, this.riverPath);
   },
@@ -88,6 +85,36 @@ var MapGenerator = {
     if (c > 0) { result.push({ r: r, c: c - 1 }); }
     if (c < 2) { result.push({ r: r, c: c + 1 }); }
     return result;
+  },
+
+  _ensureVillageOnPlayerSide: function() {
+    // Determine which columns are on player's side of the river
+    var riverCenterX = this.riverPath.x + this.riverPath.width / 2;
+    var playerCX = this.playerBlock.c * BLOCK_W + BLOCK_W / 2;
+    var playerIsLeft = (playerCX < riverCenterX);
+
+    // Check if any village exists on player's side
+    var hasVillage = false;
+    var emptyOnPlayerSide = null;
+    for (var r = 0; r < 3; r++) {
+      for (var c = 0; c < 3; c++) {
+        var blockCX = c * BLOCK_W + BLOCK_W / 2;
+        var isPlayerSide = playerIsLeft ? (blockCX < riverCenterX) : (blockCX > riverCenterX);
+        if (!isPlayerSide) { continue; }
+
+        if (this.grid[r][c] === TERRAIN_TYPES.VILLAGE) {
+          hasVillage = true;
+        }
+        if (this.grid[r][c] === TERRAIN_TYPES.EMPTY || this.grid[r][c] === TERRAIN_TYPES.GRASSLAND) {
+          emptyOnPlayerSide = { r: r, c: c };
+        }
+      }
+    }
+
+    // If no village on player's side, convert an empty/grassland block
+    if (!hasVillage && emptyOnPlayerSide) {
+      this.grid[emptyOnPlayerSide.r][emptyOnPlayerSide.c] = TERRAIN_TYPES.VILLAGE;
+    }
   },
 
   _generateRiver: function() {

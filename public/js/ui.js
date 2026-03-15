@@ -37,9 +37,6 @@ var MinimapRenderer = {
       } else if (bl.type === TERRAIN_TYPES.CASTLE_TOWN) {
         ctx.fillStyle = "rgba(100, 100, 100, 0.2)";
         ctx.fillRect(bx, by, bw, bh);
-      } else if (bl.type === TERRAIN_TYPES.MOUNTAIN) {
-        ctx.fillStyle = "rgba(100, 100, 100, 0.2)";
-        ctx.fillRect(bx, by, bw, bh);
       } else if (bl.type === TERRAIN_TYPES.VILLAGE) {
         ctx.fillStyle = "rgba(100, 100, 100, 0.15)";
         ctx.fillRect(bx, by, bw, bh);

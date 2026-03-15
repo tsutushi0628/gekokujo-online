@@ -246,7 +246,7 @@ var EnemyManager = {
     // Castle town enemies are stronger
     var hpMult = 1;
     if (terrType === TERRAIN_TYPES.CASTLE_TOWN) { hpMult = 1.5; }
-    if (terrType === TERRAIN_TYPES.MOUNTAIN) { hpMult = 1.3; }
+
 
     this.enemies.push({
       x: ex, y: ey,

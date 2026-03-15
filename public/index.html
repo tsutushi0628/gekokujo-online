@@ -3,7 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>下克上 GEKOKUJO オンライン</title>
+  <title>下克上 GEKOKUJO オンライン（非公式）</title>
+  <link rel="icon" type="image/png" sizes="96x96" href="assets/favicon/favicon-96x96.png">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon/favicon.svg">
+  <link rel="shortcut icon" href="assets/favicon/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png">
+  <link rel="manifest" href="assets/favicon/site.webmanifest">
+  <meta property="og:title" content="下克上 GEKOKUJO オンライン（非公式）">
+  <meta property="og:description" content="農民・足軽・商人から成り上がれ！ブラウザで遊べる下克上アクションゲーム">
+  <meta property="og:image" content="assets/OGP.png">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="下克上 GEKOKUJO オンライン">
+  <meta name="twitter:description" content="農民・足軽・商人から成り上がれ！ブラウザで遊べる下克上アクションゲーム">
+  <meta name="twitter:image" content="assets/OGP.png">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -12,7 +25,7 @@
   <button id="muteBtn">&#x1F50A;</button>
   <div id="title-screen" class="screen-overlay active">
     <div class="title-image-wrapper">
-      <img src="sprites/title3.jpg" alt="下克上オンライン">
+      <img src="assets/title.png" alt="下克上オンライン">
     </div>
     <button class="btn" id="startBtn">START</button>
     <span id="howtoLink">遊び方</span>
@@ -22,7 +35,7 @@
     <h2>身分を選べ</h2>
     <div class="char-grid">
       <div class="char-card" data-char="farmer">
-        <img src="sprites/nomin_play.png" class="char-img" alt="農民">
+        <img src="assets/nomin_play.png" class="char-img" alt="農民">
         <div class="char-name">農民（ひゃくしょう）</div>
         <div class="char-type">テクニカル / 玄人向け</div>
         <div class="char-desc">最弱だが「一揆」で大逆転。民衆を集めるほど全ステ強化</div>
@@ -38,7 +51,7 @@
         </div>
       </div>
       <div class="char-card" data-char="ashigaru">
-        <img src="sprites/ashigaru_play.png" class="char-img" alt="足軽">
+        <img src="assets/ashigaru_play.png" class="char-img" alt="足軽">
         <div class="char-name">足軽（あしがる）</div>
         <div class="char-type">バランス型 / 入門向け</div>
         <div class="char-desc">前方扇状の広い攻撃。行列突撃後の再集結が速い</div>
@@ -54,7 +67,7 @@
         </div>
       </div>
       <div class="char-card" data-char="merchant">
-        <img src="sprites/shonin_play.png" class="char-img" alt="商人">
+        <img src="assets/shonin_play.png" class="char-img" alt="商人">
         <div class="char-name">商人（あきんど）</div>
         <div class="char-type">経済型 / 戦略向け</div>
         <div class="char-desc">金で仲間を即リクルート。地形収入と維持費の経営バランスが鍵</div>
@@ -90,7 +103,7 @@
   <div id="ikki-overlay" class="screen-overlay">
     <div class="ikki-dialog">
       <div class="ikki-speech-bubble">一揆に参加する？</div>
-      <img src="sprites/nomin_play2.png" class="ikki-char-img" alt="農民">
+      <img src="assets/nomin_play2.png" class="ikki-char-img" alt="農民">
       <div class="ikki-buttons">
         <button class="ikki-btn yes" id="ikkiYes">はい</button>
         <button class="ikki-btn no" id="ikkiNo">いいえ</button>
@@ -143,7 +156,7 @@
   <canvas id="linesCanvas" class="concentration-lines" width="1280" height="720"></canvas>
 </div>
 
-  <audio id="bgm" src="sprites/8bit-shamisen-samurai-rock.mp3" loop preload="auto"></audio>
+  <audio id="bgm" src="assets/8bit-shamisen-samurai-rock.mp3" loop preload="auto"></audio>
 
   <script src="js/constants.js"></script>
   <script src="js/sprites.js"></script>
