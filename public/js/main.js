@@ -435,11 +435,11 @@ var GekokujoSystem = {
     this.retreatCutinTimer = 0;
     this.shockwave = null;
 
-    // Setup castle collision (always active, 480x320 centered on castle)
+    // Setup castle collision (matches castle keep visual: 480x320, offset up by 30)
     var castlePos = MapGenerator.getCastleWorldPos();
     this.castleCollision = {
       x: castlePos.x - 240,
-      y: castlePos.y - 160,
+      y: castlePos.y - 160 - 30,
       w: 480,
       h: 320
     };
@@ -582,7 +582,7 @@ var GekokujoSystem = {
     // Show gate
     if (this.available && !this.gateActive && !this.battleActive && gameState.gameTime >= this.scheduleTime) {
       var castlePos = MapGenerator.getCastleWorldPos();
-      this.gatePos = { x: castlePos.x, y: castlePos.y };
+      this.gatePos = { x: castlePos.x, y: castlePos.y + 200 };
       this.gateActive = true;
       this.available = false;
       AnnouncementSystem.add("城門が出現した!");

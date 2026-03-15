@@ -473,20 +473,24 @@ var BuildingRenderer = {
   },
 
   drawCastle: function(ctx, bx, by, bw, bh) {
-    // Large castle keep in center (3x: 300x300)
-    this.drawCastleKeep(ctx, bx + bw / 2 - 150, by + bh / 2 - 180, 300, 300);
-    // Walls around (scaled up)
+    // Castle keep matches collision size (480x320)
+    var keepW = 480;
+    var keepH = 320;
+    var keepX = bx + bw / 2 - keepW / 2;
+    var keepY = by + bh / 2 - keepH / 2 - 30;
+    this.drawCastleKeep(ctx, keepX, keepY, keepW, keepH);
+    // Walls around castle keep
     ctx.strokeStyle = "rgba(140,120,90,0.4)";
     ctx.lineWidth = 4;
-    ctx.strokeRect(bx + bw * 0.1, by + bh * 0.1, bw * 0.8, bh * 0.8);
-    // Corner towers (scaled up)
+    ctx.strokeRect(keepX - 20, keepY - 20, keepW + 40, keepH + 40);
+    // Corner towers
     var towerW = 60;
     var towerH = 50;
     var towers = [
-      [bx + bw * 0.1, by + bh * 0.1],
-      [bx + bw * 0.9 - towerW, by + bh * 0.1],
-      [bx + bw * 0.1, by + bh * 0.9 - towerH],
-      [bx + bw * 0.9 - towerW, by + bh * 0.9 - towerH]
+      [keepX - 20, keepY - 20],
+      [keepX + keepW - towerW + 20, keepY - 20],
+      [keepX - 20, keepY + keepH - towerH + 20],
+      [keepX + keepW - towerW + 20, keepY + keepH - towerH + 20]
     ];
     for (var ti = 0; ti < towers.length; ti++) {
       this.drawHouse(ctx, towers[ti][0], towers[ti][1], towerW, towerH);
@@ -495,7 +499,7 @@ var BuildingRenderer = {
     ctx.font = FONT.h3;
     ctx.textAlign = "center";
     ctx.fillStyle = "#1a1a1a";
-    ctx.fillText("城", bx + bw / 2, by + bh / 2 + 180);
+    ctx.fillText("城", bx + bw / 2, keepY + keepH + 40);
   },
 
   drawCastleTown: function(ctx, bx, by, bw, bh, seed) {
