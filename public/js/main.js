@@ -130,7 +130,7 @@ var IkkiSystem = {
       return;
     }
 
-    // Consume 10% of parade members (min 1)
+    // Consume 25% of parade members (min 1)
     var consumeCount = Math.max(1, Math.floor(paradeLen * 0.25));
     var damageAmount = paradeLen * 8;
 
@@ -141,29 +141,24 @@ var IkkiSystem = {
       }
     }
 
-    // Damage enemies within 200px radius
-    var ikkiRadius = 200;
+    // 画面内の敵を即死させる（殿様を除く）
+    var camX = CameraController.x;
+    var camY = CameraController.y;
+    var ultMult = 2.6;
+    var ultScoreMult = CHAR_DEFS[gameState.selectedChar].scoreMultiplier;
     for (var i = EnemyManager.enemies.length - 1; i >= 0; i--) {
       var en = EnemyManager.enemies[i];
-      if (en.surrendering) { continue; }
-      var idx = en.x - PlayerController.x;
-      var idy = en.y - PlayerController.y;
-      if (Math.sqrt(idx * idx + idy * idy) > ikkiRadius) { continue; }
-      en.hp -= damageAmount;
-      EffectRenderer.add(en.x, en.y, "hit");
-      if (en.hp <= 0) {
-        var ultMult = 2.6;
-        var ultScoreMult = CHAR_DEFS[gameState.selectedChar].scoreMultiplier;
-        var kokuGain = Math.floor(en.scoreValue * ultMult * ultScoreMult);
-        gameState.koku += kokuGain;
-        FloatingScoreSystem.show(en.scoreValue);
-        RankSystem.check();
-        EffectRenderer.add(en.x, en.y, "destroy");
-        EnemyManager.enemies.splice(i, 1);
-      }
+      if (en.x < camX || en.x > camX + CANVAS_W) { continue; }
+      if (en.y < camY || en.y > camY + CANVAS_H) { continue; }
+      var kokuGain = Math.floor(en.scoreValue * ultMult * ultScoreMult);
+      gameState.koku += kokuGain;
+      FloatingScoreSystem.show(en.scoreValue);
+      EffectRenderer.add(en.x, en.y, "destroy");
+      EnemyManager.enemies.splice(i, 1);
     }
+    RankSystem.check();
 
-    // Damage boss if active
+    // 殿様にはダメージ（即死ではない）
     if (GekokujoSystem.boss && !GekokujoSystem.boss.defeated) {
       GekokujoSystem.boss.hp -= damageAmount;
       EffectRenderer.add(GekokujoSystem.boss.x, GekokujoSystem.boss.y, "hit");
@@ -747,67 +742,62 @@ var HouseManager = {
     return houses;
   },
 
-  // Castle town: 行ベース配置（2つ組 or 4つ組、横軸整列）
+  // Castle town: 通り配置（2つ or 4つ横並び、行間はキャラ通行可）
   _generateGrid: function(seed) {
     var houses = [];
-    var marginX = 80;
-    var marginY = 60;
-    var areaW = BLOCK_W - marginX * 2;
+    var marginX = 70;
+    var marginY = 50;
+    var buildingW = 70;
+    var pairGap = 12;
+    var groupGap = 50;
 
-    // 5〜6行
+    // 3〜4行（通り）
     seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
-    var rowCount = 5 + (seed % 2);
+    var rowCount = 3 + (seed % 2);
     var rowSpacing = (BLOCK_H - marginY * 2) / rowCount;
 
     for (var row = 0; row < rowCount; row++) {
-      // 行のY位置（基準 + 小さなゆらぎ）
       var rowY = marginY + Math.floor(rowSpacing * (row + 0.5));
-      seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
-      var rowJitter = (seed % 15) - 7;
-      rowY = rowY + rowJitter;
 
-      // 行内のグループ数（4〜6）
-      seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
-      var groupsInRow = 4 + (seed % 3);
+      // 左端からグループを詰めていく
+      var curX = marginX;
+      var maxX = BLOCK_W - marginX;
 
-      var slotW = Math.floor(areaW / groupsInRow);
-      for (var col = 0; col < groupsInRow; col++) {
-        // X基準位置
-        var slotX = marginX + slotW * col + Math.floor(slotW * 0.5);
-        seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
-        var xJitter = (seed % (Math.floor(slotW * 0.2) + 1)) - Math.floor(slotW * 0.1);
-        var bx = slotX + xJitter;
-
-        // 2つ組 or 4つ組を選択
+      while (curX + buildingW * 2 + pairGap < maxX) {
+        // 2つ組 or 4つ組
         seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
         var isQuad = (seed % 3) === 0;
 
-        // 建物間隔（20〜32px）
-        seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
-        var gap = 20 + (seed % 13);
-
-        // 重なりチェック
-        var tooClose = false;
-        for (var h = 0; h < houses.length; h++) {
-          var dx = houses[h].x - bx;
-          var dy = houses[h].y - rowY;
-          if (dx * dx + dy * dy < 2500) { tooClose = true; break; }
+        var groupW;
+        if (isQuad) {
+          groupW = buildingW * 4 + pairGap * 3;
+        } else {
+          groupW = buildingW * 2 + pairGap;
         }
-        if (tooClose) { continue; }
+
+        // 残りスペースに入らなければ2つ組にフォールバック
+        if (curX + groupW > maxX) {
+          isQuad = false;
+          groupW = buildingW * 2 + pairGap;
+        }
+        if (curX + groupW > maxX) { break; }
 
         if (isQuad) {
-          // 4つ組: 2×2の田の字
-          var halfGap = Math.floor(gap * 0.5);
-          var rowGap = Math.floor(gap * 0.6);
-          houses.push({ x: bx - halfGap, y: rowY - rowGap, collisionRadius: 26 });
-          houses.push({ x: bx + halfGap, y: rowY - rowGap, collisionRadius: 26 });
-          houses.push({ x: bx - halfGap, y: rowY + rowGap, collisionRadius: 26 });
-          houses.push({ x: bx + halfGap, y: rowY + rowGap, collisionRadius: 26 });
+          houses.push({ x: Math.floor(curX), y: rowY, collisionRadius: 30 });
+          houses.push({ x: Math.floor(curX + buildingW + pairGap), y: rowY, collisionRadius: 30 });
+          houses.push({ x: Math.floor(curX + (buildingW + pairGap) * 2), y: rowY, collisionRadius: 30 });
+          houses.push({ x: Math.floor(curX + (buildingW + pairGap) * 3), y: rowY, collisionRadius: 30 });
         } else {
-          // 2つ組: 横並び
-          houses.push({ x: Math.floor(bx - gap * 0.5), y: rowY, collisionRadius: 30 });
-          houses.push({ x: Math.floor(bx + gap * 0.5), y: rowY, collisionRadius: 30 });
+          houses.push({ x: Math.floor(curX), y: rowY, collisionRadius: 30 });
+          houses.push({ x: Math.floor(curX + buildingW + pairGap), y: rowY, collisionRadius: 30 });
         }
+
+        curX = curX + groupW;
+
+        // グループ間スペース（ランダム幅）
+        seed = ((seed * 1103515245 + 12345) & 0x7fffffff);
+        var extraGap = seed % 30;
+        curX = curX + groupGap + extraGap;
       }
     }
     return houses;
