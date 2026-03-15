@@ -91,9 +91,12 @@ var PlayerController = {
     if (this.knockbackTimer <= 0) {
       // WASD movement
       var spd = def.speed + (ScoreManager.rankIndex * 0.3);
-      // Farmer buff from parade (2.5% per follower to all stats)
-      if (gameState.selectedChar === "farmer") {
-        spd = spd * (1.0 + ParadeController.getLength() * 0.025);
+      // Parade penalty: 2% slowdown per follower, cap 30%
+      var paradeLen = ParadeController.getLength();
+      if (paradeLen > 0) {
+        var penalty = paradeLen * 0.02;
+        if (penalty > 0.30) { penalty = 0.30; }
+        spd = spd * (1.0 - penalty);
       }
       // River slow: 0.3x speed
       if (TerrainManager.isInRiver(this.x, this.y)) {
@@ -132,6 +135,7 @@ var PlayerController = {
   takeDamage: function(amount) {
     this.hp -= amount;
     EffectRenderer.add(this.x, this.y, "playerHit");
+    DamageVignette.trigger();
     if (this.hp <= 0) {
       this.hp = 0;
       return true; // dead
@@ -331,8 +335,7 @@ var EnemyManager = {
           var dead = PlayerController.takeDamage(en.attack);
           if (dead) {
             gameState.phase = "result";
-            bgm.pause();
-            bgm.currentTime = 0;
+            BgmController.fadeOut(500);
             skullScreen.classList.add("active");
             return;
           }
@@ -502,8 +505,8 @@ var CivilianManager = {
       var recruitRange = def.recruitRange + ParadeController.getLength() * 5;
       var dx = PlayerController.x - civ.x;
       var dy = PlayerController.y - civ.y;
-      var dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < recruitRange) {
+      var distSq = dx * dx + dy * dy;
+      if (distSq < recruitRange * recruitRange) {
         if (gameState.selectedChar === "merchant") {
           // Merchant: instant recruit with koku cost
           if (gameState.koku >= def.recruitCost) {
@@ -544,9 +547,9 @@ var CivilianManager = {
       // Recruiting indicator
       var rdx = PlayerController.x - civ.x;
       var rdy = PlayerController.y - civ.y;
-      var rDist = Math.sqrt(rdx * rdx + rdy * rdy);
+      var rDistSq = rdx * rdx + rdy * rdy;
       var effectiveRange = def.recruitRange + ParadeController.getLength() * 5;
-      if (rDist < effectiveRange) {
+      if (rDistSq < effectiveRange * effectiveRange) {
         if (gameState.selectedChar === "merchant") { continue; }
         ctx.fillStyle = "#1a1a1a";
         ctx.font = FONT.h4;
@@ -611,35 +614,38 @@ var ParadeController = {
         }
       }
 
-      // Pikmin orbit movement
-      var wobble = Math.sin(m.orbitAngle * 2.7 + i) * 0.4;
-      var targetAngle = m.orbitAngle + wobble;
-      var targetRadius = 40 + m.orbitRadius;
-      var targetX = PlayerController.x + Math.cos(targetAngle) * targetRadius;
-      var targetY = PlayerController.y + Math.sin(targetAngle) * targetRadius;
+      // Pikmin orbit movement (skip during charge - ParadeChargeSystem handles movement)
+      if (!ParadeChargeSystem.active) {
+        var wobble = Math.sin(m.orbitAngle * 2.7 + i) * 0.4;
+        var targetAngle = m.orbitAngle + wobble;
+        var targetRadius = 40 + m.orbitRadius;
+        var targetX = PlayerController.x + Math.cos(targetAngle) * targetRadius;
+        var targetY = PlayerController.y + Math.sin(targetAngle) * targetRadius;
 
-      // Lerp toward target position
-      var mNewX = m.x + (targetX - m.x) * 0.1;
-      var mNewY = m.y + (targetY - m.y) * 0.1;
+        // Lerp toward target position
+        var mNewX = m.x + (targetX - m.x) * 0.1;
+        var mNewY = m.y + (targetY - m.y) * 0.1;
 
-      // Block river crossing (allow only on bridge)
-      if (TerrainManager.isInRiver(mNewX, mNewY) && !TerrainManager.isOnBridge(mNewX, mNewY)) {
-        mNewX = m.x;
-        mNewY = m.y;
+        // Block river crossing (allow only on bridge)
+        if (TerrainManager.isInRiver(mNewX, mNewY) && !TerrainManager.isOnBridge(mNewX, mNewY)) {
+          mNewX = m.x;
+          mNewY = m.y;
+        }
+        m.x = mNewX;
+        m.y = mNewY;
+
+        // Slowly rotate orbit angle for wandering feel
+        m.orbitAngle += 0.3 * dt;
+
+        // Building collision for parade members
+        resolveHouseCollision(m, 12);
       }
-      m.x = mNewX;
-      m.y = mNewY;
-
-      // Slowly rotate orbit angle for wandering feel
-      m.orbitAngle += 0.3 * dt;
-
-      // Building collision for parade members
-      resolveHouseCollision(m, 12);
 
       // Parade member attack (all characters)
       if (m.attackCooldown > 0) { m.attackCooldown -= dt; }
       if (m.attackCooldown <= 0) {
         var paradeAttackRadius = 30;
+        var paradeAttackRadiusSq = 900;
         var paradeDamage = 3;
         if (gameState.selectedChar === "ashigaru") { paradeDamage = 2; }
         for (var ei = EnemyManager.enemies.length - 1; ei >= 0; ei--) {
@@ -647,8 +653,7 @@ var ParadeController = {
           if (en.surrendering) { continue; }
           var edx = m.x - en.x;
           var edy = m.y - en.y;
-          var eDist = Math.sqrt(edx * edx + edy * edy);
-          if (eDist < paradeAttackRadius) {
+          if (edx * edx + edy * edy < paradeAttackRadiusSq) {
             en.hp -= paradeDamage;
             m.attackCooldown = KobuSystem.getAttackCooldown();
             EffectRenderer.add(en.x, en.y, "hit");
@@ -667,13 +672,27 @@ var ParadeController = {
           var boss = GekokujoSystem.boss;
           var bdx = m.x - boss.x;
           var bdy = m.y - boss.y;
-          var bDist = Math.sqrt(bdx * bdx + bdy * bdy);
-          if (bDist < paradeAttackRadius) {
+          if (bdx * bdx + bdy * bdy < paradeAttackRadiusSq) {
             boss.hp -= paradeDamage;
             m.attackCooldown = KobuSystem.getAttackCooldown();
             EffectRenderer.add(boss.x, boss.y, "hit");
             if (boss.hp <= 0) {
               GekokujoSystem.success();
+            }
+          }
+        }
+
+        // 橋の中ボスへの攻撃（各ボスをチェック）
+        if (m.attackCooldown <= 0) {
+          for (var bbi = 0; bbi < BridgeBossSystem.bosses.length; bbi++) {
+            var bboss = BridgeBossSystem.bosses[bbi];
+            if (!bboss) { continue; }
+            var bbdx = m.x - bboss.x;
+            var bbdy = m.y - bboss.y;
+            if (bbdx * bbdx + bbdy * bbdy < paradeAttackRadiusSq) {
+              m.attackCooldown = KobuSystem.getAttackCooldown();
+              BridgeBossSystem.takeDamageAt(bbi, paradeDamage);
+              break;
             }
           }
         }
@@ -747,16 +766,16 @@ var ProjectileManager = {
   },
 
   _findNearestEnemy: function(x, y) {
-    var bestDist = 99999;
+    var bestDistSq = 99999 * 99999;
     var bestEnemy = null;
     for (var i = 0; i < EnemyManager.enemies.length; i++) {
       var en = EnemyManager.enemies[i];
       if (en.surrendering) { continue; }
       var dx = en.x - x;
       var dy = en.y - y;
-      var dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < bestDist) {
-        bestDist = dist;
+      var distSq = dx * dx + dy * dy;
+      if (distSq < bestDistSq) {
+        bestDistSq = distSq;
         bestEnemy = en;
       }
     }
@@ -801,12 +820,14 @@ var ProjectileManager = {
       }
 
       // Hit enemies
+      var hitEnemy = false;
       for (var j = EnemyManager.enemies.length - 1; j >= 0; j--) {
         var en = EnemyManager.enemies[j];
         if (en.surrendering) { continue; }
         var dx = p.x - en.x;
         var dy = p.y - en.y;
-        if (Math.sqrt(dx * dx + dy * dy) < en.size + p.size) {
+        var hitThresh = en.size + p.size;
+        if (dx * dx + dy * dy < hitThresh * hitThresh) {
           en.hp -= p.damage;
           EffectRenderer.add(en.x, en.y, "hit");
           this.projectiles.splice(i, 1);
@@ -816,9 +837,11 @@ var ProjectileManager = {
             EffectRenderer.add(en.x, en.y, "destroy");
             EnemyManager.enemies.splice(j, 1);
           }
+          hitEnemy = true;
           break;
         }
       }
+      if (hitEnemy) { continue; }
 
       // Hit gekokujo boss
       if (GekokujoSystem.boss && !GekokujoSystem.boss.defeated) {
@@ -828,11 +851,31 @@ var ProjectileManager = {
           if (bp) {
             var bdx = bp.x - boss.x;
             var bdy = bp.y - boss.y;
-            if (Math.sqrt(bdx * bdx + bdy * bdy) < boss.size + bp.size) {
+            var bossHitThresh = boss.size + bp.size;
+            if (bdx * bdx + bdy * bdy < bossHitThresh * bossHitThresh) {
               boss.hp -= bp.damage;
               EffectRenderer.add(boss.x, boss.y, "hit");
               this.projectiles.splice(i, 1);
               if (boss.hp <= 0) { GekokujoSystem.success(); }
+            }
+          }
+        }
+      }
+
+      // Hit bridge boss（各ボスをチェック）
+      if (i >= 0 && i < this.projectiles.length) {
+        var bbp = this.projectiles[i];
+        if (bbp) {
+          for (var bbj = 0; bbj < BridgeBossSystem.bosses.length; bbj++) {
+            var bbTarget = BridgeBossSystem.bosses[bbj];
+            if (!bbTarget) { continue; }
+            var bbdx = bbp.x - bbTarget.x;
+            var bbdy = bbp.y - bbTarget.y;
+            var bbThresh = bbTarget.size + bbp.size;
+            if (bbdx * bbdx + bbdy * bbdy < bbThresh * bbThresh) {
+              BridgeBossSystem.takeDamageAt(bbj, bbp.damage);
+              this.projectiles.splice(i, 1);
+              break;
             }
           }
         }

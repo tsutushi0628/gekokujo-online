@@ -628,6 +628,36 @@ var FloatingScoreSystem = {
 };
 
 // ============================================================
+// DamageVignette
+// ============================================================
+var DamageVignette = {
+  alpha: 0,
+
+  trigger: function() {
+    this.alpha = 0.6;
+  },
+
+  update: function(dt) {
+    if (this.alpha > 0) {
+      this.alpha -= dt * 1.5;
+      if (this.alpha < 0) { this.alpha = 0; }
+    }
+  },
+
+  draw: function(ctx) {
+    if (this.alpha <= 0) { return; }
+    var grd = ctx.createRadialGradient(
+      CANVAS_W / 2, CANVAS_H / 2, CANVAS_W * 0.3,
+      CANVAS_W / 2, CANVAS_H / 2, CANVAS_W * 0.7
+    );
+    grd.addColorStop(0, "rgba(200, 0, 0, 0)");
+    grd.addColorStop(1, "rgba(200, 0, 0, " + this.alpha + ")");
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  }
+};
+
+// ============================================================
 // OnboardingSystem
 // ============================================================
 var OnboardingSystem = {

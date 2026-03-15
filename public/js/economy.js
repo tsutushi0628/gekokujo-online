@@ -62,11 +62,11 @@ var ShoninSystem = {
       }
     }
     if (this.hireCooldown > 0) { this.hireCooldown -= dt; }
-    if (gameState.koku >= 15 && this.hireCooldown <= 0) {
-      gameState.koku -= 15;
-      FloatingScoreSystem.show(-15);
+    if (gameState.koku >= 30 && this.hireCooldown <= 0) {
+      gameState.koku -= 30;
+      FloatingScoreSystem.show(-30);
       ParadeController.addMember(PlayerController.x, PlayerController.y);
-      AnnouncementSystem.add("傭兵を雇った! (石高 -15)");
+      AnnouncementSystem.add("傭兵を雇った! (石高 -30)");
       ScoreManager.recalculate();
       this.hireCooldown = 3;
     }

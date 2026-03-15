@@ -23,6 +23,53 @@ var howtoOverlay = document.getElementById("howto-overlay");
 var creditsOverlay = document.getElementById("credits-overlay");
 
 // ============================================================
+// BgmController (fade in/out)
+// ============================================================
+var BgmController = {
+  fadeInterval: null,
+  targetVolume: 0.3,
+
+  fadeIn: function(duration) {
+    var self = this;
+    if (self.fadeInterval) { clearInterval(self.fadeInterval); }
+    bgm.volume = 0;
+    bgm.play();
+    var step = self.targetVolume / (duration / 50);
+    self.fadeInterval = setInterval(function() {
+      bgm.volume = Math.min(bgm.volume + step, self.targetVolume);
+      if (bgm.volume >= self.targetVolume) {
+        clearInterval(self.fadeInterval);
+        self.fadeInterval = null;
+      }
+    }, 50);
+  },
+
+  fadeOut: function(duration, callback) {
+    var self = this;
+    if (self.fadeInterval) { clearInterval(self.fadeInterval); }
+    var startVol = bgm.volume;
+    var step = startVol / (duration / 50);
+    self.fadeInterval = setInterval(function() {
+      bgm.volume = Math.max(bgm.volume - step, 0);
+      if (bgm.volume <= 0) {
+        clearInterval(self.fadeInterval);
+        self.fadeInterval = null;
+        bgm.pause();
+        bgm.currentTime = 0;
+        if (callback) { callback(); }
+      }
+    }, 50);
+  },
+
+  stop: function() {
+    if (this.fadeInterval) { clearInterval(this.fadeInterval); this.fadeInterval = null; }
+    bgm.pause();
+    bgm.currentTime = 0;
+    bgm.volume = this.targetVolume;
+  }
+};
+
+// ============================================================
 // Shared Game State (minimal globals)
 // ============================================================
 var gameState = {
@@ -123,6 +170,253 @@ var IkkiSystem = {
 };
 
 // ============================================================
+// BridgeBossSystem (橋の中ボス - 辻斬り)
+// ============================================================
+var BridgeBossSystem = {
+  bosses: [],
+  contactInvincibleTimer: 0,
+  returnSpeed: 2.5,
+
+  init: function() {
+    this.bosses = [];
+    this.contactInvincibleTimer = 0;
+    this._spawn();
+  },
+
+  // 外部互換: 最初の生存ボスを返す
+  _getFirstBoss: function() {
+    for (var i = 0; i < this.bosses.length; i++) {
+      if (this.bosses[i]) { return this.bosses[i]; }
+    }
+    return null;
+  },
+
+  update: function(dt) {
+    // 接触無敵タイマー減算
+    if (this.contactInvincibleTimer > 0) {
+      this.contactInvincibleTimer -= dt;
+    }
+
+    var px = PlayerController.x;
+    var py = PlayerController.y;
+
+    for (var bi = 0; bi < this.bosses.length; bi++) {
+      var boss = this.bosses[bi];
+      if (!boss) { continue; }
+
+      var dx = px - boss.x;
+      var dy = py - boss.y;
+      var distToPlayer = Math.sqrt(dx * dx + dy * dy);
+
+      // ホームポジションからの距離
+      var homeDx = boss.x - boss.homeX;
+      var homeDy = boss.y - boss.homeY;
+      var distFromHome = Math.sqrt(homeDx * homeDx + homeDy * homeDy);
+
+      var moveX = 0;
+      var moveY = 0;
+
+      if (boss.safe) {
+        // safe=true（幅広い橋）: 橋の幅内をパトロール
+        boss.patrolTimer += dt;
+        var patrolHalfRange = boss.patrolRange / 2;
+        var patrolOffset = Math.sin(boss.patrolTimer * boss.patrolSpeed) * patrolHalfRange;
+        var targetY = boss.homeY + patrolOffset;
+        var patrolDy = targetY - boss.y;
+        if (Math.abs(patrolDy) > 1) {
+          moveY = (patrolDy > 0 ? 1 : -1) * boss.speed;
+        }
+
+        // プレイヤーが近ければ追跡に切り替え
+        if (distToPlayer < boss.aggroRange) {
+          if (distFromHome < boss.patrolRange) {
+            moveX = 0;
+            moveY = 0;
+            if (distToPlayer > 1) {
+              moveX = (dx / distToPlayer) * boss.speed;
+              moveY = (dy / distToPlayer) * boss.speed;
+            }
+          }
+        }
+
+        // パトロール範囲外なら帰還
+        if (distFromHome > boss.patrolRange) {
+          if (distFromHome > 1) {
+            moveX = (-homeDx / distFromHome) * this.returnSpeed;
+            moveY = (-homeDy / distFromHome) * this.returnSpeed;
+          }
+        }
+      } else {
+        // safe=false（幅狭い橋）: 中央固定、近接時のみ少し追跡
+        if (distToPlayer < boss.aggroRange && distFromHome < boss.leashRange) {
+          // プレイヤーが近い＆リーシュ範囲内: 少し追跡
+          if (distToPlayer > 1) {
+            moveX = (dx / distToPlayer) * boss.speed * 0.6;
+            moveY = (dy / distToPlayer) * boss.speed * 0.6;
+          }
+        } else if (distFromHome > 3) {
+          // ホームに戻る
+          if (distFromHome > 1) {
+            moveX = (-homeDx / distFromHome) * this.returnSpeed;
+            moveY = (-homeDy / distFromHome) * this.returnSpeed;
+          }
+        }
+      }
+
+      var newX = boss.x + moveX;
+      var newY = boss.y + moveY;
+
+      // 川には入らない（橋の上は許可）
+      if (TerrainManager.isInRiver(newX, newY) && !TerrainManager.isOnBridge(newX, newY)) {
+        newX = boss.x;
+        newY = boss.y;
+      }
+
+      // 向き
+      if (dx < 0) { boss.facingLeft = true; }
+      if (dx > 0) { boss.facingLeft = false; }
+
+      boss.x = newX;
+      boss.y = newY;
+
+      // 木との衝突
+      var treePush = TerrainManager.pushFromTrees(boss.x, boss.y, boss.size);
+      boss.x = treePush.x;
+      boss.y = treePush.y;
+
+      // 建物との衝突
+      resolveHouseCollision(boss, boss.size);
+
+      // 接触ダメージ（大ダメージ: HPの35%）
+      if (distToPlayer < PlayerController.size + boss.size) {
+        if (this.contactInvincibleTimer <= 0) {
+          var contactDamage = Math.floor(PlayerController.maxHp * 0.35);
+          var dead = PlayerController.takeDamage(contactDamage);
+          if (dead) {
+            gameState.phase = "result";
+            BgmController.fadeOut(500);
+            skullScreen.classList.add("active");
+            return;
+          }
+          // ノックバック（強め）
+          if (distToPlayer > 1) {
+            PlayerController.applyKnockback(dx, dy, -12);
+          }
+          this.contactInvincibleTimer = 1.5;
+        }
+      }
+    }
+  },
+
+  _spawn: function() {
+    var bridges = TerrainManager.bridges;
+    if (bridges.length === 0) { return; }
+
+    this.bosses = [];
+    for (var i = 0; i < bridges.length; i++) {
+      var bridge = bridges[i];
+      var bossX = bridge.x + bridge.w / 2;
+      var bossY = bridge.y + bridge.h / 2;
+
+      var bossData = {
+        x: bossX,
+        y: bossY,
+        homeX: bossX,
+        homeY: bossY,
+        hp: 80,
+        maxHp: 80,
+        attack: 10,
+        speed: 1.8,
+        size: 30,
+        attackTimer: 0,
+        facingLeft: false,
+        scoreValue: 200,
+        safe: bridge.safe,
+        patrolTimer: 0,
+        patrolRange: bridge.h * 0.8,
+        patrolSpeed: 1.2,
+        aggroRange: 150,
+        leashRange: 50
+      };
+
+      this.bosses.push(bossData);
+    }
+
+    AnnouncementSystem.add("橋の辻斬りが現れた!");
+  },
+
+  takeDamageAt: function(index, amount) {
+    var boss = this.bosses[index];
+    if (!boss) { return; }
+    boss.hp -= amount;
+    EffectRenderer.add(boss.x, boss.y, "hit");
+    if (boss.hp <= 0) {
+      this._defeat(index);
+    }
+  },
+
+  // 外部互換: 単体ボス前提の呼び出し用（最初の生存ボスにダメージ）
+  takeDamage: function(amount) {
+    for (var i = 0; i < this.bosses.length; i++) {
+      if (this.bosses[i]) {
+        this.takeDamageAt(i, amount);
+        return;
+      }
+    }
+  },
+
+  _defeat: function(index) {
+    var boss = this.bosses[index];
+    if (!boss) { return; }
+    ScoreManager.addRaw(boss.scoreValue);
+    ShoninSystem.addKokuForKill(boss.scoreValue);
+    EffectRenderer.add(boss.x, boss.y, "destroy");
+    AnnouncementSystem.add("橋の辻斬りを討ち取った! +200点!");
+    this.bosses[index] = null;
+  },
+
+  draw: function(ctx) {
+    for (var bi = 0; bi < this.bosses.length; bi++) {
+      var boss = this.bosses[bi];
+      if (!boss) { continue; }
+      if (!CameraController.isVisible(boss.x, boss.y, 40)) { continue; }
+      var sp = CameraController.worldToScreen(boss.x, boss.y);
+
+      // 紫のオーラ（中ボス感）
+      var pulseAlpha = 0.3 + Math.sin(performance.now() * 0.004) * 0.15;
+      ctx.strokeStyle = "rgba(160, 40, 200, " + pulseAlpha + ")";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(sp.x, sp.y, boss.size + 8, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // スプライト描画
+      if (spritesLoaded) {
+        drawSpriteCentered(ctx, "tsujigiri", sp.x, sp.y, 96, !boss.facingLeft);
+      } else {
+        ctx.font = "40px " + FONT_FAMILY;
+        ctx.textAlign = "center";
+        ctx.fillText("\u2694\uFE0F", sp.x, sp.y + 10);
+      }
+
+      // HPバー
+      var hpR = boss.hp / boss.maxHp;
+      ctx.fillStyle = "#ddd";
+      ctx.fillRect(sp.x - 20, sp.y - boss.size - 18, 40, 5);
+      if (hpR > 0.5) { ctx.fillStyle = "#4a8"; }
+      else { ctx.fillStyle = "#c44"; }
+      ctx.fillRect(sp.x - 20, sp.y - boss.size - 18, 40 * hpR, 5);
+
+      // ラベル
+      ctx.fillStyle = "#1a1a1a";
+      ctx.font = FONT.h5;
+      ctx.textAlign = "center";
+      ctx.fillText("辻斬り", sp.x, sp.y - boss.size - 22);
+    }
+  }
+};
+
+// ============================================================
 // GekokujoSystem
 // ============================================================
 var GekokujoSystem = {
@@ -151,7 +445,11 @@ var GekokujoSystem = {
     this.boss = null;
     this.battleActive = false;
     this.battleTimer = 0;
-    this.scheduleTime = 30 + Math.random() * 20;
+    if (gameState.ikkiMode) {
+      this.scheduleTime = 60 * 0.2 + Math.random() * 10;
+    } else {
+      this.scheduleTime = MAX_TIME * 0.2 + Math.random() * 20;
+    }
     this.declineCooldown = 0;
     this.declinedGatePos = null;
     this.slowTimer = 0;
@@ -334,8 +632,7 @@ var GekokujoSystem = {
   fail: function() {
     this.battleActive = false;
     this.boss = null;
-    bgm.pause();
-    bgm.currentTime = 0;
+    BgmController.fadeOut(500);
     gameState.phase = "result";
     skullScreen.classList.add("active");
   },
@@ -542,6 +839,236 @@ var HouseManager = {
 };
 
 // ============================================================
+// TerrainRenderer - オフスクリーンCanvasへの地形プリレンダリング
+// ============================================================
+var TerrainRenderer = {
+  canvas: null,
+  ctx: null,
+  rendered: false,
+
+  init: function() {
+    this.canvas = document.createElement("canvas");
+    this.canvas.width = MAP_W;
+    this.canvas.height = MAP_H;
+    this.ctx = this.canvas.getContext("2d");
+    this.rendered = false;
+  },
+
+  invalidate: function() {
+    this.rendered = false;
+  },
+
+  render: function() {
+    var tCtx = this.ctx;
+
+    // Background: ground color fill
+    tCtx.fillStyle = "#d8c5b4";
+    tCtx.fillRect(0, 0, MAP_W, MAP_H);
+
+    // Draw terrain blocks
+    for (var bi = 0; bi < TerrainManager.blocks.length; bi++) {
+      var bl = TerrainManager.blocks[bi];
+      var bx = bl.x;
+      var by = bl.y;
+
+      // Tsuchi texture on non-river, non-castle terrain only
+      if (bl.type !== TERRAIN_TYPES.RIVER && bl.type !== TERRAIN_TYPES.CASTLE && bl.type !== TERRAIN_TYPES.CASTLE_TOWN && spritesLoaded && spriteImages.tsuchi) {
+        var tsuchiImg = spriteImages.tsuchi;
+        var tileSize = 64;
+        var tileCol = 0;
+        for (var ttx = bx; ttx < bx + bl.w; ttx += tileSize) {
+          var tileRow = 0;
+          for (var tty = by; tty < by + bl.h; tty += tileSize) {
+            var tileSeed = ((bl.row * 7919 + bl.col * 6271 + tileCol * 48271 + tileRow * 31547 + tileCol * tileRow * 2969) & 0x7fffffff) % 100;
+            var tileWorldX = bl.x + tileCol * tileSize;
+            var tileWorldY = bl.y + tileRow * tileSize;
+            if (TerrainManager.isInRiver(tileWorldX, tileWorldY)) {
+              tileRow++;
+              continue;
+            }
+            if (tileSeed < 30) {
+              var drawTW = Math.min(tileSize, bx + bl.w - ttx);
+              var drawTH = Math.min(tileSize, by + bl.h - tty);
+              tCtx.drawImage(tsuchiImg, 0, 0, SPRITE_DEFS.tsuchi.w * (drawTW / tileSize), SPRITE_DEFS.tsuchi.h * (drawTH / tileSize), ttx, tty, drawTW, drawTH);
+            }
+            tileRow++;
+          }
+          tileCol++;
+        }
+      }
+
+      // Terrain-specific overlays (castle/castle_town only)
+      if (bl.type === TERRAIN_TYPES.CASTLE) {
+        // Cobblestone pattern for castle area
+        tCtx.fillStyle = "rgba(140, 135, 125, 0.25)";
+        tCtx.fillRect(bx, by, bl.w, bl.h);
+        tCtx.strokeStyle = "rgba(100, 95, 85, 0.15)";
+        tCtx.lineWidth = 1;
+        var stoneW = 24;
+        var stoneH = 16;
+        for (var sy = by; sy < by + bl.h; sy += stoneH) {
+          var rowIdx = Math.floor((sy - by) / stoneH);
+          var offsetX = 0;
+          if (rowIdx % 2 !== 0) { offsetX = stoneW / 2; }
+          for (var sx = bx - stoneW + offsetX; sx < bx + bl.w; sx += stoneW) {
+            tCtx.strokeRect(sx, sy, stoneW, stoneH);
+          }
+        }
+      } else if (bl.type === TERRAIN_TYPES.CASTLE_TOWN) {
+        // Lighter cobblestone for castle town
+        tCtx.fillStyle = "rgba(150, 145, 135, 0.15)";
+        tCtx.fillRect(bx, by, bl.w, bl.h);
+        tCtx.strokeStyle = "rgba(120, 115, 105, 0.08)";
+        tCtx.lineWidth = 1;
+        var ctStoneW = 28;
+        var ctStoneH = 18;
+        for (var cty = by; cty < by + bl.h; cty += ctStoneH) {
+          var ctRowIdx = Math.floor((cty - by) / ctStoneH);
+          var ctOffsetX = 0;
+          if (ctRowIdx % 2 !== 0) { ctOffsetX = ctStoneW / 2; }
+          for (var ctsx = bx - ctStoneW + ctOffsetX; ctsx < bx + bl.w; ctsx += ctStoneW) {
+            tCtx.strokeRect(ctsx, cty, ctStoneW, ctStoneH);
+          }
+        }
+      }
+
+      if (bl.type === TERRAIN_TYPES.CASTLE) {
+        // Castle sprite
+        if (spritesLoaded) {
+          drawSpriteCentered(tCtx, "castle", bx + bl.w / 2, by + bl.h / 2, 120, false);
+        } else {
+          BuildingRenderer.drawCastle(tCtx, bx, by, bl.w, bl.h);
+        }
+        tCtx.fillStyle = "#1a1a1a";
+        tCtx.textAlign = "center";
+        tCtx.font = FONT.h4;
+        tCtx.fillText("城", bx + bl.w / 2, by + bl.h / 2 + 70);
+      } else if (bl.type === TERRAIN_TYPES.CASTLE_TOWN) {
+        // Castle town sprites
+        if (spritesLoaded) {
+          var ctHouses = HouseManager.getHouses(bl.row, bl.col);
+          for (var cthi = 0; cthi < ctHouses.length; cthi++) {
+            var cth = ctHouses[cthi];
+            drawSpriteCentered(tCtx, "house_town", bx + cth.x, by + cth.y, 85, false);
+          }
+        } else {
+          BuildingRenderer.drawCastleTown(tCtx, bx, by, bl.w, bl.h, bi);
+        }
+      } else if (bl.type === TERRAIN_TYPES.VILLAGE) {
+        // Village sprites
+        if (spritesLoaded) {
+          var vHouses = HouseManager.getHouses(bl.row, bl.col);
+          for (var vhi = 0; vhi < vHouses.length; vhi++) {
+            var vhItem = vHouses[vhi];
+            drawSpriteCentered(tCtx, "house_villege", bx + vhItem.x, by + vhItem.y, 80, false);
+          }
+        } else {
+          BuildingRenderer.drawVillage(tCtx, bx, by, bl.w, bl.h, bi);
+        }
+      }
+
+      // Block border (subtle grid)
+      tCtx.strokeStyle = "rgba(220,220,220,0.15)";
+      tCtx.lineWidth = 1;
+      tCtx.strokeRect(bx, by, bl.w, bl.h);
+    }
+
+    // River (vertical) - full map height
+    var riverX = TerrainManager.riverX;
+    var riverW = TerrainManager.riverW;
+    tCtx.fillStyle = "rgba(100, 150, 210, 0.4)";
+    tCtx.fillRect(riverX, 0, riverW, MAP_H);
+    // River edges
+    tCtx.strokeStyle = "rgba(70, 120, 180, 0.5)";
+    tCtx.lineWidth = 2;
+    tCtx.beginPath();
+    tCtx.moveTo(riverX, 0);
+    tCtx.lineTo(riverX, MAP_H);
+    tCtx.moveTo(riverX + riverW, 0);
+    tCtx.lineTo(riverX + riverW, MAP_H);
+    tCtx.stroke();
+
+    // Bridges (enhanced)
+    for (var bri = 0; bri < TerrainManager.bridges.length; bri++) {
+      var br = TerrainManager.bridges[bri];
+      var brX = br.x;
+      var brY = br.y;
+
+      // Bridge shadow
+      tCtx.fillStyle = "rgba(60, 40, 20, 0.15)";
+      tCtx.fillRect(brX + 3, brY + 3, br.w, br.h);
+
+      // Main bridge surface (brighter wood color)
+      tCtx.fillStyle = "rgba(210, 170, 100, 0.85)";
+      tCtx.fillRect(brX, brY, br.w, br.h);
+
+      // Plank lines (horizontal boards)
+      tCtx.strokeStyle = "rgba(150, 110, 60, 0.4)";
+      tCtx.lineWidth = 1;
+      var plankSpacing = 12;
+      for (var pi = brY + plankSpacing; pi < brY + br.h; pi += plankSpacing) {
+        tCtx.beginPath();
+        tCtx.moveTo(brX, pi);
+        tCtx.lineTo(brX + br.w, pi);
+        tCtx.stroke();
+      }
+
+      // Handrails (top and bottom edges)
+      tCtx.strokeStyle = "rgba(100, 60, 30, 0.8)";
+      tCtx.lineWidth = 4;
+      tCtx.beginPath();
+      tCtx.moveTo(brX, brY);
+      tCtx.lineTo(brX + br.w, brY);
+      tCtx.stroke();
+      tCtx.beginPath();
+      tCtx.moveTo(brX, brY + br.h);
+      tCtx.lineTo(brX + br.w, brY + br.h);
+      tCtx.stroke();
+
+      // Handrail posts
+      tCtx.fillStyle = "rgba(80, 50, 25, 0.7)";
+      var postSpacing = 30;
+      for (var ppi = brX; ppi <= brX + br.w; ppi += postSpacing) {
+        tCtx.fillRect(ppi - 2, brY - 6, 4, 8);
+        tCtx.fillRect(ppi - 2, brY + br.h - 2, 4, 8);
+      }
+
+      // Border
+      tCtx.strokeStyle = "rgba(120, 80, 40, 0.6)";
+      tCtx.lineWidth = 2;
+      tCtx.strokeRect(brX, brY, br.w, br.h);
+
+      // Label
+      tCtx.font = FONT.h5;
+      tCtx.textAlign = "center";
+      tCtx.fillStyle = "#3a2a1a";
+      if (br.safe) {
+        tCtx.fillText("大橋", brX + br.w / 2, brY + br.h / 2 + 3);
+      } else {
+        tCtx.fillText("小橋", brX + br.w / 2, brY + br.h / 2 + 3);
+      }
+    }
+
+    // Trees
+    if (spritesLoaded && spriteImages.ki) {
+      for (var tri = 0; tri < TreeManager.trees.length; tri++) {
+        var tree = TreeManager.trees[tri];
+        drawSpriteCentered(tCtx, "ki", tree.x, tree.y, 70, false);
+      }
+    }
+
+    this.rendered = true;
+  },
+
+  draw: function(mainCtx) {
+    if (!this.rendered) {
+      this.render();
+    }
+    mainCtx.drawImage(this.canvas, -CameraController.x, -CameraController.y);
+  }
+};
+
+// ============================================================
 // GameDirector
 // ============================================================
 var GameDirector = {
@@ -568,13 +1095,18 @@ var GameDirector = {
     });
   },
 
+  _boundGameLoop: null,
+  _boundCountdownLoop: null,
+
   _initSystems: function() {
+    this._boundGameLoop = this.gameLoop.bind(this);
+    this._boundCountdownLoop = this.countdownLoop.bind(this);
+
     gameState.gameTime = 0;
     gameState.paused = false;
     gameState.phase = "countdown";
 
-    bgm.volume = 0.3;
-    bgm.play();
+    BgmController.fadeIn(1000);
 
     // Clear house cache for new map
     HouseManager.clear();
@@ -585,6 +1117,9 @@ var GameDirector = {
 
     // Generate trees after terrain is built
     TreeManager.generate();
+
+    // Pre-render terrain to offscreen canvas
+    TerrainRenderer.init();
 
     // Init all systems
     var startPos = MapGenerator.getPlayerStartPos();
@@ -604,6 +1139,7 @@ var GameDirector = {
     KobuSystem.init();
     BaishuSystem.init();
     ShoninSystem.init();
+    BridgeBossSystem.init();
     GekokujoSystem.init();
 
     // Initial spawns
@@ -615,7 +1151,7 @@ var GameDirector = {
     this.countdownText = "3";
 
     gameState.lastTimestamp = performance.now();
-    requestAnimationFrame(this.countdownLoop.bind(this));
+    requestAnimationFrame(this._boundCountdownLoop);
   },
 
   countdownLoop: function(timestamp) {
@@ -637,7 +1173,7 @@ var GameDirector = {
     } else {
       gameState.phase = "playing";
       gameState.lastTimestamp = performance.now();
-      requestAnimationFrame(this.gameLoop.bind(this));
+      requestAnimationFrame(this._boundGameLoop);
       return;
     }
 
@@ -654,7 +1190,7 @@ var GameDirector = {
     ctx.fillText(this.countdownText, CANVAS_W / 2, CANVAS_H / 2);
     ctx.textBaseline = "alphabetic";
 
-    requestAnimationFrame(this.countdownLoop.bind(this));
+    requestAnimationFrame(this._boundCountdownLoop);
   },
 
   showDialog: function(text, callback) {
@@ -684,7 +1220,7 @@ var GameDirector = {
       }
     }
     this.render();
-    requestAnimationFrame(this.gameLoop.bind(this));
+    requestAnimationFrame(this._boundGameLoop);
   },
 
   update: function(dt) {
@@ -721,9 +1257,7 @@ var GameDirector = {
     CameraController.follow(PlayerController.x, PlayerController.y);
     EnemyManager.update(dt);
     CivilianManager.update(dt);
-    if (!ParadeChargeSystem.active) {
-      ParadeController.update(dt);
-    }
+    ParadeController.update(dt);
     ParadeChargeSystem.update(dt);
     IntimidationSystem.update(dt);
     ProjectileManager.update(dt);
@@ -734,222 +1268,24 @@ var GameDirector = {
     KobuSystem.update(dt);
     BaishuSystem.update(dt);
     ShoninSystem.update(dt);
+    BridgeBossSystem.update(dt);
     GekokujoSystem.update(dt);
     EffectRenderer.update(dt);
     AnnouncementSystem.update(dt);
     FloatingScoreSystem.update(dt);
     OnboardingSystem.update(dt);
+    DamageVignette.update(dt);
   },
 
   render: function() {
-    // Background: ground color fill (prevents tile gap artifacts)
-    ctx.fillStyle = "#d8c5b4";
-    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-
-
-
-    // Draw terrain blocks
-    for (var bi = 0; bi < TerrainManager.blocks.length; bi++) {
-      var bl = TerrainManager.blocks[bi];
-      var bsp = CameraController.worldToScreen(bl.x, bl.y);
-      // Only draw if visible
-      if (bsp.x + bl.w < -50 || bsp.x > CANVAS_W + 50 || bsp.y + bl.h < -50 || bsp.y > CANVAS_H + 50) { continue; }
-
-      // Tsuchi texture on non-river, non-castle terrain only
-      if (bl.type !== TERRAIN_TYPES.RIVER && bl.type !== TERRAIN_TYPES.CASTLE && bl.type !== TERRAIN_TYPES.CASTLE_TOWN && spritesLoaded && spriteImages.tsuchi) {
-        var tsuchiImg = spriteImages.tsuchi;
-        var tileSize = 64;
-        var tsStartX = bsp.x;
-        var tsStartY = bsp.y;
-        var tileCol = 0;
-        for (var ttx = tsStartX; ttx < tsStartX + bl.w; ttx += tileSize) {
-          var tileRow = 0;
-          for (var tty = tsStartY; tty < tsStartY + bl.h; tty += tileSize) {
-            var tileSeed = ((bl.row * 7919 + bl.col * 6271 + tileCol * 48271 + tileRow * 31547 + tileCol * tileRow * 2969) & 0x7fffffff) % 100;
-            var tileWorldX = bl.x + tileCol * tileSize;
-            var tileWorldY = bl.y + tileRow * tileSize;
-            if (TerrainManager.isInRiver(tileWorldX, tileWorldY)) {
-              tileRow++;
-              continue;
-            }
-            if (tileSeed < 30) {
-              var drawTW = Math.min(tileSize, tsStartX + bl.w - ttx);
-              var drawTH = Math.min(tileSize, tsStartY + bl.h - tty);
-              ctx.drawImage(tsuchiImg, 0, 0, SPRITE_DEFS.tsuchi.w * (drawTW / tileSize), SPRITE_DEFS.tsuchi.h * (drawTH / tileSize), ttx, tty, drawTW, drawTH);
-            }
-            tileRow++;
-          }
-          tileCol++;
-        }
-      }
-
-      // Terrain-specific overlays (castle/castle_town only)
-      if (bl.type === TERRAIN_TYPES.CASTLE) {
-        // Cobblestone pattern for castle area
-        ctx.fillStyle = "rgba(140, 135, 125, 0.25)";
-        ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
-        ctx.strokeStyle = "rgba(100, 95, 85, 0.15)";
-        ctx.lineWidth = 1;
-        var stoneW = 24;
-        var stoneH = 16;
-        for (var sy = bsp.y; sy < bsp.y + bl.h; sy += stoneH) {
-          var rowIdx = Math.floor((sy - bsp.y) / stoneH);
-          var offsetX = 0;
-          if (rowIdx % 2 !== 0) { offsetX = stoneW / 2; }
-          for (var sx = bsp.x - stoneW + offsetX; sx < bsp.x + bl.w; sx += stoneW) {
-            ctx.strokeRect(sx, sy, stoneW, stoneH);
-          }
-        }
-      } else if (bl.type === TERRAIN_TYPES.CASTLE_TOWN) {
-        // Lighter cobblestone for castle town
-        ctx.fillStyle = "rgba(150, 145, 135, 0.15)";
-        ctx.fillRect(bsp.x, bsp.y, bl.w, bl.h);
-        ctx.strokeStyle = "rgba(120, 115, 105, 0.08)";
-        ctx.lineWidth = 1;
-        var ctStoneW = 28;
-        var ctStoneH = 18;
-        for (var cty = bsp.y; cty < bsp.y + bl.h; cty += ctStoneH) {
-          var ctRowIdx = Math.floor((cty - bsp.y) / ctStoneH);
-          var ctOffsetX = 0;
-          if (ctRowIdx % 2 !== 0) { ctOffsetX = ctStoneW / 2; }
-          for (var ctsx = bsp.x - ctStoneW + ctOffsetX; ctsx < bsp.x + bl.w; ctsx += ctStoneW) {
-            ctx.strokeRect(ctsx, cty, ctStoneW, ctStoneH);
-          }
-        }
-      }
-
-      if (bl.type === TERRAIN_TYPES.CASTLE) {
-        // Castle sprite
-        if (spritesLoaded) {
-          drawSpriteCentered(ctx, "castle", bsp.x + bl.w / 2, bsp.y + bl.h / 2, 120, false);
-        } else {
-          BuildingRenderer.drawCastle(ctx, bsp.x, bsp.y, bl.w, bl.h);
-        }
-        ctx.fillStyle = "#1a1a1a";
-        ctx.textAlign = "center";
-        ctx.font = FONT.h4;
-        ctx.fillText("城", bsp.x + bl.w / 2, bsp.y + bl.h / 2 + 70);
-      } else if (bl.type === TERRAIN_TYPES.CASTLE_TOWN) {
-        // Castle town sprites
-        if (spritesLoaded) {
-          var ctHouses = HouseManager.getHouses(bl.row, bl.col);
-          for (var cthi = 0; cthi < ctHouses.length; cthi++) {
-            var cth = ctHouses[cthi];
-            drawSpriteCentered(ctx, "house_town", bsp.x + cth.x, bsp.y + cth.y, 85, false);
-          }
-        } else {
-          BuildingRenderer.drawCastleTown(ctx, bsp.x, bsp.y, bl.w, bl.h, bi);
-        }
-      } else if (bl.type === TERRAIN_TYPES.VILLAGE) {
-        // Village sprites
-        if (spritesLoaded) {
-          var vHouses = HouseManager.getHouses(bl.row, bl.col);
-          for (var vhi = 0; vhi < vHouses.length; vhi++) {
-            var vhItem = vHouses[vhi];
-            drawSpriteCentered(ctx, "house_villege", bsp.x + vhItem.x, bsp.y + vhItem.y, 80, false);
-          }
-        } else {
-          BuildingRenderer.drawVillage(ctx, bsp.x, bsp.y, bl.w, bl.h, bi);
-        }
-      }
-
-      // Block border (subtle grid)
-      ctx.strokeStyle = "rgba(220,220,220,0.15)";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(bsp.x, bsp.y, bl.w, bl.h);
-    }
-
-    // River (vertical)
-    var riverSp = CameraController.worldToScreen(TerrainManager.riverX, 0);
-    if (riverSp.x + TerrainManager.riverW > 0 && riverSp.x < CANVAS_W) {
-      ctx.fillStyle = "rgba(100, 150, 210, 0.4)";
-      ctx.fillRect(riverSp.x, 0, TerrainManager.riverW, CANVAS_H);
-      // River edges
-      ctx.strokeStyle = "rgba(70, 120, 180, 0.5)";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(riverSp.x, 0);
-      ctx.lineTo(riverSp.x, CANVAS_H);
-      ctx.moveTo(riverSp.x + TerrainManager.riverW, 0);
-      ctx.lineTo(riverSp.x + TerrainManager.riverW, CANVAS_H);
-      ctx.stroke();
-    }
-
-    // Bridges (enhanced)
-    for (var bri = 0; bri < TerrainManager.bridges.length; bri++) {
-      var br = TerrainManager.bridges[bri];
-      var brSp = CameraController.worldToScreen(br.x, br.y);
-      if (brSp.x + br.w < 0 || brSp.x > CANVAS_W || brSp.y + br.h < 0 || brSp.y > CANVAS_H) { continue; }
-
-      // Bridge shadow
-      ctx.fillStyle = "rgba(60, 40, 20, 0.15)";
-      ctx.fillRect(brSp.x + 3, brSp.y + 3, br.w, br.h);
-
-      // Main bridge surface (brighter wood color)
-      ctx.fillStyle = "rgba(210, 170, 100, 0.85)";
-      ctx.fillRect(brSp.x, brSp.y, br.w, br.h);
-
-      // Plank lines (horizontal boards)
-      ctx.strokeStyle = "rgba(150, 110, 60, 0.4)";
-      ctx.lineWidth = 1;
-      var plankSpacing = 12;
-      for (var pi = brSp.y + plankSpacing; pi < brSp.y + br.h; pi += plankSpacing) {
-        ctx.beginPath();
-        ctx.moveTo(brSp.x, pi);
-        ctx.lineTo(brSp.x + br.w, pi);
-        ctx.stroke();
-      }
-
-      // Handrails (top and bottom edges)
-      ctx.strokeStyle = "rgba(100, 60, 30, 0.8)";
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(brSp.x, brSp.y);
-      ctx.lineTo(brSp.x + br.w, brSp.y);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(brSp.x, brSp.y + br.h);
-      ctx.lineTo(brSp.x + br.w, brSp.y + br.h);
-      ctx.stroke();
-
-      // Handrail posts
-      ctx.fillStyle = "rgba(80, 50, 25, 0.7)";
-      var postSpacing = 30;
-      for (var ppi = brSp.x; ppi <= brSp.x + br.w; ppi += postSpacing) {
-        ctx.fillRect(ppi - 2, brSp.y - 6, 4, 8);
-        ctx.fillRect(ppi - 2, brSp.y + br.h - 2, 4, 8);
-      }
-
-      // Border
-      ctx.strokeStyle = "rgba(120, 80, 40, 0.6)";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(brSp.x, brSp.y, br.w, br.h);
-
-      // Label
-      ctx.font = FONT.h5;
-      ctx.textAlign = "center";
-      ctx.fillStyle = "#3a2a1a";
-      if (br.safe) {
-        ctx.fillText("大橋", brSp.x + br.w / 2, brSp.y + br.h / 2 + 3);
-      } else {
-        ctx.fillText("小橋", brSp.x + br.w / 2, brSp.y + br.h / 2 + 3);
-      }
-    }
-
-    // Trees
-    if (spritesLoaded && spriteImages.ki) {
-      for (var tri = 0; tri < TreeManager.trees.length; tri++) {
-        var tree = TreeManager.trees[tri];
-        if (!CameraController.isVisible(tree.x, tree.y, 50)) { continue; }
-        var treeSp = CameraController.worldToScreen(tree.x, tree.y);
-        drawSpriteCentered(ctx, "ki", treeSp.x, treeSp.y, 70, false);
-      }
-    }
+    // Terrain (pre-rendered offscreen canvas, 1 drawImage call)
+    TerrainRenderer.draw(ctx);
 
     // Game entities
     CivilianManager.draw(ctx);
     ParadeController.draw(ctx);
     EnemyManager.draw(ctx);
+    BridgeBossSystem.draw(ctx);
     PlayerController.draw(ctx);
     ProjectileManager.draw(ctx);
     TsujigiriSystem.draw(ctx);
@@ -961,6 +1297,9 @@ var GameDirector = {
 
     GekokujoSystem.draw(ctx);
     EffectRenderer.draw(ctx);
+
+    // Damage vignette (screen-space overlay, before HUD)
+    DamageVignette.draw(ctx);
 
     // === HUD (screen space) - washi panel style ===
     var maxTime = MAX_TIME;
@@ -1318,16 +1657,13 @@ var GameDirector = {
   },
 
   endGame: function(gekokujoWin) {
-    bgm.pause();
-    bgm.currentTime = 0;
+    BgmController.fadeOut(800);
     gameState.phase = "result";
     ScoreManager.recalculate();
     if (gekokujoWin) {
       ResultRenderer.showGekokujoSuccess();
     } else if (PlayerController.hp <= 0) {
       // Player died - show skull screen with 下克上失敗
-      bgm.pause();
-      bgm.currentTime = 0;
       skullScreen.classList.add("active");
     } else {
       ResultRenderer.showNormal();

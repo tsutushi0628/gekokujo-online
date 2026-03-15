@@ -71,9 +71,9 @@ var IntimidationSystem = {
 
       var dx = en.x - PlayerController.x;
       var dy = en.y - PlayerController.y;
-      var dist = Math.sqrt(dx * dx + dy * dy);
+      var distSq = dx * dx + dy * dy;
 
-      if (dist < 200 && paradeLen > en.grit) {
+      if (distSq < 40000 && paradeLen > en.grit) {
         // Surrender!
         en.surrendering = true;
         en.surrenderTimer = 1.0;
@@ -132,8 +132,9 @@ var ParadeChargeSystem = {
           if (en.surrendering) { continue; }
           var edx = m.x - en.x;
           var edy = m.y - en.y;
-          if (Math.sqrt(edx * edx + edy * edy) < en.size + 10) {
-            en.hp -= gameState.charDef.attack * gameState.charDef.chargeMultiplier;
+          var chargeThresh = en.size + 10;
+          if (edx * edx + edy * edy < chargeThresh * chargeThresh) {
+            en.hp -= 5;
             EffectRenderer.add(en.x, en.y, "hit");
             if (en.hp <= 0) {
               ScoreManager.addRaw(en.scoreValue);
@@ -141,6 +142,18 @@ var ParadeChargeSystem = {
               EffectRenderer.add(en.x, en.y, "destroy");
               EnemyManager.enemies.splice(j, 1);
             }
+          }
+        }
+
+        // Check collision with bridge boss（各ボスをチェック）
+        for (var bbk = 0; bbk < BridgeBossSystem.bosses.length; bbk++) {
+          var bbChargeBoss = BridgeBossSystem.bosses[bbk];
+          if (!bbChargeBoss) { continue; }
+          var bbdx = m.x - bbChargeBoss.x;
+          var bbdy = m.y - bbChargeBoss.y;
+          var bbChargeThresh = bbChargeBoss.size + 10;
+          if (bbdx * bbdx + bbdy * bbdy < bbChargeThresh * bbChargeThresh) {
+            BridgeBossSystem.takeDamageAt(bbk, 5);
           }
         }
       }
@@ -205,7 +218,7 @@ var TsujigiriSystem = {
   sequenceTimer: 0,
   inputMaxTimer: 1.0,
   inputAccepted: false,
-  attackerIndex: -1,
+  attacker: null,
   needlePosition: 0,
   needleSpeed: 0,
   needleDirection: 1,
@@ -219,7 +232,7 @@ var TsujigiriSystem = {
     this.sequenceTimer = 0;
     this.inputMaxTimer = 1.0;
     this.inputAccepted = false;
-    this.attackerIndex = -1;
+    this.attacker = null;
     this.needlePosition = 0;
     this.needleSpeed = 0;
     this.needleDirection = 1;
@@ -357,7 +370,7 @@ var TsujigiriSystem = {
   },
 
   _startCutin: function(enemyIndex) {
-    this.attackerIndex = enemyIndex;
+    this.attacker = EnemyManager.enemies[enemyIndex];
     this.phase = "cutin";
     this.sequenceTimer = 0.8;
     gameState.paused = true;
@@ -369,10 +382,10 @@ var TsujigiriSystem = {
     this.sequenceTimer = 0.3;
 
     if (success) {
-      if (this.attackerIndex >= 0 && this.attackerIndex < EnemyManager.enemies.length) {
-        var en = EnemyManager.enemies[this.attackerIndex];
-        EffectRenderer.add(en.x, en.y, "destroy");
-        EnemyManager.enemies.splice(this.attackerIndex, 1);
+      var idx = EnemyManager.enemies.indexOf(this.attacker);
+      if (idx >= 0) {
+        EffectRenderer.add(this.attacker.x, this.attacker.y, "destroy");
+        EnemyManager.enemies.splice(idx, 1);
       }
       ScoreManager.addRaw(100);
       ShoninSystem.addKokuForKill(100);
@@ -380,8 +393,7 @@ var TsujigiriSystem = {
       // Failure: start death cutscene
       PlayerController.hp = 0;
       EffectRenderer.add(PlayerController.x, PlayerController.y, "playerHit");
-      bgm.pause();
-      bgm.currentTime = 0;
+      BgmController.fadeOut(500);
       this.phase = "death_cutin";
       this.sequenceTimer = 2.0;
     }
@@ -636,8 +648,8 @@ var BaishuSystem = {
       var en = EnemyManager.enemies[i];
       var dx = en.x - px;
       var dy = en.y - py;
-      var dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist <= this.range) {
+      var rangeSq = this.range * this.range;
+      if (dx * dx + dy * dy <= rangeSq) {
         ParadeController.addMember(en.x, en.y);
         EnemyManager.enemies.splice(i, 1);
       }

@@ -30,8 +30,12 @@ var CameraController = {
     if (this.y > MAP_H - CANVAS_H) { this.y = MAP_H - CANVAS_H; }
   },
 
+  _screenPos: {x: 0, y: 0},
+
   worldToScreen: function(wx, wy) {
-    return { x: wx - this.x, y: wy - this.y };
+    this._screenPos.x = wx - this.x;
+    this._screenPos.y = wy - this.y;
+    return this._screenPos;
   },
 
   isVisible: function(wx, wy, margin) {

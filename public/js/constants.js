@@ -14,18 +14,18 @@ var MINIMAP_Y = 10;
 
 var CHAR_DEFS = {
   ashigaru: {
-    name: "足軽", emoji: "\u2694\uFE0F", attack: 7, speed: 3.5,
+    name: "足軽", emoji: "\u2694\uFE0F", attack: 7, speed: 3.0,
     recruitRange: 55, recruitTime: 200, followerBonus: 0.008,
     regroupSpeed: 0.85, chargeMultiplier: 1.0,
   },
   merchant: {
-    name: "商人", emoji: "\uD83D\uDCB0", attack: 2, speed: 3.2,
+    name: "商人", emoji: "\uD83D\uDCB0", attack: 2, speed: 3.6,
     recruitRange: 55, recruitTime: 0, followerBonus: 0.012,
     regroupSpeed: 0.7, chargeMultiplier: 0.5,
-    initialKoku: 650, recruitCost: 5
+    initialKoku: 650, recruitCost: 12
   },
   farmer: {
-    name: "農民", emoji: "\uD83D\uDC68\u200D\uD83C\uDF3E", attack: 3, speed: 2.8,
+    name: "農民", emoji: "\uD83D\uDC68\u200D\uD83C\uDF3E", attack: 3, speed: 3.2,
     recruitRange: 65, recruitTime: 400, followerBonus: 0.025,
     regroupSpeed: 1.0, chargeMultiplier: 0.8,
   }
