@@ -90,7 +90,7 @@ var PlayerController = {
 
     if (this.knockbackTimer <= 0) {
       // WASD movement
-      var spd = def.speed + (ScoreManager.rankIndex * 0.3);
+      var spd = def.speed + (gameState.rankIndex * 0.3);
       // Parade penalty: 2% slowdown per follower, cap 30%
       var paradeLen = ParadeController.getLength();
       if (paradeLen > 0) {
@@ -172,11 +172,11 @@ var PlayerController = {
 
     // HP bar
     ctx.fillStyle = "#ddd";
-    ctx.fillRect(sp.x - 20, sp.y - 45, 40, 5);
+    ctx.fillRect(sp.x - 22, sp.y - 48, 44, 7);
     var hpR = this.hp / this.maxHp;
     if (hpR > 0.5) { ctx.fillStyle = "#4a8"; }
     else { ctx.fillStyle = "#c44"; }
-    ctx.fillRect(sp.x - 20, sp.y - 45, 40 * hpR, 5);
+    ctx.fillRect(sp.x - 22, sp.y - 48, 44 * hpR, 7);
   }
 };
 
@@ -290,8 +290,11 @@ var EnemyManager = {
       if (en.surrendering) {
         en.surrenderTimer -= dt;
         if (en.surrenderTimer <= 0) {
-          ScoreManager.addRaw(en.scoreValue);
-          ShoninSystem.addKokuForKill(en.scoreValue);
+          var surrenderIkkiMult = 1.0;
+          if (gameState.ikkiMode) { surrenderIkkiMult = 1.8; }
+          gameState.koku += Math.floor(en.scoreValue * surrenderIkkiMult);
+          FloatingScoreSystem.show(en.scoreValue);
+          RankSystem.check();
           EffectRenderer.add(en.x, en.y, "surrender");
           this.enemies.splice(i, 1);
         }
@@ -398,10 +401,10 @@ var EnemyManager = {
       if (en.hp < en.maxHp && !en.surrendering) {
         var hpR = en.hp / en.maxHp;
         ctx.fillStyle = "#ddd";
-        ctx.fillRect(sp.x - 12, sp.y - en.size - 14, 24, 4);
+        ctx.fillRect(sp.x - 16, sp.y - en.size - 22, 32, 6);
         if (hpR > 0.5) { ctx.fillStyle = "#4a8"; }
         else { ctx.fillStyle = "#c44"; }
-        ctx.fillRect(sp.x - 12, sp.y - en.size - 14, 24 * hpR, 4);
+        ctx.fillRect(sp.x - 16, sp.y - en.size - 22, 32 * hpR, 6);
       }
     }
   }
@@ -610,7 +613,6 @@ var ParadeController = {
             wanderTimer: 0,
             recruitTimer: 0
           });
-          ScoreManager.recalculate();
           continue;
         }
       }
@@ -659,8 +661,11 @@ var ParadeController = {
             m.attackCooldown = KobuSystem.getAttackCooldown();
             EffectRenderer.add(en.x, en.y, "hit");
             if (en.hp <= 0) {
-              ScoreManager.addRaw(en.scoreValue);
-              ShoninSystem.addKokuForKill(en.scoreValue);
+              var paradeIkkiMult = 1.0;
+              if (gameState.ikkiMode) { paradeIkkiMult = 1.8; }
+              gameState.koku += Math.floor(en.scoreValue * paradeIkkiMult);
+              FloatingScoreSystem.show(en.scoreValue);
+              RankSystem.check();
               EffectRenderer.add(en.x, en.y, "destroy");
               EnemyManager.enemies.splice(ei, 1);
             }
@@ -833,8 +838,11 @@ var ProjectileManager = {
           EffectRenderer.add(en.x, en.y, "hit");
           this.projectiles.splice(i, 1);
           if (en.hp <= 0) {
-            ScoreManager.addRaw(en.scoreValue);
-            ShoninSystem.addKokuForKill(en.scoreValue);
+            var projIkkiMult = 1.0;
+            if (gameState.ikkiMode) { projIkkiMult = 1.8; }
+            gameState.koku += Math.floor(en.scoreValue * projIkkiMult);
+            FloatingScoreSystem.show(en.scoreValue);
+            RankSystem.check();
             EffectRenderer.add(en.x, en.y, "destroy");
             EnemyManager.enemies.splice(j, 1);
           }

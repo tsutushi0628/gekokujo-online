@@ -83,7 +83,8 @@ var gameState = {
   kokuPerSecond: 0,
   speedMultiplier: 1,
   ikkiMode: false,
-  sessionId: null
+  sessionId: null,
+  rankIndex: 0
 };
 
 var dialogCallback = null;
@@ -148,8 +149,12 @@ var IkkiSystem = {
       en.hp -= damageAmount;
       EffectRenderer.add(en.x, en.y, "hit");
       if (en.hp <= 0) {
-        ScoreManager.addRaw(en.scoreValue);
-        ShoninSystem.addKokuForKill(en.scoreValue);
+        var ikkiMult = 1.0;
+        if (gameState.ikkiMode) { ikkiMult = 1.8; }
+        var kokuGain = Math.floor(en.scoreValue * ikkiMult);
+        gameState.koku += kokuGain;
+        FloatingScoreSystem.show(en.scoreValue);
+        RankSystem.check();
         EffectRenderer.add(en.x, en.y, "destroy");
         EnemyManager.enemies.splice(i, 1);
       }
@@ -166,7 +171,6 @@ var IkkiSystem = {
     this.flashTimer = 0.3;
     AnnouncementSystem.add("一揆!");
     this.cooldown = 15;
-    ScoreManager.recalculate();
   }
 };
 
@@ -322,8 +326,12 @@ var BridgeBossSystem = {
   _defeat: function(index) {
     var boss = this.bosses[index];
     if (!boss) { return; }
-    ScoreManager.addRaw(boss.scoreValue);
-    ShoninSystem.addKokuForKill(boss.scoreValue);
+    var bbIkkiMult = 1.0;
+    if (gameState.ikkiMode) { bbIkkiMult = 1.8; }
+    var bbKokuGain = Math.floor(boss.scoreValue * bbIkkiMult);
+    gameState.koku += bbKokuGain;
+    FloatingScoreSystem.show(boss.scoreValue);
+    RankSystem.check();
     EffectRenderer.add(boss.x, boss.y, "destroy");
     AnnouncementSystem.add("橋の辻斬りを討ち取った! +200点!");
     this.bosses[index] = null;
@@ -356,10 +364,10 @@ var BridgeBossSystem = {
       // HPバー
       var hpR = boss.hp / boss.maxHp;
       ctx.fillStyle = "#ddd";
-      ctx.fillRect(sp.x - 20, sp.y - boss.size - 18, 40, 5);
+      ctx.fillRect(sp.x - 24, sp.y - boss.size - 24, 48, 7);
       if (hpR > 0.5) { ctx.fillStyle = "#4a8"; }
       else { ctx.fillStyle = "#c44"; }
-      ctx.fillRect(sp.x - 20, sp.y - boss.size - 18, 40 * hpR, 5);
+      ctx.fillRect(sp.x - 24, sp.y - boss.size - 24, 48 * hpR, 7);
 
       // ラベル
       ctx.fillStyle = "#1a1a1a";
@@ -535,7 +543,7 @@ var GekokujoSystem = {
     this.battleActive = true;
     this.battleTimer = 20;
     EnemyManager.enemies = [];
-    var rIdx = Math.min(ScoreManager.rankIndex + 2, RANKS.length - 1);
+    var rIdx = Math.min(gameState.rankIndex + 2, RANKS.length - 1);
     // Parade reduces boss HP
     var hpReduction = ParadeController.getLength() * 3;
     var bossHp = Math.max(45, (90 + rIdx * 60) - hpReduction);
@@ -571,9 +579,10 @@ var GekokujoSystem = {
     AnnouncementSystem.add("下克上成就!!");
 
     this.battleActive = false;
-    ScoreManager.addRaw(200 + ScoreManager.rankIndex * 100);
-    ScoreManager.rankIndex = Math.min(ScoreManager.rankIndex + 2, RANKS.length - 1);
-    ScoreManager.recalculate();
+    var gekokujoBonus = 200 + gameState.rankIndex * 100;
+    gameState.koku += gekokujoBonus;
+    FloatingScoreSystem.show(gekokujoBonus);
+    gameState.rankIndex = Math.min(gameState.rankIndex + 2, RANKS.length - 1);
     this.endGamePending = true;
     this.gekokujoWin = true;
   },
@@ -639,9 +648,9 @@ var GekokujoSystem = {
       }
       if (!this.boss.defeated) {
         ctx.fillStyle = "#ddd";
-        ctx.fillRect(bsp.x - 30, bsp.y - 40, 60, 6);
+        ctx.fillRect(bsp.x - 34, bsp.y - 46, 68, 8);
         ctx.fillStyle = "#c44";
-        ctx.fillRect(bsp.x - 30, bsp.y - 40, 60 * (this.boss.hp / this.boss.maxHp), 6);
+        ctx.fillRect(bsp.x - 34, bsp.y - 46, 68 * (this.boss.hp / this.boss.maxHp), 8);
         ctx.fillStyle = "#1a1a1a";
         ctx.font = FONT.h4;
         ctx.textAlign = "center";
@@ -657,11 +666,10 @@ var GekokujoSystem = {
 var RankSystem = {
   check: function() {
     for (var i = RANKS.length - 1; i >= 0; i--) {
-      if (ScoreManager.rawScore >= RANKS[i].threshold) {
-        if (i > ScoreManager.rankIndex) {
-          ScoreManager.rankIndex = i;
+      if (gameState.koku >= RANKS[i].threshold) {
+        if (i > gameState.rankIndex) {
+          gameState.rankIndex = i;
           AnnouncementSystem.add("身分上昇! " + RANKS[i].name + "になった!");
-          ScoreManager.recalculate();
         }
         break;
       }
@@ -669,7 +677,7 @@ var RankSystem = {
   },
 
   getCurrentName: function() {
-    return RANKS[ScoreManager.rankIndex].name;
+    return RANKS[gameState.rankIndex].name;
   }
 };
 
@@ -1100,7 +1108,7 @@ var GameDirector = {
     ProjectileManager.init();
     EffectRenderer.init();
     AnnouncementSystem.init();
-    ScoreManager.init();
+    gameState.rankIndex = 0;
     FloatingScoreSystem.init();
     TsujigiriSystem.init();
     IkkiSystem.init();
@@ -1281,8 +1289,8 @@ var GameDirector = {
     }
 
     // --- Timer panel (top center) ---
-    var timerW = 90;
-    var timerH = 48;
+    var timerW = 140;
+    var timerH = 100;
     var timerX = CANVAS_W / 2 - timerW / 2;
     var timerY = 8;
     var timerLabel = "のこり";
@@ -1319,21 +1327,21 @@ var GameDirector = {
     ctx.stroke();
 
     ctx.textAlign = "center";
-    ctx.font = "10px " + FONT_FAMILY;
+    ctx.font = "14px " + FONT_FAMILY;
     ctx.fillStyle = timerLabelColor;
-    ctx.fillText(timerLabel, CANVAS_W / 2, timerY + 15);
-    ctx.font = "bold 28px " + FONT_FAMILY;
+    ctx.fillText(timerLabel, CANVAS_W / 2, timerY + 26);
+    ctx.font = "bold 52px " + FONT_FAMILY;
     ctx.strokeStyle = "#f5eee1";
     ctx.lineWidth = 3;
-    ctx.strokeText("" + remaining, CANVAS_W / 2, timerY + 42);
+    ctx.strokeText("" + remaining, CANVAS_W / 2, timerY + 76);
     ctx.fillStyle = timerValueColor;
-    ctx.fillText("" + remaining, CANVAS_W / 2, timerY + 42);
+    ctx.fillText("" + remaining, CANVAS_W / 2, timerY + 76);
 
     // --- Score panel (bottom left) ---
-    var scoreW = 130;
-    var scoreH = 66;
+    var scoreW = 150;
+    var scoreH = 76;
     var scoreX = 10;
-    var scoreY = CANVAS_H - 76;
+    var scoreY = CANVAS_H - 86;
 
     ctx.fillStyle = "rgba(245, 238, 225, 0.82)";
     ctx.beginPath();
@@ -1346,31 +1354,31 @@ var GameDirector = {
     ctx.stroke();
 
     ctx.textAlign = "left";
-    ctx.font = "12px " + FONT_FAMILY;
+    ctx.font = "14px " + FONT_FAMILY;
     ctx.fillStyle = "#9a8a6a";
-    ctx.fillText("石高", scoreX + 10, scoreY + 22);
+    ctx.fillText("石高", scoreX + 12, scoreY + 26);
     ctx.textAlign = "right";
-    ctx.font = "bold 22px " + FONT_FAMILY;
+    ctx.font = "bold 26px " + FONT_FAMILY;
     ctx.fillStyle = "#8b6914";
-    var displayKoku = ScoreManager.finalScore;
-    ctx.fillText("" + displayKoku, scoreX + scoreW - 10, scoreY + 24);
+    var displayKoku = Math.floor(gameState.koku);
+    ctx.fillText("" + displayKoku, scoreX + scoreW - 12, scoreY + 28);
 
     ctx.textAlign = "left";
-    ctx.font = "12px " + FONT_FAMILY;
+    ctx.font = "14px " + FONT_FAMILY;
     ctx.fillStyle = "#9a8a6a";
-    ctx.fillText("身分", scoreX + 10, scoreY + 50);
+    ctx.fillText("身分", scoreX + 12, scoreY + 58);
     ctx.textAlign = "right";
-    ctx.font = "18px " + FONT_FAMILY;
+    ctx.font = "20px " + FONT_FAMILY;
     ctx.fillStyle = "#6b4226";
-    ctx.fillText(RankSystem.getCurrentName(), scoreX + scoreW - 10, scoreY + 52);
+    ctx.fillText(RankSystem.getCurrentName(), scoreX + scoreW - 12, scoreY + 60);
 
     // --- Ability bar (bottom left, next to score panel) ---
-    var slotW = 58;
-    var slotH = 62;
+    var slotW = 86;
+    var slotH = scoreH;
     var slotGap = 10;
     var showQSlot = (gameState.selectedChar === "farmer" && gameState.ikkiMode);
     var barStartX = scoreX + scoreW + 8;
-    var barY = CANVAS_H - slotH - 10;
+    var barY = scoreY;
     var keyBadgeW = 20;
     var keyBadgeH = 14;
 
@@ -1401,25 +1409,16 @@ var GameDirector = {
     ctx.roundRect(barStartX, barY, slotW, slotH, 14);
     ctx.stroke();
 
-    // Key badge "右"
+    // Label "右クリック"
     ctx.textAlign = "center";
-    ctx.font = "10px sans-serif";
-    ctx.fillStyle = "rgba(220, 210, 190, 0.55)";
-    ctx.beginPath();
-    ctx.roundRect(barStartX + slotW / 2 - keyBadgeW / 2, barY + 4, keyBadgeW, keyBadgeH, 4);
-    ctx.fill();
-    ctx.fillStyle = "#7a6a4a";
-    ctx.fillText("右", barStartX + slotW / 2, barY + 14);
-
-    // Kanji "突"
-    ctx.font = "24px " + FONT_FAMILY;
-    ctx.fillStyle = chargeKanjiColor;
-    ctx.fillText("突", barStartX + slotW / 2, barY + 40);
+    ctx.font = "12px " + FONT_FAMILY;
+    ctx.fillStyle = chargeNameColor;
+    ctx.fillText("右クリック", barStartX + slotW / 2, barY + 22);
 
     // Name "突撃"
-    ctx.font = "8px " + FONT_FAMILY;
-    ctx.fillStyle = chargeNameColor;
-    ctx.fillText("突撃", barStartX + slotW / 2, barY + 52);
+    ctx.font = "bold 26px " + FONT_FAMILY;
+    ctx.fillStyle = chargeKanjiColor;
+    ctx.fillText("突撃", barStartX + slotW / 2, barY + 54);
 
     // Charge cooldown overlay
     if (!chargeReady) {
@@ -1431,10 +1430,10 @@ var GameDirector = {
       ctx.fillStyle = "rgba(200, 190, 170, 0.7)";
       ctx.fillRect(barStartX, barY + slotH - cdOverlayH, slotW, cdOverlayH);
       ctx.restore();
-      ctx.font = "bold 18px " + FONT_FAMILY;
+      ctx.font = "bold 22px " + FONT_FAMILY;
       ctx.fillStyle = "#5a4a3a";
       ctx.textAlign = "center";
-      ctx.fillText("" + Math.ceil(PlayerController.chargeCooldown), barStartX + slotW / 2, barY + slotH - cdOverlayH / 2 + 7);
+      ctx.fillText("" + Math.ceil(PlayerController.chargeCooldown), barStartX + slotW / 2, barY + slotH - cdOverlayH / 2 + 8);
     }
 
     // Slot 2: Q ability (ikki farmer only)
@@ -1442,7 +1441,6 @@ var GameDirector = {
       var qSlotX = barStartX + slotW + slotGap;
       var qOnCD = IkkiSystem.cooldown > 0;
       var qDisabled = ParadeController.getLength() < 1;
-      var qKanji = "揆";
       var qName = "一揆";
       var qCooldownVal = IkkiSystem.cooldown;
 
@@ -1480,25 +1478,16 @@ var GameDirector = {
       ctx.roundRect(qSlotX, barY, slotW, slotH, 14);
       ctx.stroke();
 
-      // Q key badge
+      // Q label
       ctx.textAlign = "center";
-      ctx.font = "10px sans-serif";
-      ctx.fillStyle = "rgba(220, 210, 190, 0.55)";
-      ctx.beginPath();
-      ctx.roundRect(qSlotX + slotW / 2 - keyBadgeW / 2, barY + 4, keyBadgeW, keyBadgeH, 4);
-      ctx.fill();
-      ctx.fillStyle = "#7a6a4a";
-      ctx.fillText("Q", qSlotX + slotW / 2, barY + 14);
-
-      // Q kanji
-      ctx.font = "24px " + FONT_FAMILY;
-      ctx.fillStyle = qKanjiColor;
-      ctx.fillText(qKanji, qSlotX + slotW / 2, barY + 40);
+      ctx.font = "12px " + FONT_FAMILY;
+      ctx.fillStyle = qNameColor;
+      ctx.fillText("Qキー", qSlotX + slotW / 2, barY + 22);
 
       // Q name
-      ctx.font = "8px " + FONT_FAMILY;
-      ctx.fillStyle = qNameColor;
-      ctx.fillText(qName, qSlotX + slotW / 2, barY + 52);
+      ctx.font = "bold 26px " + FONT_FAMILY;
+      ctx.fillStyle = qKanjiColor;
+      ctx.fillText(qName, qSlotX + slotW / 2, barY + 54);
       ctx.restore();
 
       // Q cooldown overlay
@@ -1511,7 +1500,7 @@ var GameDirector = {
         ctx.fillStyle = "rgba(200, 190, 170, 0.7)";
         ctx.fillRect(qSlotX, barY + slotH - qOverlayH, slotW, qOverlayH);
         ctx.restore();
-        ctx.font = "bold 18px " + FONT_FAMILY;
+        ctx.font = "bold 22px " + FONT_FAMILY;
         ctx.fillStyle = "#5a4a3a";
         ctx.textAlign = "center";
         ctx.fillText("" + Math.ceil(qCooldownVal), qSlotX + slotW / 2, barY + slotH - qOverlayH / 2 + 7);
@@ -1628,7 +1617,6 @@ var GameDirector = {
   endGame: function(gekokujoWin) {
     BgmController.fadeOut(800);
     gameState.phase = "result";
-    ScoreManager.recalculate();
     if (gekokujoWin) {
       ResultRenderer.showGekokujoSuccess();
     } else if (PlayerController.hp <= 0) {

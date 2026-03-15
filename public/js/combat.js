@@ -32,7 +32,6 @@ var ParadeSplitter = {
         recruitTimer: 0
       });
     }
-    ScoreManager.recalculate();
   },
 
   splitByLine: function(lineX, lineY, dirX, dirY) {
@@ -137,8 +136,11 @@ var ParadeChargeSystem = {
             en.hp -= 5;
             EffectRenderer.add(en.x, en.y, "hit");
             if (en.hp <= 0) {
-              ScoreManager.addRaw(en.scoreValue);
-              ShoninSystem.addKokuForKill(en.scoreValue);
+              var chargeIkkiMult = 1.0;
+              if (gameState.ikkiMode) { chargeIkkiMult = 1.8; }
+              gameState.koku += Math.floor(en.scoreValue * chargeIkkiMult);
+              FloatingScoreSystem.show(en.scoreValue);
+              RankSystem.check();
               EffectRenderer.add(en.x, en.y, "destroy");
               EnemyManager.enemies.splice(j, 1);
             }
@@ -325,7 +327,6 @@ var TsujigiriSystem = {
       if (this.sequenceTimer <= 0) {
         gameState.paused = false;
         gameState.phase = "result";
-        ScoreManager.recalculate();
         ResultRenderer.showNormal("辻斬りにあってしまった");
         this.phase = "idle";
       }
@@ -387,8 +388,11 @@ var TsujigiriSystem = {
         EffectRenderer.add(this.attacker.x, this.attacker.y, "destroy");
         EnemyManager.enemies.splice(idx, 1);
       }
-      ScoreManager.addRaw(100);
-      ShoninSystem.addKokuForKill(100);
+      var tsujIkkiMult = 1.0;
+      if (gameState.ikkiMode) { tsujIkkiMult = 1.8; }
+      gameState.koku += Math.floor(100 * tsujIkkiMult);
+      FloatingScoreSystem.show(100);
+      RankSystem.check();
     } else {
       // Failure: start death cutscene
       PlayerController.hp = 0;
@@ -482,6 +486,10 @@ var TsujigiriSystem = {
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
       ctx.font = FONT.h1;
       ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 4;
+      ctx.strokeText("撃退成功！", CANVAS_W / 2, CANVAS_H / 2);
       ctx.fillStyle = "#33cc33";
       ctx.fillText("撃退成功！", CANVAS_W / 2, CANVAS_H / 2);
     }
@@ -518,7 +526,7 @@ var TsujigiriSystem = {
         }
       }
 
-      // Speech bubble banner with inverted corner notches
+      // Double-bordered box with inverted (concave) corners
       var bannerText = "辻斬りにあってしまった";
       ctx.font = FONT.h2;
       ctx.textAlign = "center";
@@ -528,42 +536,44 @@ var TsujigiriSystem = {
       var bannerH = 56;
       var bannerX = CANVAS_W / 2 - bannerW / 2;
       var bannerY = CANVAS_H / 2 + 50;
-      var notch = 8;
+      var r = 8;
 
-      // Banner shape with inverted corner notches
+      // Outer box with inverted corners
       ctx.save();
       ctx.beginPath();
-      ctx.moveTo(bannerX + notch, bannerY);
-      ctx.lineTo(bannerX + bannerW - notch, bannerY);
-      ctx.quadraticCurveTo(bannerX + bannerW, bannerY, bannerX + bannerW, bannerY + notch);
-      ctx.lineTo(bannerX + bannerW, bannerY + bannerH - notch);
-      ctx.quadraticCurveTo(bannerX + bannerW, bannerY + bannerH, bannerX + bannerW - notch, bannerY + bannerH);
-      ctx.lineTo(bannerX + notch, bannerY + bannerH);
-      ctx.quadraticCurveTo(bannerX, bannerY + bannerH, bannerX, bannerY + bannerH - notch);
-      ctx.lineTo(bannerX, bannerY + notch);
-      ctx.quadraticCurveTo(bannerX, bannerY, bannerX + notch, bannerY);
+      ctx.moveTo(bannerX + r, bannerY);
+      ctx.lineTo(bannerX + bannerW - r, bannerY);
+      ctx.quadraticCurveTo(bannerX + bannerW - r, bannerY + r, bannerX + bannerW, bannerY + r);
+      ctx.lineTo(bannerX + bannerW, bannerY + bannerH - r);
+      ctx.quadraticCurveTo(bannerX + bannerW - r, bannerY + bannerH - r, bannerX + bannerW - r, bannerY + bannerH);
+      ctx.lineTo(bannerX + r, bannerY + bannerH);
+      ctx.quadraticCurveTo(bannerX + r, bannerY + bannerH - r, bannerX, bannerY + bannerH - r);
+      ctx.lineTo(bannerX, bannerY + r);
+      ctx.quadraticCurveTo(bannerX + r, bannerY + r, bannerX + r, bannerY);
       ctx.closePath();
-
-      // Fill
       ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
       ctx.fill();
-
-      // Outer border
       ctx.strokeStyle = "#1a1a1a";
       ctx.lineWidth = 3;
       ctx.stroke();
 
-      // Inner border (inset)
+      // Inner box with inverted corners (inset)
+      var inset = 5;
+      var ir = r - 2;
+      var ix = bannerX + inset;
+      var iy = bannerY + inset;
+      var iw = bannerW - inset * 2;
+      var ih = bannerH - inset * 2;
       ctx.beginPath();
-      ctx.moveTo(bannerX + notch + 4, bannerY + 4);
-      ctx.lineTo(bannerX + bannerW - notch - 4, bannerY + 4);
-      ctx.quadraticCurveTo(bannerX + bannerW - 4, bannerY + 4, bannerX + bannerW - 4, bannerY + notch + 4);
-      ctx.lineTo(bannerX + bannerW - 4, bannerY + bannerH - notch - 4);
-      ctx.quadraticCurveTo(bannerX + bannerW - 4, bannerY + bannerH - 4, bannerX + bannerW - notch - 4, bannerY + bannerH - 4);
-      ctx.lineTo(bannerX + notch + 4, bannerY + bannerH - 4);
-      ctx.quadraticCurveTo(bannerX + 4, bannerY + bannerH - 4, bannerX + 4, bannerY + bannerH - notch - 4);
-      ctx.lineTo(bannerX + 4, bannerY + notch + 4);
-      ctx.quadraticCurveTo(bannerX + 4, bannerY + 4, bannerX + notch + 4, bannerY + 4);
+      ctx.moveTo(ix + ir, iy);
+      ctx.lineTo(ix + iw - ir, iy);
+      ctx.quadraticCurveTo(ix + iw - ir, iy + ir, ix + iw, iy + ir);
+      ctx.lineTo(ix + iw, iy + ih - ir);
+      ctx.quadraticCurveTo(ix + iw - ir, iy + ih - ir, ix + iw - ir, iy + ih);
+      ctx.lineTo(ix + ir, iy + ih);
+      ctx.quadraticCurveTo(ix + ir, iy + ih - ir, ix, iy + ih - ir);
+      ctx.lineTo(ix, iy + ir);
+      ctx.quadraticCurveTo(ix + ir, iy + ir, ix + ir, iy);
       ctx.closePath();
       ctx.lineWidth = 1;
       ctx.stroke();

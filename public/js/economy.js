@@ -58,8 +58,7 @@ var ShoninSystem = {
           wanderTimer: 0, recruitTimer: 0
         });
         ParadeController.members.splice(lastIdx, 1);
-        ScoreManager.recalculate();
-        AnnouncementSystem.add("石高不足! 傭兵が去った!");
+          AnnouncementSystem.add("石高不足! 傭兵が去った!");
         EffectRenderer.add(removed.x, removed.y, "surrender");
         this.removeCooldown = 1;
       }
@@ -70,19 +69,7 @@ var ShoninSystem = {
       FloatingScoreSystem.show(-30);
       ParadeController.addMember(PlayerController.x, PlayerController.y);
       AnnouncementSystem.add("傭兵を雇った! (石高 -30)");
-      ScoreManager.recalculate();
       this.hireCooldown = 3;
-    }
-  },
-
-  addKokuForKill: function(scoreValue) {
-    var charType = gameState.selectedChar;
-    if (charType === "ashigaru") {
-      gameState.koku += 5;
-    } else if (charType === "farmer") {
-      gameState.koku += 2;
-    } else if (charType === "merchant") {
-      gameState.koku += 3;
     }
   }
 };

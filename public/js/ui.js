@@ -71,7 +71,7 @@ var MinimapRenderer = {
     // Player (triangle arrow showing facing direction)
     var px = mx + PlayerController.x * scaleX;
     var py = my + PlayerController.y * scaleY;
-    var arrowSize = 5;
+    var arrowSize = 8;
     var angle = PlayerController.facingLeft ? Math.PI : 0;
     ctx.fillStyle = "#ffffff";
     ctx.strokeStyle = "#1a1a1a";
@@ -91,36 +91,7 @@ var MinimapRenderer = {
   }
 };
 
-// ============================================================
-// ScoreManager
-// ============================================================
-var ScoreManager = {
-  rawScore: 0,
-  finalScore: 0,
-  rankIndex: 0,
-
-  init: function() {
-    this.rawScore = 0;
-    this.finalScore = 0;
-    this.rankIndex = 0;
-  },
-
-  addRaw: function(amount) {
-    var multiplier = 1.0;
-    if (gameState.ikkiMode) { multiplier = 1.8; }
-    this.rawScore += Math.floor(amount * multiplier);
-    FloatingScoreSystem.show(amount);
-    this.recalculate();
-    RankSystem.check();
-  },
-
-  recalculate: function() {
-    var def = gameState.charDef;
-    var followerMult = 1.0 + ParadeController.getLength() * def.followerBonus;
-    var rankBonus = RANKS[this.rankIndex].bonus;
-    this.finalScore = Math.floor(this.rawScore * followerMult * rankBonus);
-  }
-};
+// ScoreManager は廃止済み。石高は gameState.koku に統一。
 
 // ============================================================
 // RankingManager
@@ -352,7 +323,7 @@ var ResultRenderer = {
   },
 
   showNormal: function(customTitle) {
-    var score = ScoreManager.finalScore;
+    var score = Math.floor(gameState.koku);
     RankingManager.save(score, gameState.charDef.name);
     var rank = RankingManager.getRank(score);
 
@@ -365,13 +336,13 @@ var ResultRenderer = {
     document.getElementById("rankNumber").textContent = rank + "位";
     document.getElementById("resultScore").textContent = score + "石";
     document.getElementById("resultDetails").textContent =
-      "身分: " + RankSystem.getCurrentName() + "\n仲間の民衆: " + ParadeController.getLength() + "人\n使用キャラ: " + gameState.charDef.name;
+      "身分: " + RANKS[gameState.rankIndex].name + "\n仲間の民衆: " + ParadeController.getLength() + "人\n使用キャラ: " + gameState.charDef.name;
     this._submitScoreAndShowRank(score);
     resultScreen.classList.add("active");
   },
 
   showGekokujoSuccess: function() {
-    var score = ScoreManager.finalScore;
+    var score = Math.floor(gameState.koku);
     RankingManager.save(score, gameState.charDef.name);
     var rank = RankingManager.getRank(score);
 
@@ -382,7 +353,7 @@ var ResultRenderer = {
     document.getElementById("rankNumber").textContent = rank + "位";
     document.getElementById("resultScore").textContent = score + "石";
     document.getElementById("resultDetails").textContent =
-      "身分: " + RankSystem.getCurrentName() + "\n仲間の民衆: " + ParadeController.getLength() + "人\n使用キャラ: " + gameState.charDef.name;
+      "身分: " + RANKS[gameState.rankIndex].name + "\n仲間の民衆: " + ParadeController.getLength() + "人\n使用キャラ: " + gameState.charDef.name;
     this._submitScoreAndShowRank(score);
     ConcentrationLines.show(2000);
     resultScreen.classList.add("active");
