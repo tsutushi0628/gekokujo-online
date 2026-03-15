@@ -130,8 +130,8 @@ var IkkiSystem = {
       return;
     }
 
-    // Consume 25% of parade members (min 1)
-    var consumeCount = Math.max(1, Math.floor(paradeLen * 0.25));
+    // Consume 50% of parade members (min 1)
+    var consumeCount = Math.max(1, Math.floor(paradeLen * 0.5));
     var damageAmount = paradeLen * 8;
 
     // Remove consumed members from the end (loop-based)
