@@ -344,15 +344,9 @@ var BridgeBossSystem = {
       if (!CameraController.isVisible(boss.x, boss.y, 40)) { continue; }
       var sp = CameraController.worldToScreen(boss.x, boss.y);
 
-      // 紫のオーラ（中ボス感）
-      var pulseAlpha = 0.3 + Math.sin(performance.now() * 0.004) * 0.15;
-      ctx.strokeStyle = "rgba(160, 40, 200, " + pulseAlpha + ")";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(sp.x, sp.y, boss.size + 8, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // スプライト描画
+      // スプライト描画（紫の発光アウトライン）
+      ctx.shadowColor = "rgba(160, 60, 255, 0.9)";
+      ctx.shadowBlur = 12;
       if (spritesLoaded) {
         drawSpriteCentered(ctx, "tsujigiri", sp.x, sp.y, 96, !boss.facingLeft);
       } else {
@@ -360,6 +354,7 @@ var BridgeBossSystem = {
         ctx.textAlign = "center";
         ctx.fillText("\u2694\uFE0F", sp.x, sp.y + 10);
       }
+      ctx.shadowBlur = 0;
 
       // HPバー
       var hpR = boss.hp / boss.maxHp;
@@ -384,13 +379,11 @@ var BridgeBossSystem = {
 var GekokujoSystem = {
   available: true,
   gateActive: false,
-  gatePos: null,
   boss: null,
   battleActive: false,
   battleTimer: 0,
   scheduleTime: 0,
   declineCooldown: 0,
-  declinedGatePos: null,
 
   slowTimer: 0,
   slowMultiplier: 1.0,
@@ -403,9 +396,6 @@ var GekokujoSystem = {
   // Castle collision rect (always active)
   castleCollision: null,
 
-  // Boss cutin timers
-  chargeCutinTimer: 0,
-  retreatCutinTimer: 0,
 
   // Shockwave effect
   shockwave: null,
@@ -413,17 +403,11 @@ var GekokujoSystem = {
   init: function() {
     this.available = true;
     this.gateActive = false;
-    this.gatePos = null;
     this.boss = null;
     this.battleActive = false;
     this.battleTimer = 0;
-    if (gameState.ikkiMode) {
-      this.scheduleTime = 50 * 0.2 + Math.random() * 10;
-    } else {
-      this.scheduleTime = MAX_TIME * 0.2 + Math.random() * 20;
-    }
+    this.scheduleTime = 30;
     this.declineCooldown = 0;
-    this.declinedGatePos = null;
     this.slowTimer = 0;
     this.slowMultiplier = 1.0;
     this.flashTimer = 0;
@@ -431,17 +415,22 @@ var GekokujoSystem = {
     this.gekokujoWin = false;
     this.defeatTimer = 0;
     this.defeatExplosionTimer = 0;
-    this.chargeCutinTimer = 0;
-    this.retreatCutinTimer = 0;
     this.shockwave = null;
 
-    // Setup castle collision (matches castle keep visual: 480x320, offset up by 30)
+    // Setup castle collision (pentagon matching castle silhouette)
     var castlePos = MapGenerator.getCastleWorldPos();
+    var ccx = castlePos.x;
+    var ccy = castlePos.y;
     this.castleCollision = {
-      x: castlePos.x - 240,
-      y: castlePos.y - 160 - 30,
-      w: 480,
-      h: 320
+      cx: ccx,
+      cy: ccy,
+      vertices: [
+        [ccx + 0,    ccy - 180],
+        [ccx + 140,  ccy - 60],
+        [ccx + 180,  ccy + 180],
+        [ccx - 180,  ccy + 180],
+        [ccx - 140,  ccy - 60]
+      ]
     };
   },
 
@@ -485,14 +474,6 @@ var GekokujoSystem = {
         this.flashTimer = 0;
       }
     }
-    if (this.chargeCutinTimer > 0) {
-      this.chargeCutinTimer -= rawDt;
-      if (this.chargeCutinTimer < 0) { this.chargeCutinTimer = 0; }
-    }
-    if (this.retreatCutinTimer > 0) {
-      this.retreatCutinTimer -= rawDt;
-      if (this.retreatCutinTimer < 0) { this.retreatCutinTimer = 0; }
-    }
     if (this.shockwave) {
       this.shockwave.timer -= rawDt;
       if (this.shockwave.timer <= 0) { this.shockwave = null; }
@@ -524,8 +505,6 @@ var GekokujoSystem = {
       boss.chargeDirX = cdx / cDist;
       boss.chargeDirY = cdy / cDist;
       boss.contactHit = false;
-      // Charge cutin (show 0.4s before windup ends, so trigger here at charge start)
-      this.chargeCutinTimer = 0.8;
     } else if (newState === "DECEL") {
       boss.stateDuration = TONO_BOSS.decelDuration;
       boss.decelStartSpeed = TONO_BOSS.chargeSpeed;
@@ -533,7 +512,6 @@ var GekokujoSystem = {
       boss.stateDuration = 999; // ends when reaching castle
       boss.speed = TONO_BOSS.retreatSpeed;
       boss.retreatShotTimer = 0;
-      this.retreatCutinTimer = 0.5;
     } else if (newState === "CASTLE_WAIT") {
       boss.stateDuration = this._randRange(TONO_BOSS.castleWaitDurationMin, TONO_BOSS.castleWaitDurationMax);
       boss.speed = 0;
@@ -579,42 +557,36 @@ var GekokujoSystem = {
   },
 
   update: function(dt) {
-    // Show gate
+    // Activate gekokujo when time is reached
     if (this.available && !this.gateActive && !this.battleActive && gameState.gameTime >= this.scheduleTime) {
-      var castlePos = MapGenerator.getCastleWorldPos();
-      this.gatePos = { x: castlePos.x, y: castlePos.y + 200 };
       this.gateActive = true;
       this.available = false;
-      AnnouncementSystem.add("城門が出現した!");
+      AnnouncementSystem.add("城に攻め込め!");
     }
 
-    // Decline cooldown: restore gate after 3 seconds
+    // Decline cooldown
     if (this.declineCooldown > 0) {
       this.declineCooldown -= dt;
       if (this.declineCooldown <= 0) {
         this.declineCooldown = 0;
-        if (this.declinedGatePos) {
-          this.gatePos = this.declinedGatePos;
-          this.gateActive = true;
-          this.declinedGatePos = null;
-        }
+        this.gateActive = true;
       }
     }
 
-    // Gate approach
-    if (this.gatePos && !this.battleActive && this.declineCooldown <= 0) {
-      var dx = PlayerController.x - this.gatePos.x;
-      var dy = PlayerController.y - this.gatePos.y;
-      if (Math.sqrt(dx * dx + dy * dy) < 60) {
+    // Castle touch = gekokujo trigger
+    if (this.gateActive && !this.battleActive && this.declineCooldown <= 0 && this.castleCollision) {
+      var cc = this.castleCollision;
+      var px = PlayerController.x;
+      var py = PlayerController.y;
+      var margin = PlayerController.size + 20;
+      var triggerVerts = expandPolygon(cc.vertices, cc.cx, cc.cy, margin);
+      if (pointInPolygon(px, py, triggerVerts)) {
         this.gateActive = false;
-        var savedGatePos = this.gatePos;
-        this.gatePos = null;
         GameDirector.showDialog("城に攻め込む! 下克上を仕掛ける?", function(yes) {
           if (yes) {
             GekokujoSystem.startBattle();
           } else {
             GekokujoSystem.declineCooldown = 5;
-            GekokujoSystem.declinedGatePos = savedGatePos;
             AnnouncementSystem.add("5秒後に再挑戦できます");
           }
         });
@@ -640,7 +612,7 @@ var GekokujoSystem = {
           var bossNewX = boss.x + (bdx / bDist) * boss.speed;
           var bossNewY = boss.y + (bdy / bDist) * boss.speed;
           var bossTerrain = TerrainManager.getTerrainAt(bossNewX, bossNewY);
-          if (bossTerrain === TERRAIN_TYPES.CASTLE_TOWN || bossTerrain === TERRAIN_TYPES.CASTLE) {
+          if (bossTerrain === TERRAIN_TYPES.CASTLE) {
             boss.x = bossNewX;
             boss.y = bossNewY;
           }
@@ -667,13 +639,17 @@ var GekokujoSystem = {
 
       } else if (boss.aiState === "CHARGE") {
         // Move in locked direction
+        var chargeOldX = boss.x;
+        var chargeOldY = boss.y;
         boss.x += boss.chargeDirX * boss.speed;
         boss.y += boss.chargeDirY * boss.speed;
-        // Clamp to map bounds
-        if (boss.x < 30) { boss.x = 30; }
-        if (boss.x > MAP_W - 30) { boss.x = MAP_W - 30; }
-        if (boss.y < 30) { boss.y = 30; }
-        if (boss.y > MAP_H - 30) { boss.y = MAP_H - 30; }
+        // Constrain to castle area
+        var chargeTerrain = TerrainManager.getTerrainAt(boss.x, boss.y);
+        if (chargeTerrain !== TERRAIN_TYPES.CASTLE) {
+          boss.x = chargeOldX;
+          boss.y = chargeOldY;
+          this._rollNextState("CHARGE");
+        }
 
         // Check contact with player
         if (!boss.contactHit && bDist < PlayerController.size + boss.size) {
@@ -698,13 +674,16 @@ var GekokujoSystem = {
         if (decelProgress > 1) { decelProgress = 1; }
         var currentSpeed = TONO_BOSS.chargeSpeed - (TONO_BOSS.chargeSpeed - 1.5) * decelProgress;
         // Continue in charge direction
+        var decelOldX = boss.x;
+        var decelOldY = boss.y;
         boss.x += boss.chargeDirX * currentSpeed;
         boss.y += boss.chargeDirY * currentSpeed;
-        // Clamp
-        if (boss.x < 30) { boss.x = 30; }
-        if (boss.x > MAP_W - 30) { boss.x = MAP_W - 30; }
-        if (boss.y < 30) { boss.y = 30; }
-        if (boss.y > MAP_H - 30) { boss.y = MAP_H - 30; }
+        // Constrain to castle area
+        var decelTerrain = TerrainManager.getTerrainAt(boss.x, boss.y);
+        if (decelTerrain !== TERRAIN_TYPES.CASTLE) {
+          boss.x = decelOldX;
+          boss.y = decelOldY;
+        }
 
         if (boss.stateTimer >= TONO_BOSS.decelDuration) {
           // Shockwave at end of decel
@@ -843,9 +822,7 @@ var GekokujoSystem = {
     this.boss = null;
     AnnouncementSystem.add("殿様は去った...");
     // Allow re-challenge after 5 seconds
-    var castlePos = MapGenerator.getCastleWorldPos();
     this.declineCooldown = 5;
-    this.declinedGatePos = { x: castlePos.x, y: castlePos.y };
   },
 
   fail: function() {
@@ -857,26 +834,16 @@ var GekokujoSystem = {
   },
 
   draw: function(ctx) {
-    // Gate
-    if (this.gatePos) {
-      var sp = CameraController.worldToScreen(this.gatePos.x, this.gatePos.y);
+    // Castle glow when gate is active (yellow pulsing aura)
+    if (this.gateActive && !this.battleActive && this.castleCollision) {
+      var castleSp = CameraController.worldToScreen(this.castleCollision.cx, this.castleCollision.cy);
+      var glowAlpha = 0.4 + Math.sin(performance.now() / 400) * 0.2;
+      ctx.shadowColor = "rgba(255, 220, 40, " + glowAlpha + ")";
+      ctx.shadowBlur = 20;
       if (spritesLoaded) {
-        drawSpriteCentered(ctx, "castle", sp.x, sp.y, 80, false);
-      } else {
-        ctx.font = FONT.iconMedium;
-        ctx.textAlign = "center";
-        ctx.fillText("\uD83C\uDFEF", sp.x, sp.y + 10);
+        drawSpriteCentered(ctx, "castle", castleSp.x, castleSp.y, 360, false);
       }
-      ctx.font = FONT.h5;
-      ctx.textAlign = "center";
-      ctx.fillStyle = "#1a1a1a";
-      ctx.fillText("城門", sp.x, sp.y + 45);
-      var pa = 0.3 + Math.sin(performance.now() / 300) * 0.2;
-      ctx.strokeStyle = "rgba(0,0,0," + pa + ")";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(sp.x, sp.y, 50, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.shadowBlur = 0;
     }
 
     // Shockwave effect
@@ -934,6 +901,8 @@ var GekokujoSystem = {
       }
 
       if (showBossSprite) {
+        ctx.shadowColor = "rgba(160, 60, 255, 0.9)";
+        ctx.shadowBlur = 12;
         if (spritesLoaded) {
           var bossFlipH = (this.boss.x < PlayerController.x);
           drawSpriteCentered(ctx, "tonosama", bsp.x, bsp.y, Math.floor(140 * drawScale), bossFlipH);
@@ -942,6 +911,7 @@ var GekokujoSystem = {
           ctx.textAlign = "center";
           ctx.fillText("\uD83C\uDFEF", bsp.x, bsp.y + 15);
         }
+        ctx.shadowBlur = 0;
       }
       if (!this.boss.defeated) {
         // HP bar
@@ -1241,16 +1211,16 @@ var TerrainRenderer = {
       }
 
       if (bl.type === TERRAIN_TYPES.CASTLE) {
-        // Castle sprite
+        // Castle sprite (3x enlarged: 360px)
         if (spritesLoaded) {
-          drawSpriteCentered(tCtx, "castle", bx + bl.w / 2, by + bl.h / 2, 120, false);
+          drawSpriteCentered(tCtx, "castle", bx + bl.w / 2, by + bl.h / 2, 360, false);
         } else {
           BuildingRenderer.drawCastle(tCtx, bx, by, bl.w, bl.h);
         }
         tCtx.fillStyle = "#1a1a1a";
         tCtx.textAlign = "center";
-        tCtx.font = FONT.h4;
-        tCtx.fillText("城", bx + bl.w / 2, by + bl.h / 2 + 70);
+        tCtx.font = FONT.h3;
+        tCtx.fillText("城", bx + bl.w / 2, by + bl.h / 2 + 200);
       } else if (bl.type === TERRAIN_TYPES.CASTLE_TOWN) {
         // Castle town sprites
         if (spritesLoaded) {
@@ -1899,32 +1869,6 @@ var GameDirector = {
       ctx.strokeText("一揆！！", CANVAS_W / 2, CANVAS_H / 2);
       ctx.fillStyle = "#ff3333";
       ctx.fillText("一揆！！", CANVAS_W / 2, CANVAS_H / 2);
-    }
-
-    // Boss charge cutin
-    if (GekokujoSystem.chargeCutinTimer > 0) {
-      ctx.fillStyle = "rgba(0,0,0,0.3)";
-      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-      ctx.font = FONT.h1;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 4;
-      ctx.strokeText("\u7A81\u6483\uFF01\uFF01", CANVAS_W / 2, CANVAS_H / 2);
-      ctx.fillStyle = "#ffcc00";
-      ctx.fillText("\u7A81\u6483\uFF01\uFF01", CANVAS_W / 2, CANVAS_H / 2);
-    }
-
-    // Boss retreat cutin
-    if (GekokujoSystem.retreatCutinTimer > 0) {
-      ctx.font = FONT.h1;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 4;
-      ctx.strokeText("\u9000\u5374\uFF01", CANVAS_W / 2, CANVAS_H / 2);
-      ctx.fillStyle = "#9966ff";
-      ctx.fillText("\u9000\u5374\uFF01", CANVAS_W / 2, CANVAS_H / 2);
     }
 
     // Critical hit display

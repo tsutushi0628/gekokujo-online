@@ -65,7 +65,7 @@ var TERRAIN_TYPES = {
 };
 
 var TONO_BOSS = {
-  hp: 600,
+  hp: 500,
   chargeSpeed: 4.5,
   retreatSpeed: 2.8,
   chaseSpeed: 2.5,

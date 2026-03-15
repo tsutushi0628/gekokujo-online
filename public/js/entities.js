@@ -1,6 +1,100 @@
 // entities.js - プレイヤー、敵、民間人、弾丸、行列の管理
 
 // ============================================================
+// Polygon collision utilities
+// ============================================================
+function pointInPolygon(px, py, vertices) {
+  var inside = false;
+  var n = vertices.length;
+  var j = n - 1;
+  for (var i = 0; i < n; i++) {
+    var xi = vertices[i][0];
+    var yi = vertices[i][1];
+    var xj = vertices[j][0];
+    var yj = vertices[j][1];
+    if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) {
+      inside = !inside;
+    }
+    j = i;
+  }
+  return inside;
+}
+
+function expandPolygon(vertices, cx, cy, margin) {
+  var expanded = [];
+  for (var i = 0; i < vertices.length; i++) {
+    var vx = vertices[i][0] - cx;
+    var vy = vertices[i][1] - cy;
+    var dist = Math.sqrt(vx * vx + vy * vy);
+    if (dist < 1) { dist = 1; }
+    expanded.push([cx + vx / dist * (dist + margin), cy + vy / dist * (dist + margin)]);
+  }
+  return expanded;
+}
+
+function closestPointOnSegment(px, py, ax, ay, bx, by) {
+  var abx = bx - ax;
+  var aby = by - ay;
+  var apx = px - ax;
+  var apy = py - ay;
+  var t = (apx * abx + apy * aby) / (abx * abx + aby * aby);
+  if (t < 0) { t = 0; }
+  if (t > 1) { t = 1; }
+  return { x: ax + t * abx, y: ay + t * aby };
+}
+
+function resolvePolygonPushOut(entity, entitySize, vertices) {
+  if (!pointInPolygon(entity.x, entity.y, vertices)) {
+    // Check if entity circle overlaps any edge
+    var pushed = false;
+    var n = vertices.length;
+    for (var i = 0; i < n; i++) {
+      var j = (i + 1) % n;
+      var cp = closestPointOnSegment(entity.x, entity.y, vertices[i][0], vertices[i][1], vertices[j][0], vertices[j][1]);
+      var dx = entity.x - cp.x;
+      var dy = entity.y - cp.y;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < entitySize && dist > 0) {
+        entity.x = cp.x + (dx / dist) * entitySize;
+        entity.y = cp.y + (dy / dist) * entitySize;
+        pushed = true;
+      }
+    }
+    return;
+  }
+  // Entity center is inside polygon: push out to nearest edge
+  var bestDist = 999999;
+  var bestNx = 0;
+  var bestNy = 0;
+  var n = vertices.length;
+  for (var i = 0; i < n; i++) {
+    var j = (i + 1) % n;
+    var cp = closestPointOnSegment(entity.x, entity.y, vertices[i][0], vertices[i][1], vertices[j][0], vertices[j][1]);
+    var dx = entity.x - cp.x;
+    var dy = entity.y - cp.y;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < bestDist) {
+      bestDist = dist;
+      if (dist > 0) {
+        bestNx = dx / dist;
+        bestNy = dy / dist;
+      } else {
+        // On the edge exactly: use edge normal
+        var ex = vertices[j][0] - vertices[i][0];
+        var ey = vertices[j][1] - vertices[i][1];
+        var eLen = Math.sqrt(ex * ex + ey * ey);
+        if (eLen > 0) {
+          bestNx = -ey / eLen;
+          bestNy = ex / eLen;
+        }
+      }
+    }
+  }
+  entity.x += bestNx * (bestDist + entitySize);
+  entity.y += bestNy * (bestDist + entitySize);
+}
+
+// ============================================================
 // Shared building collision resolution
 // ============================================================
 function resolveHouseCollision(entity, entitySize) {
@@ -35,28 +129,12 @@ function resolveHouseCollision(entity, entitySize) {
 }
 
 // ============================================================
-// Castle collision (rectangular push-out)
+// Castle collision (pentagon push-out)
 // ============================================================
 function resolveCastleCollision(entity, entitySize) {
   if (!GekokujoSystem.castleCollision) { return; }
   var cc = GekokujoSystem.castleCollision;
-  var halfW = cc.w / 2;
-  var halfH = cc.h / 2;
-  var cx = cc.x + halfW;
-  var cy = cc.y + halfH;
-  var dx = entity.x - cx;
-  var dy = entity.y - cy;
-  var overlapX = halfW + entitySize - Math.abs(dx);
-  var overlapY = halfH + entitySize - Math.abs(dy);
-  if (overlapX > 0 && overlapY > 0) {
-    if (overlapX < overlapY) {
-      if (dx > 0) { entity.x += overlapX; }
-      else { entity.x -= overlapX; }
-    } else {
-      if (dy > 0) { entity.y += overlapY; }
-      else { entity.y -= overlapY; }
-    }
-  }
+  resolvePolygonPushOut(entity, entitySize, cc.vertices);
 }
 
 // ============================================================
@@ -405,17 +483,6 @@ var EnemyManager = {
       var sp = CameraController.worldToScreen(en.x, en.y);
       ctx.textAlign = "center";
 
-      // Red border for enemies (purple if doushiuchi)
-      if (en.doushiuchi) {
-        ctx.strokeStyle = "rgba(180, 60, 255, 0.7)";
-      } else {
-        ctx.strokeStyle = "rgba(255, 60, 60, 0.5)";
-      }
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(sp.x, sp.y, en.size + 4, 0, Math.PI * 2);
-      ctx.stroke();
-
       if (en.surrendering) {
         ctx.font = Math.round((en.size + 4) * 1.5) + "px " + FONT_FAMILY;
         ctx.fillText("\uD83C\uDFF3\uFE0F", sp.x, sp.y + en.size / 3);
@@ -427,10 +494,23 @@ var EnemyManager = {
         // nobushi default faces LEFT -> flip when enemy needs to face RIGHT (player is to the right)
         var enFlipH = (en.x < PlayerController.x);
         var enemySpriteH = 64 + en.size;
+        if (en.doushiuchi) {
+          ctx.shadowColor = "rgba(180, 60, 255, 0.8)";
+        } else {
+          ctx.shadowColor = "rgba(255, 40, 40, 0.8)";
+        }
+        ctx.shadowBlur = 8;
         drawSpriteCentered(ctx, enemySpriteKey, sp.x, sp.y, enemySpriteH, enFlipH);
+        ctx.shadowBlur = 0;
       } else {
         var facingLeft = (en.x > PlayerController.x);
         ctx.font = Math.round((en.size + 4) * 1.5) + "px " + FONT_FAMILY;
+        if (en.doushiuchi) {
+          ctx.shadowColor = "rgba(180, 60, 255, 0.8)";
+        } else {
+          ctx.shadowColor = "rgba(255, 40, 40, 0.8)";
+        }
+        ctx.shadowBlur = 8;
         ctx.save();
         if (facingLeft) {
           ctx.translate(sp.x, sp.y + en.size / 3);
@@ -440,6 +520,7 @@ var EnemyManager = {
           ctx.fillText(en.emoji, sp.x, sp.y + en.size / 3);
         }
         ctx.restore();
+        ctx.shadowBlur = 0;
       }
 
       // HP bar
@@ -771,13 +852,8 @@ var ParadeController = {
         }
       }
 
-      // Blue border for ally followers
-      ctx.strokeStyle = "rgba(60, 120, 255, 0.5)";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(sp.x, sp.y, 22, 0, Math.PI * 2);
-      ctx.stroke();
-
+      ctx.shadowColor = "rgba(0, 120, 255, 0.8)";
+      ctx.shadowBlur = 8;
       if (spritesLoaded && !isIkki) {
         var mFacingLeft = PlayerController.facingLeft;
         if (i > 0) {
@@ -794,6 +870,7 @@ var ParadeController = {
           ctx.fillText("\uD83D\uDE0A", sp.x, sp.y + 3);
         }
       }
+      ctx.shadowBlur = 0;
 
       ctx.globalAlpha = savedAlpha;
     }
@@ -879,7 +956,7 @@ var ProjectileManager = {
       // Castle collision: all projectiles (player and boss) are destroyed on hitting castle
       if (GekokujoSystem.castleCollision) {
         var cc = GekokujoSystem.castleCollision;
-        if (p.x >= cc.x && p.x <= cc.x + cc.w && p.y >= cc.y && p.y <= cc.y + cc.h) {
+        if (pointInPolygon(p.x, p.y, cc.vertices)) {
           this.projectiles.splice(i, 1);
           continue;
         }
