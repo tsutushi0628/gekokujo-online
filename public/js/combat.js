@@ -518,38 +518,61 @@ var TsujigiriSystem = {
         }
       }
 
-      // Double-bordered banner with text
+      // Speech bubble banner with inverted corner notches
       var bannerText = "辻斬りにあってしまった";
       ctx.font = FONT.h2;
       ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
       var textWidth = ctx.measureText(bannerText).width;
       var bannerW = textWidth + 60;
-      var bannerH = 50;
+      var bannerH = 56;
       var bannerX = CANVAS_W / 2 - bannerW / 2;
       var bannerY = CANVAS_H / 2 + 50;
+      var notch = 8;
 
-      // Outer border (rounded)
-      ctx.strokeStyle = "#1a1a1a";
-      ctx.lineWidth = 3;
+      // Banner shape with inverted corner notches
+      ctx.save();
       ctx.beginPath();
-      ctx.roundRect(bannerX, bannerY, bannerW, bannerH, 12);
-      ctx.stroke();
+      ctx.moveTo(bannerX + notch, bannerY);
+      ctx.lineTo(bannerX + bannerW - notch, bannerY);
+      ctx.quadraticCurveTo(bannerX + bannerW, bannerY, bannerX + bannerW, bannerY + notch);
+      ctx.lineTo(bannerX + bannerW, bannerY + bannerH - notch);
+      ctx.quadraticCurveTo(bannerX + bannerW, bannerY + bannerH, bannerX + bannerW - notch, bannerY + bannerH);
+      ctx.lineTo(bannerX + notch, bannerY + bannerH);
+      ctx.quadraticCurveTo(bannerX, bannerY + bannerH, bannerX, bannerY + bannerH - notch);
+      ctx.lineTo(bannerX, bannerY + notch);
+      ctx.quadraticCurveTo(bannerX, bannerY, bannerX + notch, bannerY);
+      ctx.closePath();
 
-      // Inner border (rounded, 4px inset)
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(bannerX + 4, bannerY + 4, bannerW - 8, bannerH - 8, 8);
-      ctx.stroke();
-
-      // Banner background (rounded)
-      ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-      ctx.beginPath();
-      ctx.roundRect(bannerX + 5, bannerY + 5, bannerW - 10, bannerH - 10, 7);
+      // Fill
+      ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
       ctx.fill();
 
-      // Text
+      // Outer border
+      ctx.strokeStyle = "#1a1a1a";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // Inner border (inset)
+      ctx.beginPath();
+      ctx.moveTo(bannerX + notch + 4, bannerY + 4);
+      ctx.lineTo(bannerX + bannerW - notch - 4, bannerY + 4);
+      ctx.quadraticCurveTo(bannerX + bannerW - 4, bannerY + 4, bannerX + bannerW - 4, bannerY + notch + 4);
+      ctx.lineTo(bannerX + bannerW - 4, bannerY + bannerH - notch - 4);
+      ctx.quadraticCurveTo(bannerX + bannerW - 4, bannerY + bannerH - 4, bannerX + bannerW - notch - 4, bannerY + bannerH - 4);
+      ctx.lineTo(bannerX + notch + 4, bannerY + bannerH - 4);
+      ctx.quadraticCurveTo(bannerX + 4, bannerY + bannerH - 4, bannerX + 4, bannerY + bannerH - notch - 4);
+      ctx.lineTo(bannerX + 4, bannerY + notch + 4);
+      ctx.quadraticCurveTo(bannerX + 4, bannerY + 4, bannerX + notch + 4, bannerY + 4);
+      ctx.closePath();
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+
+      // Text (vertically centered)
       ctx.fillStyle = "#1a1a1a";
-      ctx.fillText(bannerText, CANVAS_W / 2, bannerY + 34);
+      ctx.fillText(bannerText, CANVAS_W / 2, bannerY + bannerH / 2);
+      ctx.textBaseline = "alphabetic";
     }
   }
 };

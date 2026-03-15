@@ -1330,10 +1330,10 @@ var GameDirector = {
     ctx.fillText("" + remaining, CANVAS_W / 2, timerY + 42);
 
     // --- Score panel (bottom left) ---
-    var scoreW = 120;
-    var scoreH = 54;
+    var scoreW = 130;
+    var scoreH = 66;
     var scoreX = 10;
-    var scoreY = CANVAS_H - 64;
+    var scoreY = CANVAS_H - 76;
 
     ctx.fillStyle = "rgba(245, 238, 225, 0.82)";
     ctx.beginPath();
@@ -1346,23 +1346,23 @@ var GameDirector = {
     ctx.stroke();
 
     ctx.textAlign = "left";
-    ctx.font = "11px " + FONT_FAMILY;
+    ctx.font = "12px " + FONT_FAMILY;
     ctx.fillStyle = "#9a8a6a";
-    ctx.fillText("石高", scoreX + 10, scoreY + 20);
+    ctx.fillText("石高", scoreX + 10, scoreY + 22);
     ctx.textAlign = "right";
-    ctx.font = "bold 20px " + FONT_FAMILY;
+    ctx.font = "bold 22px " + FONT_FAMILY;
     ctx.fillStyle = "#8b6914";
     var displayKoku = ScoreManager.finalScore;
-    ctx.fillText("" + displayKoku, scoreX + scoreW - 10, scoreY + 22);
+    ctx.fillText("" + displayKoku, scoreX + scoreW - 10, scoreY + 24);
 
     ctx.textAlign = "left";
-    ctx.font = "11px " + FONT_FAMILY;
+    ctx.font = "12px " + FONT_FAMILY;
     ctx.fillStyle = "#9a8a6a";
-    ctx.fillText("身分", scoreX + 10, scoreY + 40);
+    ctx.fillText("身分", scoreX + 10, scoreY + 50);
     ctx.textAlign = "right";
-    ctx.font = "16px " + FONT_FAMILY;
+    ctx.font = "18px " + FONT_FAMILY;
     ctx.fillStyle = "#6b4226";
-    ctx.fillText(RankSystem.getCurrentName(), scoreX + scoreW - 10, scoreY + 42);
+    ctx.fillText(RankSystem.getCurrentName(), scoreX + scoreW - 10, scoreY + 52);
 
     // --- Ability bar (bottom left, next to score panel) ---
     var slotW = 58;
