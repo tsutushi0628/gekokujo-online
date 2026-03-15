@@ -26,14 +26,14 @@ var ShoninSystem = {
     var terrain = TerrainManager.getTerrainAt(PlayerController.x, PlayerController.y);
     var incomeRate = 0;
     if (terrain === TERRAIN_TYPES.CASTLE_TOWN) {
-      incomeRate = 5;
-      this.currentTerrainLabel = "城下町 +5/s";
+      incomeRate = 50;
+      this.currentTerrainLabel = "城下町 +50/s";
     } else if (terrain === TERRAIN_TYPES.VILLAGE) {
-      incomeRate = 3;
-      this.currentTerrainLabel = "村 +3/s";
+      incomeRate = 30;
+      this.currentTerrainLabel = "村 +30/s";
     } else if (terrain === TERRAIN_TYPES.GRASSLAND) {
-      incomeRate = 1;
-      this.currentTerrainLabel = "草原 +1/s";
+      incomeRate = 10;
+      this.currentTerrainLabel = "草原 +10/s";
     } else {
       incomeRate = 0;
       this.currentTerrainLabel = "";
@@ -44,7 +44,7 @@ var ShoninSystem = {
     FloatingScoreSystem.bufferTerrainIncome(incomeRate * dt);
     // ボス戦中は維持費免除（集めた仲間で殿様を倒すフェーズ）
     if (!GekokujoSystem.battleActive) {
-      var upkeepCost = ParadeController.getLength() * 0.2 * dt;
+      var upkeepCost = ParadeController.getLength() * 2.0 * dt;
       gameState.koku -= upkeepCost;
     }
     if (this.removeCooldown > 0) { this.removeCooldown -= dt; }
@@ -65,11 +65,11 @@ var ShoninSystem = {
       }
     }
     if (this.hireCooldown > 0) { this.hireCooldown -= dt; }
-    if (gameState.koku >= 30 && this.hireCooldown <= 0 && ParadeController.getLength() < 12) {
-      gameState.koku -= 30;
-      FloatingScoreSystem.show(-30);
+    if (gameState.koku >= 300 && this.hireCooldown <= 0 && ParadeController.getLength() < 12) {
+      gameState.koku -= 300;
+      FloatingScoreSystem.show(-300);
       ParadeController.addMember(PlayerController.x, PlayerController.y);
-      AnnouncementSystem.add("傭兵を雇った! (石高 -30)");
+      AnnouncementSystem.add("傭兵を雇った! (石高 -300)");
       this.hireCooldown = 3;
     }
   }

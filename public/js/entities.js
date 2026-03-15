@@ -305,8 +305,9 @@ var EnemyManager = {
         en.surrenderTimer -= dt;
         if (en.surrenderTimer <= 0) {
           var surrenderScoreMult = CHAR_DEFS[gameState.selectedChar].scoreMultiplier;
-          gameState.koku += Math.floor(en.scoreValue * surrenderScoreMult);
-          FloatingScoreSystem.show(en.scoreValue);
+          var surrenderReward = KokuReward.apply(en.scoreValue, gameState);
+          gameState.koku += Math.floor(surrenderReward * surrenderScoreMult);
+          FloatingScoreSystem.show(surrenderReward);
           RankSystem.check();
           EffectRenderer.add(en.x, en.y, "surrender");
           this.enemies.splice(i, 1);
@@ -674,8 +675,9 @@ var ParadeController = {
             EffectRenderer.add(en.x, en.y, "hit");
             if (en.hp <= 0) {
               var paradeScoreMult = CHAR_DEFS[gameState.selectedChar].scoreMultiplier;
-              gameState.koku += Math.floor(en.scoreValue * paradeScoreMult);
-              FloatingScoreSystem.show(en.scoreValue);
+              var paradeReward = KokuReward.apply(en.scoreValue, gameState);
+              gameState.koku += Math.floor(paradeReward * paradeScoreMult);
+              FloatingScoreSystem.show(paradeReward);
               RankSystem.check();
               EffectRenderer.add(en.x, en.y, "destroy");
               EnemyManager.enemies.splice(ei, 1);
@@ -850,8 +852,9 @@ var ProjectileManager = {
           this.projectiles.splice(i, 1);
           if (en.hp <= 0) {
             var projScoreMult = CHAR_DEFS[gameState.selectedChar].scoreMultiplier;
-            gameState.koku += Math.floor(en.scoreValue * projScoreMult);
-            FloatingScoreSystem.show(en.scoreValue);
+            var projReward = KokuReward.apply(en.scoreValue, gameState);
+            gameState.koku += Math.floor(projReward * projScoreMult);
+            FloatingScoreSystem.show(projReward);
             RankSystem.check();
             EffectRenderer.add(en.x, en.y, "destroy");
             EnemyManager.enemies.splice(j, 1);

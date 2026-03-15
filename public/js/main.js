@@ -85,7 +85,8 @@ var gameState = {
   speedMultiplier: 1,
   ikkiMode: false,
   sessionId: null,
-  rankIndex: 0
+  rankIndex: 0,
+  criticalTimer: 0
 };
 
 var dialogCallback = null;
@@ -289,7 +290,7 @@ var BridgeBossSystem = {
         size: 30,
         attackTimer: 0,
         facingLeft: false,
-        scoreValue: 200,
+        scoreValue: 2000,
         safe: bridge.safe,
         patrolTimer: 0,
         patrolRange: bridge.h * 0.8,
@@ -326,12 +327,13 @@ var BridgeBossSystem = {
     var boss = this.bosses[index];
     if (!boss) { return; }
     var bbScoreMult = CHAR_DEFS[gameState.selectedChar].scoreMultiplier;
-    var bbKokuGain = Math.floor(boss.scoreValue * bbScoreMult);
+    var bbReward = KokuReward.apply(boss.scoreValue, gameState);
+    var bbKokuGain = Math.floor(bbReward * bbScoreMult);
     gameState.koku += bbKokuGain;
-    FloatingScoreSystem.show(boss.scoreValue);
+    FloatingScoreSystem.show(bbReward);
     RankSystem.check();
     EffectRenderer.add(boss.x, boss.y, "destroy");
-    AnnouncementSystem.add("橋の辻斬りを討ち取った! +200点!");
+    AnnouncementSystem.add("橋の辻斬りを討ち取った! +2000点!");
     this.bosses[index] = null;
   },
 
@@ -579,15 +581,17 @@ var GekokujoSystem = {
     this.battleActive = false;
     if (gameState.selectedChar === "ashigaru") {
       if (this.battleElapsed <= 15) {
-        gameState.koku += 200;
-        FloatingScoreSystem.show(200);
-        AnnouncementSystem.add("武功ボーナス! +200石!");
+        var bukoReward = KokuReward.apply(2000, gameState);
+        gameState.koku += bukoReward;
+        FloatingScoreSystem.show(bukoReward);
+        AnnouncementSystem.add("武功ボーナス! +" + bukoReward + "石!");
       }
     }
-    var gekokujoBonus = 200 + gameState.rankIndex * 100;
+    var gekokujoBase = 2000 + gameState.rankIndex * 1000;
+    var gekokujoReward = KokuReward.apply(gekokujoBase, gameState);
     var gekScoreMult = CHAR_DEFS[gameState.selectedChar].scoreMultiplier;
-    gameState.koku += Math.floor(gekokujoBonus * gekScoreMult);
-    FloatingScoreSystem.show(gekokujoBonus);
+    gameState.koku += Math.floor(gekokujoReward * gekScoreMult);
+    FloatingScoreSystem.show(gekokujoReward);
     gameState.rankIndex = Math.min(gameState.rankIndex + 2, RANKS.length - 1);
     this.endGamePending = true;
     this.gekokujoWin = true;
@@ -1166,6 +1170,26 @@ var GameDirector = {
     for (var i = 0; i < 5; i++) { EnemyManager.spawn(); }
     for (var j = 0; j < 15; j++) { CivilianManager.spawn(); }
 
+    // Spawn one civilian near player so beginners discover the parade system
+    var nearCivAngle = Math.random() * Math.PI * 2;
+    var nearCivDist = 100 + Math.random() * 50;
+    var nearCivX = startPos.x + Math.cos(nearCivAngle) * nearCivDist;
+    var nearCivY = startPos.y + Math.sin(nearCivAngle) * nearCivDist;
+    if (nearCivX < 50) { nearCivX = 50; }
+    if (nearCivX > MAP_W - 50) { nearCivX = MAP_W - 50; }
+    if (nearCivY < 50) { nearCivY = 50; }
+    if (nearCivY > MAP_H - 50) { nearCivY = MAP_H - 50; }
+    if (TerrainManager.isInRiver(nearCivX, nearCivY)) {
+      nearCivX = startPos.x - Math.cos(nearCivAngle) * nearCivDist;
+      nearCivY = startPos.y - Math.sin(nearCivAngle) * nearCivDist;
+    }
+    CivilianManager.civilians.push({
+      x: nearCivX, y: nearCivY,
+      wanderAngle: Math.random() * Math.PI * 2,
+      wanderTimer: 0,
+      recruitTimer: 0
+    });
+
     // Start countdown
     this.countdownTimer = 3.5;
     this.countdownText = "3";
@@ -1294,6 +1318,7 @@ var GameDirector = {
     FloatingScoreSystem.update(dt);
     OnboardingSystem.update(dt);
     DamageVignette.update(dt);
+    if (gameState.criticalTimer > 0) { gameState.criticalTimer -= dt; }
   },
 
   render: function() {
@@ -1378,7 +1403,7 @@ var GameDirector = {
     ctx.fillText("" + remaining, CANVAS_W / 2, timerY + 76);
 
     // --- Score panel (bottom left) ---
-    var scoreW = 150;
+    var scoreW = 200;
     var scoreH = 76;
     var scoreX = 10;
     var scoreY = CANVAS_H - 86;
@@ -1580,6 +1605,24 @@ var GameDirector = {
       ctx.strokeText("一揆！！", CANVAS_W / 2, CANVAS_H / 2);
       ctx.fillStyle = "#ff3333";
       ctx.fillText("一揆！！", CANVAS_W / 2, CANVAS_H / 2);
+    }
+
+    // Critical hit display
+    if (gameState.criticalTimer > 0) {
+      var critAlpha = Math.min(1.0, gameState.criticalTimer / 0.3);
+      ctx.save();
+      ctx.globalAlpha = critAlpha;
+      ctx.fillStyle = "rgba(0,0,0,0.25)";
+      ctx.fillRect(CANVAS_W / 2 - 80, CANVAS_H / 2 - 80, 160, 60);
+      ctx.font = FONT.h1;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 4;
+      ctx.strokeText("会心！", CANVAS_W / 2, CANVAS_H / 2 - 50);
+      ctx.fillStyle = "#ffcc00";
+      ctx.fillText("会心！", CANVAS_W / 2, CANVAS_H / 2 - 50);
+      ctx.restore();
     }
 
     // Gekokujo success flash (white)

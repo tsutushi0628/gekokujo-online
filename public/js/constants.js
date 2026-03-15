@@ -24,7 +24,7 @@ var CHAR_DEFS = {
     name: "商人", emoji: "\uD83D\uDCB0", attack: 2, speed: 3.6,
     recruitRange: 55, recruitTime: 0, followerBonus: 0.012,
     regroupSpeed: 0.7, chargeMultiplier: 0.5,
-    initialKoku: 650, recruitCost: 12,
+    initialKoku: 6500, recruitCost: 120,
     scoreMultiplier: 1.2, damageTakenMultiplier: 1.2,
     maxEnemies: null, spawnInterval: null
   },
@@ -39,18 +39,18 @@ var CHAR_DEFS = {
 
 var RANKS = [
   { name: "農民", threshold: 0, bonus: 1.0 },
-  { name: "足軽", threshold: 50, bonus: 1.2 },
-  { name: "侍", threshold: 150, bonus: 1.5 },
-  { name: "武将", threshold: 350, bonus: 2.0 },
-  { name: "大名", threshold: 700, bonus: 2.5 },
-  { name: "天下人", threshold: 1200, bonus: 3.0 }
+  { name: "足軽", threshold: 500, bonus: 1.2 },
+  { name: "侍", threshold: 1500, bonus: 1.5 },
+  { name: "武将", threshold: 3500, bonus: 2.0 },
+  { name: "大名", threshold: 7000, bonus: 2.5 },
+  { name: "天下人", threshold: 12000, bonus: 3.0 }
 ];
 
 var ENEMY_DEFS = [
-  { name: "野盗", emoji: "\uD83D\uDC79", hp: 20, attack: 3, speed: 1.5, score: 10, size: 21, grit: 3 },
-  { name: "足軽隊", emoji: "\uD83D\uDD34", hp: 35, attack: 5, speed: 1.8, score: 25, size: 24, grit: 10 },
-  { name: "侍", emoji: "\u26E9\uFE0F", hp: 55, attack: 8, speed: 2.0, score: 50, size: 27, grit: 999 },
-  { name: "武将", emoji: "\uD83C\uDFF4", hp: 80, attack: 12, speed: 2.2, score: 80, size: 33, grit: 999 }
+  { name: "野盗", emoji: "\uD83D\uDC79", hp: 20, attack: 3, speed: 1.5, score: 100, size: 21, grit: 3 },
+  { name: "足軽隊", emoji: "\uD83D\uDD34", hp: 35, attack: 5, speed: 1.8, score: 250, size: 24, grit: 10 },
+  { name: "侍", emoji: "\u26E9\uFE0F", hp: 55, attack: 8, speed: 2.0, score: 500, size: 27, grit: 999 },
+  { name: "武将", emoji: "\uD83C\uDFF4", hp: 80, attack: 12, speed: 2.2, score: 800, size: 33, grit: 999 }
 ];
 
 var TERRAIN_TYPES = {

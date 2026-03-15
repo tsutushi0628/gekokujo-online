@@ -1,6 +1,25 @@
 // combat.js - 戦闘、辻斬り、威圧、行列突撃、行列物理・分裂の管理
 
 // ============================================================
+// KokuReward (戦闘報酬ランダム&クリティカルシステム)
+// ============================================================
+var KokuReward = {
+  apply: function(baseValue, gameState) {
+    var rand = 0.75 + Math.random() * 0.5;
+    var value = Math.floor(baseValue * rand);
+    var isCritical = Math.random() < 0.1;
+    if (isCritical) {
+      value = value * 2;
+      KokuReward._showCritical(gameState);
+    }
+    return value;
+  },
+  _showCritical: function(gameState) {
+    gameState.criticalTimer = 0.8;
+  }
+};
+
+// ============================================================
 // ParadePhysics
 // ============================================================
 var ParadePhysics = {
@@ -139,8 +158,9 @@ var ParadeChargeSystem = {
             EffectRenderer.add(en.x, en.y, "hit");
             if (en.hp <= 0) {
               var chargeScoreMult = CHAR_DEFS[gameState.selectedChar].scoreMultiplier;
-              gameState.koku += Math.floor(en.scoreValue * chargeScoreMult);
-              FloatingScoreSystem.show(en.scoreValue);
+              var chargeReward = KokuReward.apply(en.scoreValue, gameState);
+              gameState.koku += Math.floor(chargeReward * chargeScoreMult);
+              FloatingScoreSystem.show(chargeReward);
               RankSystem.check();
               EffectRenderer.add(en.x, en.y, "destroy");
               EnemyManager.enemies.splice(j, 1);
@@ -404,8 +424,9 @@ var TsujigiriSystem = {
         EnemyManager.enemies.splice(idx, 1);
       }
       var tsujScoreMult = CHAR_DEFS[gameState.selectedChar].scoreMultiplier;
-      gameState.koku += Math.floor(100 * tsujScoreMult);
-      FloatingScoreSystem.show(100);
+      var tsujReward = KokuReward.apply(1000, gameState);
+      gameState.koku += Math.floor(tsujReward * tsujScoreMult);
+      FloatingScoreSystem.show(tsujReward);
       RankSystem.check();
     } else {
       // Failure: start death cutscene
@@ -658,7 +679,7 @@ var BaishuSystem = {
   cooldown: 0,
   cooldownMax: 15,
   range: 150,
-  cost: 50,
+  cost: 500,
   flashTimer: 0,
 
   init: function() {
