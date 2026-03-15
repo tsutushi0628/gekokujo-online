@@ -39,7 +39,8 @@ var ShoninSystem = {
       this.currentTerrainLabel = "";
     }
     gameState.kokuPerSecond = incomeRate;
-    gameState.koku += incomeRate * dt;
+    var incScoreMult = CHAR_DEFS[gameState.selectedChar].scoreMultiplier;
+    gameState.koku += incomeRate * dt * incScoreMult;
     FloatingScoreSystem.bufferTerrainIncome(incomeRate * dt);
     // ボス戦中は維持費免除（集めた仲間で殿様を倒すフェーズ）
     if (!GekokujoSystem.battleActive) {
@@ -60,11 +61,11 @@ var ShoninSystem = {
         ParadeController.members.splice(lastIdx, 1);
           AnnouncementSystem.add("石高不足! 傭兵が去った!");
         EffectRenderer.add(removed.x, removed.y, "surrender");
-        this.removeCooldown = 1;
+        this.removeCooldown = 3;
       }
     }
     if (this.hireCooldown > 0) { this.hireCooldown -= dt; }
-    if (gameState.koku >= 30 && this.hireCooldown <= 0) {
+    if (gameState.koku >= 30 && this.hireCooldown <= 0 && ParadeController.getLength() < 12) {
       gameState.koku -= 30;
       FloatingScoreSystem.show(-30);
       ParadeController.addMember(PlayerController.x, PlayerController.y);

@@ -296,7 +296,7 @@ var ResultRenderer = {
     if (!gameState.sessionId) { return; }
 
     var maxTime = MAX_TIME;
-    if (gameState.ikkiMode) { maxTime = 60; }
+    if (gameState.selectedChar === "farmer") { maxTime = 50; }
     var playDurationSec = Math.max(1, Math.floor(gameState.gameTime));
     if (playDurationSec > maxTime) { playDurationSec = maxTime; }
 

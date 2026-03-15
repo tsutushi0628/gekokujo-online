@@ -136,9 +136,8 @@ var ParadeChargeSystem = {
             en.hp -= 5;
             EffectRenderer.add(en.x, en.y, "hit");
             if (en.hp <= 0) {
-              var chargeIkkiMult = 1.0;
-              if (gameState.ikkiMode) { chargeIkkiMult = 1.8; }
-              gameState.koku += Math.floor(en.scoreValue * chargeIkkiMult);
+              var chargeScoreMult = CHAR_DEFS[gameState.selectedChar].scoreMultiplier;
+              gameState.koku += Math.floor(en.scoreValue * chargeScoreMult);
               FloatingScoreSystem.show(en.scoreValue);
               RankSystem.check();
               EffectRenderer.add(en.x, en.y, "destroy");
@@ -388,9 +387,8 @@ var TsujigiriSystem = {
         EffectRenderer.add(this.attacker.x, this.attacker.y, "destroy");
         EnemyManager.enemies.splice(idx, 1);
       }
-      var tsujIkkiMult = 1.0;
-      if (gameState.ikkiMode) { tsujIkkiMult = 1.8; }
-      gameState.koku += Math.floor(100 * tsujIkkiMult);
+      var tsujScoreMult = CHAR_DEFS[gameState.selectedChar].scoreMultiplier;
+      gameState.koku += Math.floor(100 * tsujScoreMult);
       FloatingScoreSystem.show(100);
       RankSystem.check();
     } else {

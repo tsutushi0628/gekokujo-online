@@ -99,7 +99,7 @@ var IkkiSystem = {
   flashTimer: 0,
 
   init: function() {
-    this.available = (gameState.selectedChar === "farmer" && gameState.ikkiMode);
+    this.available = (gameState.selectedChar === "farmer");
     this.active = false;
     this.cooldown = 0;
     this.flashTimer = 0;
@@ -128,7 +128,7 @@ var IkkiSystem = {
     }
 
     // Consume 10% of parade members (min 1)
-    var consumeCount = Math.max(1, Math.floor(paradeLen * 0.1));
+    var consumeCount = Math.max(1, Math.floor(paradeLen * 0.25));
     var damageAmount = paradeLen * 8;
 
     // Remove consumed members from the end (loop-based)
@@ -149,9 +149,9 @@ var IkkiSystem = {
       en.hp -= damageAmount;
       EffectRenderer.add(en.x, en.y, "hit");
       if (en.hp <= 0) {
-        var ikkiMult = 1.0;
-        if (gameState.ikkiMode) { ikkiMult = 1.8; }
-        var kokuGain = Math.floor(en.scoreValue * ikkiMult);
+        var ultMult = 2.6;
+        var ultScoreMult = CHAR_DEFS[gameState.selectedChar].scoreMultiplier;
+        var kokuGain = Math.floor(en.scoreValue * ultMult * ultScoreMult);
         gameState.koku += kokuGain;
         FloatingScoreSystem.show(en.scoreValue);
         RankSystem.check();
@@ -170,7 +170,7 @@ var IkkiSystem = {
     // Flash + announcement
     this.flashTimer = 0.3;
     AnnouncementSystem.add("一揆!");
-    this.cooldown = 15;
+    this.cooldown = 10;
   }
 };
 
@@ -326,9 +326,8 @@ var BridgeBossSystem = {
   _defeat: function(index) {
     var boss = this.bosses[index];
     if (!boss) { return; }
-    var bbIkkiMult = 1.0;
-    if (gameState.ikkiMode) { bbIkkiMult = 1.8; }
-    var bbKokuGain = Math.floor(boss.scoreValue * bbIkkiMult);
+    var bbScoreMult = CHAR_DEFS[gameState.selectedChar].scoreMultiplier;
+    var bbKokuGain = Math.floor(boss.scoreValue * bbScoreMult);
     gameState.koku += bbKokuGain;
     FloatingScoreSystem.show(boss.scoreValue);
     RankSystem.check();
@@ -407,8 +406,8 @@ var GekokujoSystem = {
     this.boss = null;
     this.battleActive = false;
     this.battleTimer = 0;
-    if (gameState.ikkiMode) {
-      this.scheduleTime = 60 * 0.2 + Math.random() * 10;
+    if (gameState.selectedChar === "farmer") {
+      this.scheduleTime = 50 * 0.2 + Math.random() * 10;
     } else {
       this.scheduleTime = MAX_TIME * 0.2 + Math.random() * 20;
     }
@@ -511,6 +510,7 @@ var GekokujoSystem = {
     // Boss battle
     if (this.battleActive) {
       this.battleTimer -= dt;
+      this.battleElapsed += dt;
       var boss = this.boss;
 
       // Boss AI（城下町から出られない制約あり）
@@ -541,12 +541,11 @@ var GekokujoSystem = {
 
   startBattle: function() {
     this.battleActive = true;
+    this.battleElapsed = 0;
     this.battleTimer = 20;
     EnemyManager.enemies = [];
     var rIdx = Math.min(gameState.rankIndex + 2, RANKS.length - 1);
-    // Parade reduces boss HP
-    var hpReduction = ParadeController.getLength() * 3;
-    var bossHp = Math.max(45, (90 + rIdx * 60) - hpReduction);
+    var bossHp = 700;
     this.boss = {
       x: MapGenerator.getCastleWorldPos().x,
       y: MapGenerator.getCastleWorldPos().y,
@@ -579,8 +578,16 @@ var GekokujoSystem = {
     AnnouncementSystem.add("下克上成就!!");
 
     this.battleActive = false;
+    if (gameState.selectedChar === "ashigaru") {
+      if (this.battleElapsed <= 15) {
+        gameState.koku += 200;
+        FloatingScoreSystem.show(200);
+        AnnouncementSystem.add("武功ボーナス! +200石!");
+      }
+    }
     var gekokujoBonus = 200 + gameState.rankIndex * 100;
-    gameState.koku += gekokujoBonus;
+    var gekScoreMult = CHAR_DEFS[gameState.selectedChar].scoreMultiplier;
+    gameState.koku += Math.floor(gekokujoBonus * gekScoreMult);
     FloatingScoreSystem.show(gekokujoBonus);
     gameState.rankIndex = Math.min(gameState.rankIndex + 2, RANKS.length - 1);
     this.endGamePending = true;
@@ -1208,12 +1215,9 @@ var GameDirector = {
 
     // Time up
     var maxTime = MAX_TIME;
-    if (gameState.ikkiMode) { maxTime = 60; }
+    if (gameState.selectedChar === "farmer") { maxTime = 50; }
     var remaining = maxTime - gameState.gameTime;
     if (remaining <= 0 && !GekokujoSystem.battleActive) {
-      if (gameState.ikkiMode) {
-        AnnouncementSystem.add("殿様は逃げた...");
-      }
       this.endGame(false);
       return;
     }
@@ -1226,7 +1230,7 @@ var GameDirector = {
       ParadeChargeSystem.start();
     }
     if (InputManager.consumeQ()) {
-      if (gameState.selectedChar === "farmer" && gameState.ikkiMode) {
+      if (gameState.selectedChar === "farmer") {
         IkkiSystem.tryActivate();
       }
     }
@@ -1282,7 +1286,7 @@ var GameDirector = {
 
     // === HUD (screen space) - washi panel style ===
     var maxTime = MAX_TIME;
-    if (gameState.ikkiMode) { maxTime = 60; }
+    if (gameState.selectedChar === "farmer") { maxTime = 50; }
     var remaining = Math.max(0, Math.ceil(maxTime - gameState.gameTime));
     if (GekokujoSystem.battleActive) {
       remaining = Math.max(0, Math.ceil(GekokujoSystem.battleTimer));
@@ -1305,7 +1309,7 @@ var GameDirector = {
       timerValueColor = "#8b5e14";
       timerBg = "rgba(250, 240, 220, 0.88)";
       timerBorder = "rgba(160, 100, 40, 0.6)";
-    } else if (gameState.ikkiMode && !GekokujoSystem.battleActive) {
+    } else if (gameState.selectedChar === "farmer" && !GekokujoSystem.battleActive) {
       timerLabel = "一揆";
       timerLabelColor = "#b03020";
       timerValueColor = "#b03020";
@@ -1376,7 +1380,7 @@ var GameDirector = {
     var slotW = 86;
     var slotH = scoreH;
     var slotGap = 10;
-    var showQSlot = (gameState.selectedChar === "farmer" && gameState.ikkiMode);
+    var showQSlot = (gameState.selectedChar === "farmer");
     var barStartX = scoreX + scoreW + 8;
     var barY = scoreY;
     var keyBadgeW = 20;
@@ -1523,7 +1527,7 @@ var GameDirector = {
 
     // --- End-game countdown (last 5 seconds) ---
     var countdownMaxTime = MAX_TIME;
-    if (gameState.ikkiMode) { countdownMaxTime = 60; }
+    if (gameState.selectedChar === "farmer") { countdownMaxTime = 50; }
     var countdownRemaining = Math.max(0, Math.ceil(countdownMaxTime - gameState.gameTime));
     if (GekokujoSystem.battleActive) {
       countdownRemaining = Math.max(0, Math.ceil(GekokujoSystem.battleTimer));
@@ -1650,26 +1654,10 @@ for (var i = 0; i < charCards.length; i++) {
     }
     charSelect.classList.remove("active");
 
-    if (charKey === "farmer") {
-      ikkiOverlay.classList.add("active");
-    } else {
-      gameState.ikkiMode = false;
-      GameDirector.init();
-    }
+    GameDirector.init();
   });
 }
 
-document.getElementById("ikkiYes").addEventListener("click", function() {
-  ikkiOverlay.classList.remove("active");
-  gameState.ikkiMode = true;
-  GameDirector.init();
-});
-
-document.getElementById("ikkiNo").addEventListener("click", function() {
-  ikkiOverlay.classList.remove("active");
-  gameState.ikkiMode = false;
-  GameDirector.init();
-});
 
 document.getElementById("replayBtn").addEventListener("click", function() {
   resultScreen.classList.remove("active");

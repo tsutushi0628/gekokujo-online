@@ -133,7 +133,8 @@ var PlayerController = {
   },
 
   takeDamage: function(amount) {
-    this.hp -= amount;
+    var dmgMult = CHAR_DEFS[gameState.selectedChar].damageTakenMultiplier;
+    this.hp -= Math.floor(amount * dmgMult);
     EffectRenderer.add(this.x, this.y, "playerHit");
     DamageVignette.trigger();
     if (this.hp <= 0) {
@@ -195,7 +196,10 @@ var EnemyManager = {
   },
 
   spawn: function() {
-    if (this.enemies.length >= 12) { return; }
+    var charDef = CHAR_DEFS[gameState.selectedChar];
+    var maxEn = 12;
+    if (charDef.maxEnemies) { maxEn = charDef.maxEnemies; }
+    if (this.enemies.length >= maxEn) { return; }
 
     var tier = 0;
     if (gameState.gameTime > 60) { tier = 3; }
@@ -274,7 +278,10 @@ var EnemyManager = {
 
     // Spawning
     this.spawnTimer += dt;
-    if (this.spawnTimer > 3) {
+    var charDefForSpawn = CHAR_DEFS[gameState.selectedChar];
+    var spawnInt = 3;
+    if (charDefForSpawn.spawnInterval) { spawnInt = charDefForSpawn.spawnInterval; }
+    if (this.spawnTimer > spawnInt) {
       this.spawnTimer = 0;
       if (this.enemies.length < 6) { this.spawn(); this.spawn(); }
       else if (this.enemies.length < 10) { this.spawn(); }
@@ -290,9 +297,8 @@ var EnemyManager = {
       if (en.surrendering) {
         en.surrenderTimer -= dt;
         if (en.surrenderTimer <= 0) {
-          var surrenderIkkiMult = 1.0;
-          if (gameState.ikkiMode) { surrenderIkkiMult = 1.8; }
-          gameState.koku += Math.floor(en.scoreValue * surrenderIkkiMult);
+          var surrenderScoreMult = CHAR_DEFS[gameState.selectedChar].scoreMultiplier;
+          gameState.koku += Math.floor(en.scoreValue * surrenderScoreMult);
           FloatingScoreSystem.show(en.scoreValue);
           RankSystem.check();
           EffectRenderer.add(en.x, en.y, "surrender");
@@ -661,9 +667,8 @@ var ParadeController = {
             m.attackCooldown = KobuSystem.getAttackCooldown();
             EffectRenderer.add(en.x, en.y, "hit");
             if (en.hp <= 0) {
-              var paradeIkkiMult = 1.0;
-              if (gameState.ikkiMode) { paradeIkkiMult = 1.8; }
-              gameState.koku += Math.floor(en.scoreValue * paradeIkkiMult);
+              var paradeScoreMult = CHAR_DEFS[gameState.selectedChar].scoreMultiplier;
+              gameState.koku += Math.floor(en.scoreValue * paradeScoreMult);
               FloatingScoreSystem.show(en.scoreValue);
               RankSystem.check();
               EffectRenderer.add(en.x, en.y, "destroy");
@@ -838,9 +843,8 @@ var ProjectileManager = {
           EffectRenderer.add(en.x, en.y, "hit");
           this.projectiles.splice(i, 1);
           if (en.hp <= 0) {
-            var projIkkiMult = 1.0;
-            if (gameState.ikkiMode) { projIkkiMult = 1.8; }
-            gameState.koku += Math.floor(en.scoreValue * projIkkiMult);
+            var projScoreMult = CHAR_DEFS[gameState.selectedChar].scoreMultiplier;
+            gameState.koku += Math.floor(en.scoreValue * projScoreMult);
             FloatingScoreSystem.show(en.scoreValue);
             RankSystem.check();
             EffectRenderer.add(en.x, en.y, "destroy");
