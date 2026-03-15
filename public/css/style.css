@@ -32,6 +32,9 @@
   src: url('../assets/mikiyu-newpenji-p.ttf') format('truetype');
 }
 
+/* --- Utility --- */
+.hidden { display: none; }
+
 /* --- Reset / Base --- */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -498,6 +501,9 @@ canvas { display: block; cursor: crosshair; }
 
 .ob-char-block-sprite {
   flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
   image-rendering: pixelated;
 }
 
@@ -548,6 +554,10 @@ canvas { display: block; cursor: crosshair; }
 }
 .ob-minshuu-sprite {
   flex-shrink: 0;
+  margin-left: 30px;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
   image-rendering: pixelated;
 }
 .ob-minshuu-text {
@@ -607,6 +617,9 @@ canvas { display: block; cursor: crosshair; }
 }
 .ob-enemy-sprite {
   flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
   image-rendering: pixelated;
 }
 .ob-enemy-info {
@@ -724,6 +737,9 @@ canvas { display: block; cursor: crosshair; }
 }
 .ob-flow-sprite {
   flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
   image-rendering: pixelated;
 }
 .ob-flow-text {
@@ -749,6 +765,10 @@ canvas { display: block; cursor: crosshair; }
   padding: 20px 0 10px;
 }
 .ob-finale-icon {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  image-rendering: pixelated;
   margin-bottom: 12px;
 }
 .ob-finale-text {
