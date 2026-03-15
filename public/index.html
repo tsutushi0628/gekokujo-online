@@ -22,7 +22,10 @@
 <body>
 <div id="game-container">
   <canvas id="gameCanvas" width="1280" height="720"></canvas>
-  <button id="muteBtn">&#x1F50A;</button>
+  <button id="muteBtn" style="display:none;">
+    <svg class="mute-icon-on" viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+    <svg class="mute-icon-off" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" style="display:none;"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+  </button>
   <div id="title-screen" class="screen-overlay active">
     <div class="title-image-wrapper">
       <img src="assets/title.png" alt="下克上オンライン">
@@ -91,6 +94,10 @@
       <div class="rank-label" id="rankLabel"></div>
       <div class="rank-number" id="rankNumber"></div>
     </div>
+    <div class="result-server-rank" id="serverRankArea" style="display:none;">
+      <div class="server-rank-label" id="serverRankLabel"></div>
+      <div class="server-rank-number" id="serverRankNumber"></div>
+    </div>
     <div class="result-score" id="resultScore"></div>
     <div class="result-details" id="resultDetails"></div>
     <button class="btn" id="replayBtn">もう一度</button>
@@ -118,27 +125,41 @@
       <div class="howto-row"><span class="howto-key">SPACE</span><span class="howto-desc">辻斬り回避</span></div>
       <div class="howto-row"><span class="howto-key">Q</span><span class="howto-desc">一揆発動（農民・一揆モードのみ）</span></div>
     </div>
-    <p class="howto-flavor">制限時間内に敵を倒し、民衆を集めて<br>城の殿様を倒せば「下克上」達成！</p>
+    <div class="howto-tips">
+      <p class="howto-tip-title">目的</p>
+      <p class="howto-tip">フィールドの民衆を味方にし、敵を倒して石高を稼ごう。<br>城に向かい、殿様を倒せば「下克上」達成！</p>
+      <p class="howto-tip-title">ヒント</p>
+      <p class="howto-tip">民衆に近づくと仲間になる。仲間が多いほどスコア倍率UP。<br>画面の赤い矢印が城の方向を示している。</p>
+    </div>
     <button class="btn" id="howtoCloseBtn">閉じる</button>
   </div>
   <div id="credits-overlay" class="screen-overlay">
     <h2>クレジット</h2>
     <div class="credits-section">
-      <p class="credits-label">ゲームデザイン・プログラム</p>
+      <p class="credits-label">プロデュース</p>
       <p class="credits-value">tsutushi0628</p>
+      <div class="credits-social">
+        <a href="https://x.com/tsutushi0628" target="_blank" rel="noopener noreferrer" class="social-icon" aria-label="X (Twitter)">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        </a>
+        <a href="https://note.com/tsutushi0628" target="_blank" rel="noopener noreferrer" class="social-icon" aria-label="note">
+          <img src="assets/noteicon.png" width="28" height="28" alt="note">
+        </a>
+      </div>
     </div>
     <div class="credits-section">
+      <p class="credits-label">ゲームデザイン・プログラム</p>
+      <p class="credits-value">Claude Code</p>
+    </div>
+
+    <div class="credits-section">
       <p class="credits-label">フォント</p>
-      <p class="credits-value">Chika（ちか） - ゲームフォント</p>
-      <p class="credits-value">みきゆフォント - 手書きフォント</p>
+      <p class="credits-value">ちいかフォント - ゲームフォント（漢字以外）- <a href="https://booth.pm/ja/items/6401206" target="_blank">DLサイト（BOOTH）</a></p>
+      <p class="credits-value">みきゆフォント - ゲームフォント（漢字） - <a href="http://sozaiya405.chu.jp/405/" target="_blank">素材屋405番地</a></p>
     </div>
     <div class="credits-section">
       <p class="credits-label">BGM</p>
-      <p class="credits-value">8bit三味線サムライロック</p>
-    </div>
-    <div class="credits-section">
-      <p class="credits-label">スプライト素材</p>
-      <p class="credits-value">Kenney Roguelike/RPG Pack (CC0)</p>
+      <p class="credits-value">8bit三味線サムライロック - <a href="https://music.storyinvention.com/" target="_blank">MOMIZizm MUSiC（もみじば）｜フリーBGM</a> </p>
     </div>
     <p class="credits-note">※本作はファンメイド作品です</p>
     <p class="credits-version">v1.0</p>
@@ -159,6 +180,7 @@
   <audio id="bgm" src="assets/8bit-shamisen-samurai-rock.mp3" loop preload="auto"></audio>
 
   <script src="js/constants.js"></script>
+  <script src="js/api.js"></script>
   <script src="js/sprites.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/input.js"></script>

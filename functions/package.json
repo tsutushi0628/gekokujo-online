@@ -1,0 +1,29 @@
+{
+  "name": "gekokujo-online-functions",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "npx tsc --noEmit"
+  },
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "firebase-admin": "13.0.0",
+    "firebase-functions": "7.0.1",
+    "firebase-kit": "file:./firebase-kit"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.17.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.0",
+    "typescript": "^5.7.0"
+  }
+}

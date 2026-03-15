@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "sourceMap": true,
+    "moduleResolution": "node",
+    "types": ["node", "jest"],
+    "baseUrl": ".",
+    "paths": {
+      "firebase-kit/backend": ["./firebase-kit/dist/backend/index.d.ts"],
+      "firebase-kit/backend/*": ["./firebase-kit/dist/backend/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/__tests__/**"
+  ]
+}

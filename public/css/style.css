@@ -61,11 +61,13 @@ canvas { display: block; cursor: crosshair; }
 /* --- Title Screen --- */
 #title-screen { text-align: center; }
 #muteBtn {
-  position: absolute; top: 15px; right: 20px;
-  font-size: 24px; cursor: pointer;
+  position: absolute; top: 115px; left: 10px;
+  cursor: pointer;
   background: none; border: none;
   opacity: 0.7; transition: opacity 0.2s;
   z-index: 25;
+  color: var(--color-white, #fff);
+  padding: 4px;
 }
 #muteBtn:hover { opacity: 1; }
 #howtoLink {
@@ -137,6 +139,15 @@ canvas { display: block; cursor: crosshair; }
 #result-screen h2 { font-size: 48px; margin-bottom: 20px; letter-spacing: 4px; }
 .result-image { display: block; height: 120px; margin: 0 auto 10px auto; image-rendering: pixelated; }
 #result-screen .result-details { font-size: 22px; color: var(--color-text-secondary); margin-bottom: 30px; line-height: 1.8; white-space: pre-line; }
+#result-screen .result-server-rank {
+  margin: 12px auto 0;
+  padding: 8px 20px;
+  display: inline-block;
+  text-align: center;
+  border-left: 3px solid var(--color-primary);
+}
+#result-screen .server-rank-label { font-size: 18px; font-weight: 700; color: var(--color-primary); margin-bottom: 2px; }
+#result-screen .server-rank-number { font-size: 22px; font-weight: 700; color: var(--color-accent-yellow); -webkit-text-stroke: 0.5px var(--color-primary); }
 
 /* --- Dialog --- */
 .dialog-overlay {
@@ -242,6 +253,15 @@ canvas { display: block; cursor: crosshair; }
   font-size: 18px; color: var(--color-text-secondary);
   line-height: 1.8; margin-bottom: 24px; text-align: center;
 }
+.howto-tips { margin-bottom: 24px; text-align: left; max-width: 400px; margin-left: auto; margin-right: auto; }
+.howto-tip-title {
+  font-size: 14px; font-weight: bold; color: var(--color-primary);
+  margin-bottom: 4px; border-left: 3px solid var(--navy-mid, #4a6fa5); padding-left: 8px;
+}
+.howto-tip {
+  font-size: 16px; color: var(--color-text-secondary);
+  line-height: 1.6; margin-bottom: 16px;
+}
 
 /* --- Credits Overlay --- */
 #credits-overlay h2 { font-size: 38px; margin-bottom: 24px; letter-spacing: 4px; }
@@ -254,6 +274,16 @@ canvas { display: block; cursor: crosshair; }
   font-size: 20px; color: var(--color-primary);
   line-height: 1.6;
 }
+.credits-social {
+  display: flex; justify-content: center; gap: 16px;
+  margin-top: 8px;
+}
+.social-icon {
+  color: var(--color-primary);
+  transition: opacity 0.2s;
+  display: inline-flex;
+}
+.social-icon:hover { opacity: 0.7; }
 .credits-note {
   font-size: 14px; color: var(--color-gray-dark);
   margin-bottom: 8px; margin-top: 16px;

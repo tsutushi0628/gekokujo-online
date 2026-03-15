@@ -82,7 +82,8 @@ var gameState = {
   koku: 0,
   kokuPerSecond: 0,
   speedMultiplier: 1,
-  ikkiMode: false
+  ikkiMode: false,
+  sessionId: null
 };
 
 var dialogCallback = null;
@@ -504,13 +505,18 @@ var GekokujoSystem = {
       this.battleTimer -= dt;
       var boss = this.boss;
 
-      // Boss AI
+      // Boss AI（城下町から出られない制約あり）
       var bdx = PlayerController.x - boss.x;
       var bdy = PlayerController.y - boss.y;
       var bDist = Math.sqrt(bdx * bdx + bdy * bdy);
       if (bDist > 1) {
-        boss.x += (bdx / bDist) * boss.speed;
-        boss.y += (bdy / bDist) * boss.speed;
+        var bossNewX = boss.x + (bdx / bDist) * boss.speed;
+        var bossNewY = boss.y + (bdy / bDist) * boss.speed;
+        var bossTerrain = TerrainManager.getTerrainAt(bossNewX, bossNewY);
+        if (bossTerrain === TERRAIN_TYPES.CASTLE_TOWN || bossTerrain === TERRAIN_TYPES.CASTLE) {
+          boss.x = bossNewX;
+          boss.y = bossNewY;
+        }
       }
       if (bDist < PlayerController.size + boss.size) {
         boss.attackTimer += dt;
@@ -1029,6 +1035,7 @@ var GameDirector = {
   countdownText: "",
 
   init: function() {
+    muteBtn.style.display = "";
     var self = this;
     if (spritesLoaded) {
       self._initSystems();
@@ -1058,6 +1065,13 @@ var GameDirector = {
     gameState.gameTime = 0;
     gameState.paused = false;
     gameState.phase = "countdown";
+    gameState.sessionId = null;
+
+    // セッション作成（失敗してもゲームは続行）
+    ScoreboardApi.createSession(function(err, data) {
+      if (err) { return; }
+      gameState.sessionId = data.sessionId;
+    });
 
     BgmController.fadeIn(1000);
 
@@ -1087,6 +1101,7 @@ var GameDirector = {
     EffectRenderer.init();
     AnnouncementSystem.init();
     ScoreManager.init();
+    FloatingScoreSystem.init();
     TsujigiriSystem.init();
     IkkiSystem.init();
     KobuSystem.init();
@@ -1094,6 +1109,7 @@ var GameDirector = {
     ShoninSystem.init();
     BridgeBossSystem.init();
     GekokujoSystem.init();
+    DamageVignette.init();
 
     // Initial spawns
     for (var i = 0; i < 5; i++) { EnemyManager.spawn(); }
@@ -1177,7 +1193,9 @@ var GameDirector = {
   },
 
   update: function(dt) {
-    gameState.gameTime += dt;
+    if (!GekokujoSystem.battleActive) {
+      gameState.gameTime += dt;
+    }
     InputManager.updateWorldMouse();
 
     // Time up
@@ -1311,11 +1329,11 @@ var GameDirector = {
     ctx.fillStyle = timerValueColor;
     ctx.fillText("" + remaining, CANVAS_W / 2, timerY + 42);
 
-    // --- Score panel (top left) ---
+    // --- Score panel (bottom left) ---
     var scoreW = 120;
-    var scoreH = 48;
-    var scoreX = 8;
-    var scoreY = 8;
+    var scoreH = 54;
+    var scoreX = 10;
+    var scoreY = CANVAS_H - 64;
 
     ctx.fillStyle = "rgba(245, 238, 225, 0.82)";
     ctx.beginPath();
@@ -1334,7 +1352,8 @@ var GameDirector = {
     ctx.textAlign = "right";
     ctx.font = "bold 20px " + FONT_FAMILY;
     ctx.fillStyle = "#8b6914";
-    ctx.fillText("" + ScoreManager.finalScore, scoreX + scoreW - 10, scoreY + 22);
+    var displayKoku = ScoreManager.finalScore;
+    ctx.fillText("" + displayKoku, scoreX + scoreW - 10, scoreY + 22);
 
     ctx.textAlign = "left";
     ctx.font = "11px " + FONT_FAMILY;
@@ -1345,18 +1364,12 @@ var GameDirector = {
     ctx.fillStyle = "#6b4226";
     ctx.fillText(RankSystem.getCurrentName(), scoreX + scoreW - 10, scoreY + 42);
 
-    // --- Ability bar (bottom center) ---
+    // --- Ability bar (bottom left, next to score panel) ---
     var slotW = 58;
     var slotH = 62;
     var slotGap = 10;
     var showQSlot = (gameState.selectedChar === "farmer" && gameState.ikkiMode);
-    var barW;
-    if (showQSlot) {
-      barW = 2 * slotW + slotGap;
-    } else {
-      barW = slotW;
-    }
-    var barStartX = CANVAS_W / 2 - barW / 2;
+    var barStartX = scoreX + scoreW + 8;
     var barY = CANVAS_H - slotH - 10;
     var keyBadgeW = 20;
     var keyBadgeH = 14;
@@ -1563,18 +1576,18 @@ var GameDirector = {
         ctx.save();
         ctx.translate(arrowX, arrowY);
         ctx.rotate(cAngle);
-        ctx.fillStyle = "rgba(200, 60, 60, 0.4)";
+        ctx.fillStyle = "rgba(200, 60, 60, 0.7)";
         ctx.beginPath();
-        ctx.moveTo(15, 0);
-        ctx.lineTo(-8, -8);
-        ctx.lineTo(-8, 8);
+        ctx.moveTo(22, 0);
+        ctx.lineTo(-12, -12);
+        ctx.lineTo(-12, 12);
         ctx.closePath();
         ctx.fill();
         ctx.restore();
-        ctx.fillStyle = "rgba(200, 60, 60, 0.4)";
-        ctx.font = FONT.h5;
+        ctx.fillStyle = "rgba(200, 60, 60, 0.7)";
+        ctx.font = FONT.h4;
         ctx.textAlign = "center";
-        ctx.fillText("城", arrowX, arrowY + 18);
+        ctx.fillText("城", arrowX, arrowY + 24);
       }
     }
 
@@ -1674,12 +1687,14 @@ document.getElementById("replayBtn").addEventListener("click", function() {
   resultScreen.classList.remove("active");
   titleScreen.classList.add("active");
   gameState.phase = "title";
+  muteBtn.style.display = "none";
 });
 
 document.getElementById("skullReplayBtn").addEventListener("click", function() {
   skullScreen.classList.remove("active");
   titleScreen.classList.add("active");
   gameState.phase = "title";
+  muteBtn.style.display = "none";
 });
 
 dialogYesBtn.addEventListener("click", function() {
@@ -1695,22 +1710,29 @@ dialogNoBtn.addEventListener("click", function() {
 });
 
 // --- Mute toggle ---
+var muteIconOn = muteBtn.querySelector(".mute-icon-on");
+var muteIconOff = muteBtn.querySelector(".mute-icon-off");
+
+function updateMuteIcon(muted) {
+  muteIconOn.style.display = muted ? "none" : "";
+  muteIconOff.style.display = muted ? "" : "none";
+}
+
 muteBtn.addEventListener("click", function(e) {
   e.stopPropagation();
   if (bgm.muted) {
     bgm.muted = false;
-    muteBtn.textContent = "\uD83D\uDD0A";
     localStorage.setItem("gekokujo_muted", "false");
   } else {
     bgm.muted = true;
-    muteBtn.textContent = "\uD83D\uDD07";
     localStorage.setItem("gekokujo_muted", "true");
   }
+  updateMuteIcon(bgm.muted);
 });
 
 if (localStorage.getItem("gekokujo_muted") === "true") {
   bgm.muted = true;
-  muteBtn.textContent = "\uD83D\uDD07";
+  updateMuteIcon(true);
 }
 
 // --- How to play overlay ---

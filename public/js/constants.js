@@ -7,9 +7,9 @@ var BLOCK_W = 1280;
 var BLOCK_H = 720;
 var HISTORY_SPACING = 8;
 var MAX_TIME = 90;
-var MINIMAP_W = 128;
-var MINIMAP_H = 96;
-var MINIMAP_X = CANVAS_W - MINIMAP_W - 10;
+var MINIMAP_W = 160;
+var MINIMAP_H = 120;
+var MINIMAP_X = 10;
 var MINIMAP_Y = 10;
 
 var CHAR_DEFS = {

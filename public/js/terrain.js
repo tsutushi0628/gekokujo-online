@@ -15,25 +15,16 @@ var MapGenerator = {
       }
     }
 
-    // Castle on outer ring
-    var outerBlocks = [
-      [0,0],[0,1],[0,2],[1,0],[1,2],[2,0],[2,1],[2,2]
-    ];
-    var castleIdx = Math.floor(Math.random() * outerBlocks.length);
-    this.castleBlock = { r: outerBlocks[castleIdx][0], c: outerBlocks[castleIdx][1] };
+    // Castle: column 0 or 2, any row
+    var castleCol = (Math.random() < 0.5) ? 0 : 2;
+    var castleRow = Math.floor(Math.random() * 3);
+    this.castleBlock = { r: castleRow, c: castleCol };
     this.grid[this.castleBlock.r][this.castleBlock.c] = TERRAIN_TYPES.CASTLE;
 
-    // Player: different column from castle, not center (1,1), distance >= 2
-    var candidates = [];
-    for (var pr = 0; pr < 3; pr++) {
-      for (var pc = 0; pc < 3; pc++) {
-        if (pr === 1 && pc === 1) { continue; }
-        var dist = Math.abs(pr - this.castleBlock.r) + Math.abs(pc - this.castleBlock.c);
-        if (dist >= 2 && pc !== this.castleBlock.c) { candidates.push({ r: pr, c: pc }); }
-      }
-    }
-    var pIdx = Math.floor(Math.random() * candidates.length);
-    this.playerBlock = candidates[pIdx];
+    // Player: opposite column from castle, any row
+    var playerCol = (castleCol === 0) ? 2 : 0;
+    var playerRow = Math.floor(Math.random() * 3);
+    this.playerBlock = { r: playerRow, c: playerCol };
 
     // Castle town adjacent to castle
     var adjList = this._getAdjacent(this.castleBlock.r, this.castleBlock.c);
@@ -118,36 +109,15 @@ var MapGenerator = {
   },
 
   _generateRiver: function() {
-    // Vertical river crosses between castle and player columns
-    var castleCX = this.castleBlock.c * BLOCK_W + BLOCK_W / 2;
-    var playerCX = this.playerBlock.c * BLOCK_W + BLOCK_W / 2;
-    var riverX = (castleCX + playerCX) / 2;
-    // Clamp
-    if (riverX < 400) { riverX = 400; }
-    if (riverX > 1400) { riverX = 1400; }
-
-    // Random river width: 60px to 150px
+    // River runs through column 1 (center column) — always between castle and player
+    // Column 1 spans x: 1280〜2560, center = 1920
     var riverWidth = 60 + Math.floor(Math.random() * 91);
-
-    // Ensure river does not overlap with the castle block
-    var castleLeft = this.castleBlock.c * BLOCK_W;
-    var castleRight = castleLeft + BLOCK_W;
-    var riverRight = riverX + riverWidth;
-    if (riverX < castleRight && riverRight > castleLeft) {
-      // River overlaps castle block — push river away
-      var pushLeft = castleRight - riverX;
-      var pushRight = riverRight - castleLeft;
-      if (pushLeft < pushRight) {
-        // Easier to push river to the right of castle
-        riverX = castleRight + 20;
-      } else {
-        // Push river to the left of castle
-        riverX = castleLeft - riverWidth - 20;
-      }
-      // Re-clamp
-      if (riverX < 100) { riverX = 100; }
-      if (riverX > MAP_W - riverWidth - 100) { riverX = MAP_W - riverWidth - 100; }
-    }
+    // Random offset within column 1, keeping river fully inside
+    var col1Left = BLOCK_W;
+    var col1Right = BLOCK_W * 2;
+    var minX = col1Left + 50;
+    var maxX = col1Right - riverWidth - 50;
+    var riverX = minX + Math.floor(Math.random() * (maxX - minX));
 
     this.riverPath = {
       x: riverX,

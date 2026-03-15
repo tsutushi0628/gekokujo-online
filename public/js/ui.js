@@ -21,25 +21,27 @@ var MinimapRenderer = {
     ctx.roundRect(mx, my, MINIMAP_W, MINIMAP_H, 10);
     ctx.stroke();
 
-    // Terrain blocks
+    // Terrain blocks with kanji labels
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "bold 16px sans-serif";
     for (var i = 0; i < TerrainManager.blocks.length; i++) {
       var bl = TerrainManager.blocks[i];
       var bx = mx + bl.x * scaleX;
       var by = my + bl.y * scaleY;
       var bw = bl.w * scaleX;
       var bh = bl.h * scaleY;
+      var label = "";
       if (bl.type === TERRAIN_TYPES.CASTLE) {
-        ctx.fillStyle = "rgba(140, 135, 125, 0.5)";
-        ctx.fillRect(bx, by, bw, bh);
-      } else if (bl.type === TERRAIN_TYPES.GRASSLAND) {
-        ctx.fillStyle = "rgba(100, 160, 80, 0.3)";
-        ctx.fillRect(bx, by, bw, bh);
+        label = "城";
       } else if (bl.type === TERRAIN_TYPES.CASTLE_TOWN) {
-        ctx.fillStyle = "rgba(100, 100, 100, 0.2)";
-        ctx.fillRect(bx, by, bw, bh);
+        label = "町";
       } else if (bl.type === TERRAIN_TYPES.VILLAGE) {
-        ctx.fillStyle = "rgba(100, 100, 100, 0.15)";
-        ctx.fillRect(bx, by, bw, bh);
+        label = "村";
+      }
+      if (label) {
+        ctx.fillStyle = "rgba(80, 60, 40, 0.7)";
+        ctx.fillText(label, bx + bw / 2, by + bh / 2);
       }
     }
 
@@ -66,14 +68,19 @@ var MinimapRenderer = {
       ctx.fillRect(mx + civs[ci].x * scaleX - 1, my + civs[ci].y * scaleY - 1, 2, 2);
     }
 
-    // Player (white)
+    // Player (triangle arrow showing facing direction)
     var px = mx + PlayerController.x * scaleX;
     var py = my + PlayerController.y * scaleY;
+    var arrowSize = 5;
+    var angle = PlayerController.facingLeft ? Math.PI : 0;
     ctx.fillStyle = "#ffffff";
     ctx.strokeStyle = "#1a1a1a";
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.arc(px, py, 3, 0, Math.PI * 2);
+    ctx.moveTo(px + Math.cos(angle) * arrowSize, py + Math.sin(angle) * arrowSize);
+    ctx.lineTo(px + Math.cos(angle + 2.4) * arrowSize * 0.7, py + Math.sin(angle + 2.4) * arrowSize * 0.7);
+    ctx.lineTo(px + Math.cos(angle - 2.4) * arrowSize * 0.7, py + Math.sin(angle - 2.4) * arrowSize * 0.7);
+    ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
@@ -226,30 +233,77 @@ var EffectRenderer = {
 // ============================================================
 var AnnouncementSystem = {
   announcements: [],
+  PANEL_W: 220,
+  PANEL_H: 28,
+  PANEL_RADIUS: 8,
+  MAX_DISPLAY: 4,
+  DISPLAY_TIME: 3,
+  FADE_DURATION: 0.5,
 
   init: function() { this.announcements = []; },
 
   add: function(text) {
-    this.announcements.push({ text: text, timer: 0, maxTime: 2.5 });
+    this.announcements.unshift({ text: text, timer: 0 });
+    // Enforce max display count
+    if (this.announcements.length > this.MAX_DISPLAY) {
+      this.announcements.pop();
+    }
   },
 
   update: function(dt) {
     for (var i = this.announcements.length - 1; i >= 0; i--) {
       this.announcements[i].timer += dt;
-      if (this.announcements[i].timer >= this.announcements[i].maxTime) {
+      if (this.announcements[i].timer >= this.DISPLAY_TIME) {
         this.announcements.splice(i, 1);
       }
     }
   },
 
   draw: function(ctx) {
-    ctx.textAlign = "center";
+    var panelX = CANVAS_W - this.PANEL_W - 10;
+    var baseY = 10;
+
     for (var i = 0; i < this.announcements.length; i++) {
       var ann = this.announcements[i];
-      var alpha = 1.0 - (ann.timer / ann.maxTime);
-      ctx.fillStyle = "rgba(0,0,0," + alpha + ")";
-      ctx.font = FONT.h3;
-      ctx.fillText(ann.text, CANVAS_W / 2, 130 + i * 25 - ann.timer * 10);
+      var py = baseY + i * (this.PANEL_H + 4);
+
+      // Alpha: full until last 0.5s, then fade out
+      var alpha = 1.0;
+      var remaining = this.DISPLAY_TIME - ann.timer;
+      if (remaining < this.FADE_DURATION) {
+        alpha = remaining / this.FADE_DURATION;
+      }
+      if (alpha <= 0) { continue; }
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+
+      // Washi panel background
+      ctx.fillStyle = "rgba(245, 238, 225, 0.88)";
+      ctx.beginPath();
+      ctx.roundRect(panelX, py, this.PANEL_W, this.PANEL_H, this.PANEL_RADIUS);
+      ctx.fill();
+
+      // Border
+      ctx.strokeStyle = "rgba(160, 130, 90, 0.45)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(panelX, py, this.PANEL_W, this.PANEL_H, this.PANEL_RADIUS);
+      ctx.stroke();
+
+      // Left accent line (3px)
+      ctx.fillStyle = "rgba(90, 70, 40, 0.6)";
+      ctx.beginPath();
+      ctx.roundRect(panelX + 3, py + 4, 3, this.PANEL_H - 8, 1.5);
+      ctx.fill();
+
+      // Text
+      ctx.textAlign = "left";
+      ctx.font = "14px " + FONT_FAMILY;
+      ctx.fillStyle = "#3a2a1a";
+      ctx.fillText(ann.text, panelX + 12, py + this.PANEL_H / 2 + 5);
+
+      ctx.restore();
     }
   }
 };
@@ -262,6 +316,39 @@ var ResultRenderer = {
     var img = document.getElementById("resultImage");
     img.style.display = "none";
     img.src = "";
+  },
+
+  _submitScoreAndShowRank: function(score) {
+    var serverRankArea = document.getElementById("serverRankArea");
+    serverRankArea.style.display = "none";
+
+    if (!gameState.sessionId) { return; }
+
+    var maxTime = MAX_TIME;
+    if (gameState.ikkiMode) { maxTime = 60; }
+    var playDurationSec = Math.max(1, Math.floor(gameState.gameTime));
+    if (playDurationSec > maxTime) { playDurationSec = maxTime; }
+
+    var data = {
+      sessionId: gameState.sessionId,
+      score: score,
+      playDurationSec: playDurationSec,
+      playLog: {}
+    };
+
+    ScoreboardApi.submitScore(data, function(err, result) {
+      if (err) { return; }
+      if (!result) { return; }
+      if (result.rank === null) { return; }
+
+      var label = document.getElementById("serverRankLabel");
+      var number = document.getElementById("serverRankNumber");
+      label.textContent = "全国ランキング";
+      var suffix = "";
+      if (result.isApprox) { suffix = "（推定）"; }
+      number.textContent = "第" + result.rank + "位 / " + result.totalPlayers + "人中" + suffix;
+      serverRankArea.style.display = "";
+    });
   },
 
   showNormal: function(customTitle) {
@@ -279,6 +366,7 @@ var ResultRenderer = {
     document.getElementById("resultScore").textContent = score + "石";
     document.getElementById("resultDetails").textContent =
       "身分: " + RankSystem.getCurrentName() + "\n仲間の民衆: " + ParadeController.getLength() + "人\n使用キャラ: " + gameState.charDef.name;
+    this._submitScoreAndShowRank(score);
     resultScreen.classList.add("active");
   },
 
@@ -295,6 +383,7 @@ var ResultRenderer = {
     document.getElementById("resultScore").textContent = score + "石";
     document.getElementById("resultDetails").textContent =
       "身分: " + RankSystem.getCurrentName() + "\n仲間の民衆: " + ParadeController.getLength() + "人\n使用キャラ: " + gameState.charDef.name;
+    this._submitScoreAndShowRank(score);
     ConcentrationLines.show(2000);
     resultScreen.classList.add("active");
   }
@@ -493,9 +582,15 @@ var FloatingScoreSystem = {
   terrainBuffer: 0,
   terrainBufferTimer: 0,
   MAX_ITEMS: 5,
-  // Score panel right edge + offset (scoreX=8, scoreW=120)
-  BASE_X: 138,
-  BASE_Y: 32,
+  // Score panel right edge + offset (scoreX=10, scoreW=120)
+  BASE_X: 140,
+  BASE_Y: CANVAS_H - 40,
+
+  init: function() {
+    this.items = [];
+    this.terrainBuffer = 0;
+    this.terrainBufferTimer = 0;
+  },
 
   show: function(amount) {
     if (amount === 0) { return; }
@@ -629,6 +724,10 @@ var FloatingScoreSystem = {
 // ============================================================
 var DamageVignette = {
   alpha: 0,
+
+  init: function() {
+    this.alpha = 0;
+  },
 
   trigger: function() {
     this.alpha = 0.6;

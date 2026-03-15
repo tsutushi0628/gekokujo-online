@@ -408,6 +408,9 @@ var TsujigiriSystem = {
       }
       ctx.font = FONT.h1;
       ctx.textAlign = "center";
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+      ctx.lineWidth = 3;
+      ctx.strokeText("辻斬りがあらわれた！", CANVAS_W / 2, CANVAS_H / 2 + 30);
       ctx.fillStyle = "#c03030";
       ctx.fillText("辻斬りがあらわれた！", CANVAS_W / 2, CANVAS_H / 2 + 30);
     }
@@ -420,6 +423,9 @@ var TsujigiriSystem = {
       }
       ctx.font = FONT.h1;
       ctx.textAlign = "center";
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+      ctx.lineWidth = 3;
+      ctx.strokeText("辻斬りがあらわれた！", CANVAS_W / 2, CANVAS_H / 2 + 30);
       ctx.fillStyle = "#c03030";
       ctx.fillText("辻斬りがあらわれた！", CANVAS_W / 2, CANVAS_H / 2 + 30);
 
@@ -427,7 +433,7 @@ var TsujigiriSystem = {
       var barW = 300;
       var barH = 10;
       var barX = CANVAS_W / 2 - barW / 2;
-      var barY = CANVAS_H / 2 + 70;
+      var barY = CANVAS_H / 2 + 90;
 
       // "SPACEで回避!" text above the bar
       ctx.font = FONT.h3;

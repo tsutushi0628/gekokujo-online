@@ -426,7 +426,7 @@ var CivilianManager = {
     var townCenters = [];
     for (var i = 0; i < TerrainManager.blocks.length; i++) {
       var bl = TerrainManager.blocks[i];
-      if (bl.type === TERRAIN_TYPES.VILLAGE || bl.type === TERRAIN_TYPES.CASTLE_TOWN) {
+      if (bl.type === TERRAIN_TYPES.VILLAGE) {
         townCenters.push({
           x: bl.x + bl.w / 2,
           y: bl.y + bl.h / 2
@@ -451,10 +451,11 @@ var CivilianManager = {
     if (cy < 50) { cy = 50; }
     if (cy > MAP_H - 50) { cy = MAP_H - 50; }
 
-    // Skip river and castle
+    // Skip river, castle, castle_town
     if (TerrainManager.isInRiver(cx, cy)) { return; }
     var terrain = TerrainManager.getTerrainAt(cx, cy);
     if (terrain === TERRAIN_TYPES.CASTLE) { return; }
+    if (terrain === TERRAIN_TYPES.CASTLE_TOWN) { return; }
 
     this.civilians.push({
       x: cx, y: cy,

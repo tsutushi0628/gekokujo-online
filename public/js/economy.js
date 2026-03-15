@@ -41,8 +41,11 @@ var ShoninSystem = {
     gameState.kokuPerSecond = incomeRate;
     gameState.koku += incomeRate * dt;
     FloatingScoreSystem.bufferTerrainIncome(incomeRate * dt);
-    var upkeepCost = ParadeController.getLength() * 0.2 * dt;
-    gameState.koku -= upkeepCost;
+    // ボス戦中は維持費免除（集めた仲間で殿様を倒すフェーズ）
+    if (!GekokujoSystem.battleActive) {
+      var upkeepCost = ParadeController.getLength() * 0.2 * dt;
+      gameState.koku -= upkeepCost;
+    }
     if (this.removeCooldown > 0) { this.removeCooldown -= dt; }
     if (gameState.koku < 0) {
       gameState.koku = 0;
