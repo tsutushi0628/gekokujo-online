@@ -99,7 +99,7 @@ var IkkiSystem = {
   flashTimer: 0,
 
   init: function() {
-    this.available = (gameState.selectedChar === "farmer");
+    this.available = (gameState.selectedChar === "farmer" && gameState.ikkiMode);
     this.active = false;
     this.cooldown = 0;
     this.flashTimer = 0;
@@ -406,7 +406,7 @@ var GekokujoSystem = {
     this.boss = null;
     this.battleActive = false;
     this.battleTimer = 0;
-    if (gameState.selectedChar === "farmer") {
+    if (gameState.ikkiMode) {
       this.scheduleTime = 50 * 0.2 + Math.random() * 10;
     } else {
       this.scheduleTime = MAX_TIME * 0.2 + Math.random() * 20;
@@ -1215,7 +1215,7 @@ var GameDirector = {
 
     // Time up
     var maxTime = MAX_TIME;
-    if (gameState.selectedChar === "farmer") { maxTime = 50; }
+    if (gameState.ikkiMode) { maxTime = 50; }
     var remaining = maxTime - gameState.gameTime;
     if (remaining <= 0 && !GekokujoSystem.battleActive) {
       this.endGame(false);
@@ -1230,7 +1230,7 @@ var GameDirector = {
       ParadeChargeSystem.start();
     }
     if (InputManager.consumeQ()) {
-      if (gameState.selectedChar === "farmer") {
+      if (gameState.selectedChar === "farmer" && gameState.ikkiMode) {
         IkkiSystem.tryActivate();
       }
     }
@@ -1286,7 +1286,7 @@ var GameDirector = {
 
     // === HUD (screen space) - washi panel style ===
     var maxTime = MAX_TIME;
-    if (gameState.selectedChar === "farmer") { maxTime = 50; }
+    if (gameState.ikkiMode) { maxTime = 50; }
     var remaining = Math.max(0, Math.ceil(maxTime - gameState.gameTime));
     if (GekokujoSystem.battleActive) {
       remaining = Math.max(0, Math.ceil(GekokujoSystem.battleTimer));
@@ -1309,7 +1309,7 @@ var GameDirector = {
       timerValueColor = "#8b5e14";
       timerBg = "rgba(250, 240, 220, 0.88)";
       timerBorder = "rgba(160, 100, 40, 0.6)";
-    } else if (gameState.selectedChar === "farmer" && !GekokujoSystem.battleActive) {
+    } else if (gameState.ikkiMode && !GekokujoSystem.battleActive) {
       timerLabel = "一揆";
       timerLabelColor = "#b03020";
       timerValueColor = "#b03020";
@@ -1380,7 +1380,7 @@ var GameDirector = {
     var slotW = 86;
     var slotH = scoreH;
     var slotGap = 10;
-    var showQSlot = (gameState.selectedChar === "farmer");
+    var showQSlot = (gameState.selectedChar === "farmer" && gameState.ikkiMode);
     var barStartX = scoreX + scoreW + 8;
     var barY = scoreY;
     var keyBadgeW = 20;
@@ -1527,7 +1527,7 @@ var GameDirector = {
 
     // --- End-game countdown (last 5 seconds) ---
     var countdownMaxTime = MAX_TIME;
-    if (gameState.selectedChar === "farmer") { countdownMaxTime = 50; }
+    if (gameState.ikkiMode) { countdownMaxTime = 50; }
     var countdownRemaining = Math.max(0, Math.ceil(countdownMaxTime - gameState.gameTime));
     if (GekokujoSystem.battleActive) {
       countdownRemaining = Math.max(0, Math.ceil(GekokujoSystem.battleTimer));
@@ -1653,10 +1653,26 @@ for (var i = 0; i < charCards.length; i++) {
       gameState.speedMultiplier = 1;
     }
     charSelect.classList.remove("active");
-
-    GameDirector.init();
+    if (charKey === "farmer") {
+      ikkiOverlay.classList.add("active");
+    } else {
+      gameState.ikkiMode = false;
+      GameDirector.init();
+    }
   });
 }
+
+document.getElementById("ikkiYes").addEventListener("click", function() {
+  ikkiOverlay.classList.remove("active");
+  gameState.ikkiMode = true;
+  GameDirector.init();
+});
+
+document.getElementById("ikkiNo").addEventListener("click", function() {
+  ikkiOverlay.classList.remove("active");
+  gameState.ikkiMode = false;
+  GameDirector.init();
+});
 
 
 document.getElementById("replayBtn").addEventListener("click", function() {
