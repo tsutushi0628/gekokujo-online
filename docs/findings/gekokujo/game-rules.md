@@ -131,6 +131,7 @@
 - チェック間隔: 1秒
 - 基本確率: 2.5%
 - 対象: 野盗 or 侍のみ
+- **発生抑制**: 突撃中（ParadeCharge.active/cutinTimer）、一揆中（IkkiSystem.cutinTimer/flashTimer）、殿様戦中は発生しない
 
 ### テリトリー別確率倍率
 

@@ -368,6 +368,10 @@ var TsujigiriSystem = {
   },
 
   _tryTrigger: function() {
+    // Skip during parade charge (including cutin) or ikki (including cutin/flash)
+    if (ParadeChargeSystem.active || ParadeChargeSystem.cutinTimer > 0) { return; }
+    if (IkkiSystem.cutinTimer > 0 || IkkiSystem.flashTimer > 0) { return; }
+
     for (var i = 0; i < EnemyManager.enemies.length; i++) {
       var en = EnemyManager.enemies[i];
       if (en.surrendering) { continue; }

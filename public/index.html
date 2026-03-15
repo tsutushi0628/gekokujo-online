@@ -34,57 +34,297 @@
     <span id="howtoLink">遊び方</span>
     <span id="creditsLink">クレジット</span>
   </div>
+  <div id="onboarding-screen" class="screen-overlay">
+    <div class="ob-scroll-container">
+      <div class="ob-scroll-rod ob-scroll-rod-top"></div>
+
+      <div class="ob-scroll-body">
+
+        <div class="ob-step-indicator" id="obStepIndicator">
+          <div class="ob-step-dot ob-active"></div>
+          <div class="ob-step-dot"></div>
+          <div class="ob-step-dot"></div>
+          <div class="ob-step-dot"></div>
+          <div class="ob-step-dot"></div>
+        </div>
+
+        <!-- STEP 1: 身分と仲間 -->
+        <div class="ob-step ob-active" id="obStep1">
+          <div class="ob-step-title">身分と仲間</div>
+
+          <div class="ob-char-row">
+            <div class="ob-char-block">
+              <img src="assets/ashigaru_play.png" class="ob-char-block-sprite" style="width:64px; height:64px; object-fit:contain;">
+              <div class="ob-char-block-content">
+                <div class="ob-char-block-header">
+                  <span class="ob-char-block-name">足軽</span>
+                  <span class="ob-char-block-tag">入門</span>
+                </div>
+                <div class="ob-char-block-desc">
+                  強く広範囲な攻撃ができる<br>
+                  民衆は時間で離脱していく
+                </div>
+              </div>
+            </div>
+            <div class="ob-char-block">
+              <img src="assets/shonin_play.png" class="ob-char-block-sprite" style="width:64px; height:64px; object-fit:contain;">
+              <div class="ob-char-block-content">
+                <div class="ob-char-block-header">
+                  <span class="ob-char-block-name">商人</span>
+                  <span class="ob-char-block-tag">戦略</span>
+                </div>
+                <div class="ob-char-block-desc">
+                  民衆を自動で雇う<br>
+                  攻撃は控えめだが足が速い
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ob-char-block">
+            <img src="assets/nomin_play.png" class="ob-char-block-sprite" style="width:64px; height:64px; object-fit:contain;">
+            <div class="ob-char-block-content">
+              <div class="ob-char-block-header">
+                <span class="ob-char-block-name">農民</span>
+                <span class="ob-char-block-tag">高難易度</span>
+              </div>
+              <div class="ob-char-block-desc">
+                民衆が多いほど強くなる。
+                <span class="ob-ikki-label">一揆に参加する</span>を選ぶと…
+              </div>
+              <div class="ob-nomin-mode">
+                <span class="ob-ikki-desc">必殺技で画面中の敵が全滅！ ただし民衆が半分いなくなる</span><br>
+              </div>
+            </div>
+          </div>
+
+          <div class="ob-minshuu-box">
+            <img src="assets/nomin_npc.png" class="ob-minshuu-sprite" style="margin-left:30px; width:32px; height:32px; object-fit:contain;">
+            <div>
+              <div class="ob-minshuu-name">
+                民衆　<span class="ob-char-block-desc">近づくと仲間になる。多いほど攻撃力アップ!</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="ob-scroll-buttons">
+            <button class="ob-btn ob-btn-primary" id="obNext1">次へ</button>
+          </div>
+        </div>
+
+        <!-- STEP 2: 敵を知れ -->
+        <div class="ob-step" id="obStep2">
+          <div class="ob-step-title">敵を知れ</div>
+
+          <div class="ob-enemy-list">
+            <div class="ob-enemy-row">
+              <img src="assets/nobushi.png" class="ob-enemy-sprite" style="width:48px; height:48px; object-fit:contain;">
+              <div class="ob-enemy-info">
+                <div class="ob-enemy-name">通常敵</div>
+                <div class="ob-enemy-desc">時間が経つほど強い敵が出てくる</div>
+              </div>
+            </div>
+            <div class="ob-enemy-row">
+              <img src="assets/tsujigiri.png" class="ob-enemy-sprite" style="width:48px; height:48px; object-fit:contain;">
+              <div class="ob-enemy-info">
+                <div class="ob-enemy-name">辻斬り</div>
+                <div class="ob-tsujigiri-details">
+                  <span class="ob-tsujigiri-sub">橋を守るやつ — 力で倒して先に進め</span>
+                  <span class="ob-tsujigiri-sub ob-warn">突然現れるやつ — タイミング良く撃退しないと即死！</span>
+                  <span class="ob-tsujigiri-sub ob-reward">撃退に成功するとたくさん石高が手に入る</span>
+                </div>
+              </div>
+            </div>
+            <div class="ob-enemy-row ob-boss">
+              <img src="assets/tonosama.png" class="ob-enemy-sprite" style="width:48px; height:48px; object-fit:contain;">
+              <div class="ob-enemy-info">
+                <div class="ob-enemy-name">殿様</div>
+                <div class="ob-enemy-desc">城門が出現したら突入! とにかくタフだが、倒せば下克上達成!</div>
+              </div>
+              <span class="ob-enemy-badge ob-final">最終ボス</span>
+            </div>
+          </div>
+
+          <div class="ob-scroll-buttons">
+            <button class="ob-btn" id="obPrev2">戻る</button>
+            <button class="ob-btn ob-btn-primary" id="obNext2">次へ</button>
+          </div>
+        </div>
+
+        <!-- STEP 3: 操作 -->
+        <div class="ob-step" id="obStep3">
+          <div class="ob-step-title">操作</div>
+
+          <div class="ob-controls-grid">
+            <div class="ob-control-item">
+              <span class="ob-control-key">W A S D</span>
+              <span class="ob-control-desc">移動</span>
+            </div>
+            <div class="ob-control-item">
+              <span class="ob-control-key">SPACE</span>
+              <span class="ob-control-desc">辻斬りを撃退</span>
+            </div>
+            <div class="ob-control-item">
+              <span class="ob-control-key">左クリック</span>
+              <span class="ob-control-desc">攻撃</span>
+            </div>
+            <div class="ob-control-item">
+              <span class="ob-control-key">右クリック</span>
+              <span class="ob-control-desc">民衆で突撃</span>
+            </div>
+            <div class="ob-control-item">
+              <span class="ob-control-key">Q</span>
+              <span class="ob-control-desc">一揆（農民のみ）</span>
+            </div>
+          </div>
+
+          <div class="ob-scroll-buttons">
+            <button class="ob-btn" id="obPrev3">戻る</button>
+            <button class="ob-btn ob-btn-primary" id="obNext3">次へ</button>
+          </div>
+        </div>
+
+        <!-- STEP 4: 遊び方 -->
+        <div class="ob-step" id="obStep4">
+          <div class="ob-step-title">遊び方</div>
+
+          <div class="ob-flow-list">
+            <div class="ob-flow-step">
+              <span class="ob-flow-number">一</span>
+              <img src="assets/nomin_npc.png" class="ob-flow-sprite" style="width:40px; height:40px; object-fit:contain;">
+              <span class="ob-flow-text">民衆を集めて攻撃力を上げろ</span>
+            </div>
+            <div class="ob-flow-arrow">&#x25BC;</div>
+            <div class="ob-flow-step">
+              <span class="ob-flow-number">二</span>
+              <img src="assets/nobushi.png" class="ob-flow-sprite" style="width:40px; height:40px; object-fit:contain;">
+              <span class="ob-flow-text">敵を倒して石高を稼げ</span>
+            </div>
+            <div class="ob-flow-arrow">&#x25BC;</div>
+            <div class="ob-flow-step ob-final">
+              <span class="ob-flow-number">三</span>
+              <img src="assets/castle.png" class="ob-flow-sprite" style="width:40px; height:40px; object-fit:contain;">
+              <span class="ob-flow-text">城の殿様を倒せば…下克上!</span>
+            </div>
+          </div>
+
+          <div class="ob-scroll-buttons">
+            <button class="ob-btn" id="obPrev4">戻る</button>
+            <button class="ob-btn ob-btn-primary" id="obNext4">次へ</button>
+          </div>
+        </div>
+
+        <!-- STEP 5: いざ出陣 -->
+        <div class="ob-step" id="obStep5">
+          <div class="ob-step-title">いざ、出陣</div>
+
+          <div class="ob-finale-content">
+            <img src="assets/castle.png" class="ob-finale-icon" style="width:80px; height:80px; object-fit:contain; image-rendering:pixelated;">
+            <div class="ob-finale-text">下克上を果たせ!</div>
+            <div class="ob-finale-sub">城を目指し、殿様を倒して天下を取れ</div>
+
+            <button class="ob-btn ob-btn-start" id="obStartBtn">始める</button>
+
+            <label class="ob-skip-check">
+              <input type="checkbox" id="obSkipOnboarding">
+              次回から表示しない
+            </label>
+          </div>
+
+          <div class="ob-scroll-buttons">
+            <button class="ob-btn" id="obPrev5">戻る</button>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="ob-scroll-rod ob-scroll-rod-bottom"></div>
+    </div>
+  </div>
   <div id="char-select" class="screen-overlay">
     <h2>身分を選べ</h2>
     <div class="char-grid">
-      <div class="char-card" data-char="farmer">
-        <img src="assets/nomin_play.png" class="char-img" alt="農民">
-        <div class="char-name">農民（ひゃくしょう）</div>
-        <div class="char-type">テクニカル / 玄人向け</div>
-        <div class="char-desc">最弱だが「一揆」で大逆転。民衆を集めるほど全ステ強化</div>
-        <div class="char-stats">
-          <div class="stat-row">
-            <span class="stat-label">攻撃</span>
-            <span class="stat-value">&#x2605;&#x2606;&#x2606;&#x2606;&#x2606;</span>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label">速度</span>
-            <span class="stat-value">&#x2605;&#x2605;&#x2606;&#x2606;&#x2606;</span>
-          </div>
-        </div>
-      </div>
+
+      <!-- 足軽 -->
       <div class="char-card" data-char="ashigaru">
+        <div class="char-label">まずはコレ！</div>
         <img src="assets/ashigaru_play.png" class="char-img" alt="足軽">
         <div class="char-name">足軽（あしがる）</div>
-        <div class="char-type">バランス型 / 入門向け</div>
-        <div class="char-desc">前方扇状の広い攻撃。行列突撃後の再集結が速い</div>
+        <div class="char-catchcopy">5方向の弾幕で敵をなぎ倒せ</div>
         <div class="char-stats">
           <div class="stat-row">
-            <span class="stat-label">攻撃</span>
+            <span class="stat-label">攻撃力</span>
+            <span class="stat-value max-stat">&#x2605;&#x2605;&#x2605;&#x2605;&#x2605;</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">機動力</span>
             <span class="stat-value">&#x2605;&#x2605;&#x2605;&#x2606;&#x2606;</span>
           </div>
           <div class="stat-row">
-            <span class="stat-label">速度</span>
-            <span class="stat-value">&#x2605;&#x2605;&#x2605;&#x2606;&#x2606;</span>
-          </div>
-        </div>
-      </div>
-      <div class="char-card" data-char="merchant">
-        <img src="assets/shonin_play.png" class="char-img" alt="商人">
-        <div class="char-name">商人（あきんど）</div>
-        <div class="char-type">経済型 / 戦略向け</div>
-        <div class="char-desc">金で仲間を即リクルート。地形収入と維持費の経営バランスが鍵</div>
-        <div class="char-stats">
-          <div class="stat-row">
-            <span class="stat-label">攻撃</span>
+            <span class="stat-label">成長力</span>
             <span class="stat-value">&#x2605;&#x2606;&#x2606;&#x2606;&#x2606;</span>
           </div>
           <div class="stat-row">
-            <span class="stat-label">速度</span>
-            <span class="stat-value">&#x2605;&#x2605;&#x2605;&#x2606;&#x2606;</span>
+            <span class="stat-label">経済力</span>
+            <span class="stat-value">&#x2605;&#x2606;&#x2606;&#x2606;&#x2606;</span>
           </div>
         </div>
       </div>
+
+      <!-- 商人 -->
+      <div class="char-card" data-char="merchant">
+        <div class="char-label">お金で解決！</div>
+        <div class="score-badge">石高×1.2</div>
+        <img src="assets/shonin_play.png" class="char-img" alt="商人">
+        <div class="char-name">商人（あきんど）</div>
+        <div class="char-catchcopy">金の力で最強軍団を即編成</div>
+        <div class="char-stats">
+          <div class="stat-row">
+            <span class="stat-label">攻撃力</span>
+            <span class="stat-value">&#x2605;&#x2606;&#x2606;&#x2606;&#x2606;</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">機動力</span>
+            <span class="stat-value">&#x2605;&#x2605;&#x2605;&#x2605;&#x2606;</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">成長力</span>
+            <span class="stat-value">&#x2605;&#x2605;&#x2606;&#x2606;&#x2606;</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">経済力</span>
+            <span class="stat-value max-stat">&#x2605;&#x2605;&#x2605;&#x2605;&#x2605;</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 農民 -->
+      <div class="char-card" data-char="farmer">
+        <div class="char-label">最強スコア狙い</div>
+        <div class="score-badge">石高×1.4</div>
+        <img src="assets/nomin_play.png" class="char-img" alt="農民">
+        <div class="char-name">農民（ひゃくしょう）</div>
+        <div class="char-catchcopy">最弱から始まる大逆転劇</div>
+        <div class="char-stats">
+          <div class="stat-row">
+            <span class="stat-label">攻撃力</span>
+            <span class="stat-value">&#x2605;&#x2605;&#x2606;&#x2606;&#x2606;</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">機動力</span>
+            <span class="stat-value">&#x2605;&#x2605;&#x2605;&#x2606;&#x2606;</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">成長力</span>
+            <span class="stat-value max-stat">&#x2605;&#x2605;&#x2605;&#x2605;&#x2605;</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">経済力</span>
+            <span class="stat-value">&#x2605;&#x2606;&#x2606;&#x2606;&#x2606;</span>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
   <div id="result-screen" class="screen-overlay">
@@ -124,8 +364,7 @@
       <div class="howto-row"><span class="howto-key">左クリック</span><span class="howto-desc">攻撃</span></div>
       <div class="howto-row"><span class="howto-key">右クリック</span><span class="howto-desc">仲間突撃</span></div>
       <div class="howto-row"><span class="howto-key">SPACE</span><span class="howto-desc">辻斬り回避</span></div>
-      <div class="howto-row"><span class="howto-key">Q</span><span class="howto-desc">特殊能力発動</span></div>
-      <div class="howto-row"><span class="howto-key">Z</span><span class="howto-desc">一揆発動（農民・一揆モードのみ）</span></div>
+      <div class="howto-row"><span class="howto-key">Q</span><span class="howto-desc">一揆発動（農民・一揆モードのみ）</span></div>
     </div>
     <div class="howto-tips">
       <p class="howto-tip-title">目的</p>

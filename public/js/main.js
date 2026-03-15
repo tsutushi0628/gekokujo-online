@@ -21,6 +21,7 @@ var howtoLink = document.getElementById("howtoLink");
 var creditsLink = document.getElementById("creditsLink");
 var howtoOverlay = document.getElementById("howto-overlay");
 var creditsOverlay = document.getElementById("credits-overlay");
+var onboardingScreen = document.getElementById("onboarding-screen");
 
 // ============================================================
 // BgmController (fade in/out)
@@ -1699,10 +1700,96 @@ var GameDirector = {
 // Scene Management (UI event wiring)
 // ============================================================
 document.getElementById("startBtn").addEventListener("click", function() {
+  var skipOnboarding = false;
+  try {
+    skipOnboarding = localStorage.getItem("gekokujo_skip_onboarding") === "1";
+  } catch (e) {
+    // localStorage unavailable
+  }
+
   titleScreen.classList.remove("active");
-  charSelect.classList.add("active");
-  gameState.phase = "charSelect";
+  if (skipOnboarding) {
+    charSelect.classList.add("active");
+    gameState.phase = "charSelect";
+  } else {
+    onboardingScreen.classList.add("active");
+    gameState.phase = "onboarding";
+    OnboardingController.reset();
+  }
 });
+
+// ============================================================
+// OnboardingController
+// ============================================================
+var OnboardingController = {
+  currentStep: 1,
+  totalSteps: 5,
+
+  reset: function() {
+    this.currentStep = 1;
+    this._renderStep(1);
+  },
+
+  goStep: function(n) {
+    if (n < 1 || n > this.totalSteps) { return; }
+    this.currentStep = n;
+    this._renderStep(n);
+  },
+
+  _renderStep: function(n) {
+    var steps = onboardingScreen.querySelectorAll(".ob-step");
+    var i;
+    for (i = 0; i < steps.length; i++) {
+      steps[i].className = "ob-step";
+    }
+
+    var target = document.getElementById("obStep" + n);
+    if (target) {
+      target.className = "ob-step ob-active";
+    }
+
+    var dots = onboardingScreen.querySelectorAll(".ob-step-dot");
+    for (i = 0; i < dots.length; i++) {
+      if (i < n) {
+        dots[i].className = "ob-step-dot ob-active";
+      } else {
+        dots[i].className = "ob-step-dot";
+      }
+    }
+  },
+
+  finish: function() {
+    var skipCheckbox = document.getElementById("obSkipOnboarding");
+    if (skipCheckbox && skipCheckbox.checked) {
+      try {
+        localStorage.setItem("gekokujo_skip_onboarding", "1");
+      } catch (e) {
+        // localStorage unavailable
+      }
+    }
+
+    onboardingScreen.style.opacity = "0";
+    onboardingScreen.style.transition = "opacity 0.4s";
+    setTimeout(function() {
+      onboardingScreen.classList.remove("active");
+      onboardingScreen.style.opacity = "";
+      onboardingScreen.style.transition = "";
+      charSelect.classList.add("active");
+      gameState.phase = "charSelect";
+    }, 400);
+  }
+};
+
+// --- Onboarding button wiring ---
+document.getElementById("obNext1").addEventListener("click", function() { OnboardingController.goStep(2); });
+document.getElementById("obPrev2").addEventListener("click", function() { OnboardingController.goStep(1); });
+document.getElementById("obNext2").addEventListener("click", function() { OnboardingController.goStep(3); });
+document.getElementById("obPrev3").addEventListener("click", function() { OnboardingController.goStep(2); });
+document.getElementById("obNext3").addEventListener("click", function() { OnboardingController.goStep(4); });
+document.getElementById("obPrev4").addEventListener("click", function() { OnboardingController.goStep(3); });
+document.getElementById("obNext4").addEventListener("click", function() { OnboardingController.goStep(5); });
+document.getElementById("obPrev5").addEventListener("click", function() { OnboardingController.goStep(4); });
+document.getElementById("obStartBtn").addEventListener("click", function() { OnboardingController.finish(); });
 
 var charCards = document.querySelectorAll(".char-card");
 for (var i = 0; i < charCards.length; i++) {
