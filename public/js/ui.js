@@ -213,8 +213,10 @@ var AnnouncementSystem = {
 
   init: function() { this.announcements = []; },
 
-  add: function(text) {
-    this.announcements.unshift({ text: text, timer: 0 });
+  add: function(text, type) {
+    var annType = type;
+    if (!annType) { annType = "announce"; }
+    this.announcements.unshift({ text: text, type: annType, timer: 0 });
     // Enforce max display count
     if (this.announcements.length > this.MAX_DISPLAY) {
       this.announcements.pop();
@@ -262,8 +264,14 @@ var AnnouncementSystem = {
       ctx.roundRect(panelX, py, this.PANEL_W, this.PANEL_H, this.PANEL_RADIUS);
       ctx.stroke();
 
-      // Left accent line (3px)
-      ctx.fillStyle = "rgba(90, 70, 40, 0.6)";
+      // Left accent line (3px) - color by type
+      var accentColor = "rgba(200, 150, 30, 0.85)";
+      if (ann.type === "good") {
+        accentColor = "rgba(50, 160, 80, 0.85)";
+      } else if (ann.type === "bad") {
+        accentColor = "rgba(200, 50, 50, 0.85)";
+      }
+      ctx.fillStyle = accentColor;
       ctx.beginPath();
       ctx.roundRect(panelX + 3, py + 4, 3, this.PANEL_H - 8, 1.5);
       ctx.fill();

@@ -24,7 +24,7 @@ var CHAR_DEFS = {
     name: "商人", emoji: "\uD83D\uDCB0", attack: 2, speed: 3.6,
     recruitRange: 55, recruitTime: 0, followerBonus: 0.012,
     regroupSpeed: 0.7, chargeMultiplier: 0.5,
-    initialKoku: 6500, recruitCost: 120,
+    initialKoku: 2500, recruitCost: 120,
     scoreMultiplier: 1.2, damageTakenMultiplier: 1.2,
     maxEnemies: null, spawnInterval: null
   },
@@ -32,7 +32,7 @@ var CHAR_DEFS = {
     name: "農民", emoji: "\uD83D\uDC68\u200D\uD83C\uDF3E", attack: 3, speed: 3.2,
     recruitRange: 65, recruitTime: 400, followerBonus: 0.025,
     regroupSpeed: 1.0, chargeMultiplier: 0.8,
-    scoreMultiplier: 1.4, damageTakenMultiplier: 1.4,
+    scoreMultiplier: 1.2, damageTakenMultiplier: 1.4,
     maxEnemies: 17, spawnInterval: 2
   }
 };

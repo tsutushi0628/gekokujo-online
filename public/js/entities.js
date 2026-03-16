@@ -382,11 +382,11 @@ var EnemyManager = {
     // Wave announcements
     if (gameState.gameTime >= 30 && !this.waveAnnounced[0]) {
       this.waveAnnounced[0] = true;
-      AnnouncementSystem.add("第二波 襲来!");
+      AnnouncementSystem.add("第二波 襲来!", "bad");
     }
     if (gameState.gameTime >= 60 && !this.waveAnnounced[1]) {
       this.waveAnnounced[1] = true;
-      AnnouncementSystem.add("第三波 襲来!!");
+      AnnouncementSystem.add("第三波 襲来!!", "bad");
     }
 
     // Spawning
@@ -710,9 +710,6 @@ var ParadeController = {
       orbitAngle: Math.random() * Math.PI * 2,
       orbitRadius: Math.random() * 40
     };
-    if (gameState.selectedChar === "ashigaru") {
-      member.loyaltyTimer = 15 + Math.random() * 10;
-    }
     this.members.push(member);
   },
 
@@ -721,26 +718,60 @@ var ParadeController = {
   },
 
   update: function(dt) {
+    // Ashigaru/Merchant: probability-based follower departure
+    // Ashigaru: 0.5%/sec × 人数スケール（大人数ほど不安定）, Merchant: 8%±4%/sec
+    var isDepartingChar = gameState.selectedChar === "ashigaru" || gameState.selectedChar === "merchant";
+    if (isDepartingChar && this.members.length > 0) {
+      var departRate;
+      if (gameState.selectedChar === "merchant") {
+        var variance = 0.04;
+        departRate = 0.08 + (Math.random() - 0.5) * 2 * variance;
+      } else {
+        departRate = 0.005 * this.members.length;
+      }
+      if (Math.random() < departRate * dt) {
+        var idx = Math.floor(Math.random() * this.members.length);
+        var departed = this.members.splice(idx, 1)[0];
+        EffectRenderer.add(departed.x, departed.y, "surrender");
+        if (gameState.selectedChar === "ashigaru") {
+          AnnouncementSystem.add("農民が抜けた!", "bad");
+        }
+        var spawnX, spawnY;
+        if (gameState.selectedChar === "merchant") {
+          // Spawn at a random village/castle_town so they can't be instantly re-recruited
+          var townCenters = [];
+          for (var ti = 0; ti < TerrainManager.blocks.length; ti++) {
+            var tb = TerrainManager.blocks[ti];
+            if (tb.type === TERRAIN_TYPES.VILLAGE || tb.type === TERRAIN_TYPES.CASTLE_TOWN) {
+              townCenters.push({ x: tb.x + tb.w / 2, y: tb.y + tb.h / 2 });
+            }
+          }
+          if (townCenters.length > 0) {
+            var origin = townCenters[Math.floor(Math.random() * townCenters.length)];
+            spawnX = origin.x + (Math.random() - 0.5) * 400;
+            spawnY = origin.y + (Math.random() - 0.5) * 400;
+          } else {
+            spawnX = Math.random() * MAP_W;
+            spawnY = Math.random() * MAP_H;
+          }
+        } else {
+          spawnX = departed.x;
+          spawnY = departed.y;
+        }
+        CivilianManager.civilians.push({
+          x: spawnX, y: spawnY,
+          wanderAngle: Math.random() * Math.PI * 2,
+          wanderTimer: 0,
+          recruitTimer: 0
+        });
+      }
+    }
+
     // Update each member: orbit around player (pikmin-style)
     for (var i = this.members.length - 1; i >= 0; i--) {
       var m = this.members[i];
       if (m.detached) { continue; }
 
-      // Ashigaru follower loyalty timer
-      if (gameState.selectedChar === "ashigaru" && m.loyaltyTimer !== undefined) {
-        m.loyaltyTimer -= dt;
-        if (m.loyaltyTimer <= 0) {
-          var removed = this.members.splice(i, 1)[0];
-          EffectRenderer.add(removed.x, removed.y, "surrender");
-          CivilianManager.civilians.push({
-            x: removed.x, y: removed.y,
-            wanderAngle: Math.random() * Math.PI * 2,
-            wanderTimer: 0,
-            recruitTimer: 0
-          });
-          continue;
-        }
-      }
 
       // Pikmin orbit movement (skip during charge - ParadeChargeSystem handles movement)
       if (!ParadeChargeSystem.active) {

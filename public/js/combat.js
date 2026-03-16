@@ -95,7 +95,7 @@ var IntimidationSystem = {
         // Surrender!
         en.surrendering = true;
         en.surrenderTimer = 1.0;
-        AnnouncementSystem.add(en.name + " が行列に圧倒された!");
+        AnnouncementSystem.add(en.name + " が行列に圧倒された!", "good");
       }
     }
   }
@@ -114,7 +114,7 @@ var ParadeChargeSystem = {
 
   start: function() {
     if (ParadeController.getLength() < 3) {
-      AnnouncementSystem.add("行列が短すぎる!");
+      AnnouncementSystem.add("行列が短すぎる!", "bad");
       return;
     }
     if (this.active) { return; }
@@ -647,7 +647,7 @@ var KobuSystem = {
     this.timer = this.duration;
     this.cooldown = this.cooldownMax;
     this.flashTimer = 0.3;
-    AnnouncementSystem.add("鼓舞!!");
+    AnnouncementSystem.add("鼓舞!!", "good");
   },
 
   update: function(dt) {
@@ -698,7 +698,7 @@ var BaishuSystem = {
     this.timer = this.duration;
     this.cooldown = this.cooldownMax;
     this.flashTimer = 0.3;
-    AnnouncementSystem.add("買収!!");
+    AnnouncementSystem.add("買収!!", "good");
   },
 
   update: function(dt) {

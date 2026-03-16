@@ -128,7 +128,7 @@ var IkkiSystem = {
   _activate: function() {
     var paradeLen = ParadeController.getLength();
     if (paradeLen < 1) {
-      AnnouncementSystem.add("一揆には最低1人必要!");
+      AnnouncementSystem.add("一揆には最低1人必要!", "bad");
       return;
     }
 
@@ -300,7 +300,7 @@ var BridgeBossSystem = {
       this.bosses.push(bossData);
     }
 
-    AnnouncementSystem.add("橋の辻斬りが現れた!");
+    AnnouncementSystem.add("橋の辻斬りが現れた!", "announce");
   },
 
   takeDamageAt: function(index, amount) {
@@ -333,7 +333,7 @@ var BridgeBossSystem = {
     FloatingScoreSystem.show(bbReward);
     RankSystem.check();
     EffectRenderer.add(boss.x, boss.y, "destroy");
-    AnnouncementSystem.add("橋の辻斬りを討ち取った! +2000点!");
+    AnnouncementSystem.add("橋の辻斬りを討ち取った! +2000点!", "good");
     this.bosses[index] = null;
   },
 
@@ -561,7 +561,7 @@ var GekokujoSystem = {
     if (this.available && !this.gateActive && !this.battleActive && gameState.gameTime >= this.scheduleTime) {
       this.gateActive = true;
       this.available = false;
-      AnnouncementSystem.add("城に攻め込め!");
+      AnnouncementSystem.add("城に攻め込め!", "announce");
     }
 
     // Decline cooldown
@@ -587,7 +587,7 @@ var GekokujoSystem = {
             GekokujoSystem.startBattle();
           } else {
             GekokujoSystem.declineCooldown = 5;
-            AnnouncementSystem.add("5秒後に再挑戦できます");
+            AnnouncementSystem.add("5秒後に再挑戦できます", "announce");
           }
         });
       }
@@ -776,7 +776,7 @@ var GekokujoSystem = {
       retreatShotTimer: 0,
       scaleMultiplier: 1.0
     };
-    AnnouncementSystem.add("下克上チャレンジ! 殿様出現! 20秒以内に倒せ!");
+    AnnouncementSystem.add("下克上チャレンジ! 殿様出現! 20秒以内に倒せ!", "announce");
   },
 
   success: function() {
@@ -796,7 +796,7 @@ var GekokujoSystem = {
     this.flashTimer = 0.8;
 
     // Announcement
-    AnnouncementSystem.add("下克上成就!!");
+    AnnouncementSystem.add("下克上成就!!", "good");
 
     this.battleActive = false;
     if (gameState.selectedChar === "ashigaru") {
@@ -804,8 +804,14 @@ var GekokujoSystem = {
         var bukoReward = KokuReward.apply(2000, gameState);
         gameState.koku += bukoReward;
         FloatingScoreSystem.show(bukoReward);
-        AnnouncementSystem.add("武功ボーナス! +" + bukoReward + "石!");
+        AnnouncementSystem.add("武功ボーナス! +" + bukoReward + "石!", "good");
       }
+      // 本懐ボーナス: 3000±25%
+      var honkaiBase = 3000;
+      var honkaiBonus = Math.floor(honkaiBase + (Math.random() - 0.5) * honkaiBase * 0.5);
+      gameState.koku += honkaiBonus;
+      FloatingScoreSystem.show(honkaiBonus);
+      AnnouncementSystem.add("本懐成就! +" + honkaiBonus + "石!", "good");
     }
     var gekokujoBase = 2000 + gameState.rankIndex * 1000;
     var gekokujoReward = KokuReward.apply(gekokujoBase, gameState);
@@ -820,7 +826,7 @@ var GekokujoSystem = {
   retreat: function() {
     this.battleActive = false;
     this.boss = null;
-    AnnouncementSystem.add("殿様は去った...");
+    AnnouncementSystem.add("殿様は去った...", "bad");
     // Allow re-challenge after 5 seconds
     this.declineCooldown = 5;
   },
@@ -943,7 +949,7 @@ var RankSystem = {
       if (gameState.koku >= RANKS[i].threshold) {
         if (i > gameState.rankIndex) {
           gameState.rankIndex = i;
-          AnnouncementSystem.add("身分上昇! " + RANKS[i].name + "になった!");
+          AnnouncementSystem.add("身分上昇! " + RANKS[i].name + "になった!", "good");
         }
         break;
       }
@@ -1876,8 +1882,6 @@ var GameDirector = {
       var critAlpha = Math.min(1.0, gameState.criticalTimer / 0.3);
       ctx.save();
       ctx.globalAlpha = critAlpha;
-      ctx.fillStyle = "rgba(0,0,0,0.25)";
-      ctx.fillRect(CANVAS_W / 2 - 80, CANVAS_H / 2 - 80, 160, 60);
       ctx.font = FONT.h1;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";

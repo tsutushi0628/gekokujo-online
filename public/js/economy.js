@@ -59,7 +59,7 @@ var ShoninSystem = {
           wanderTimer: 0, recruitTimer: 0
         });
         ParadeController.members.splice(lastIdx, 1);
-          AnnouncementSystem.add("石高不足! 傭兵が去った!");
+          AnnouncementSystem.add("石高不足! 傭兵が去った!", "bad");
         EffectRenderer.add(removed.x, removed.y, "surrender");
         this.removeCooldown = 3;
       }
@@ -69,7 +69,7 @@ var ShoninSystem = {
       gameState.koku -= 300;
       FloatingScoreSystem.show(-300);
       ParadeController.addMember(PlayerController.x, PlayerController.y);
-      AnnouncementSystem.add("傭兵を雇った! (石高 -300)");
+      AnnouncementSystem.add("傭兵を雇った! (石高 -300)", "good");
       this.hireCooldown = 3;
     }
   }
