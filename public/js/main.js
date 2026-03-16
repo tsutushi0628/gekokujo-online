@@ -1134,10 +1134,12 @@ var TerrainRenderer = {
   rendered: false,
 
   init: function() {
-    this.canvas = document.createElement("canvas");
-    this.canvas.width = MAP_W;
-    this.canvas.height = MAP_H;
-    this.ctx = this.canvas.getContext("2d");
+    if (!this.canvas) {
+      this.canvas = document.createElement("canvas");
+      this.canvas.width = MAP_W;
+      this.canvas.height = MAP_H;
+      this.ctx = this.canvas.getContext("2d");
+    }
     this.rendered = false;
   },
 
@@ -1403,7 +1405,8 @@ var GameDirector = {
 
     BgmController.fadeIn(1000);
 
-    // Clear house cache for new map
+    // Clear caches for new game
+    _spriteScaleCache = {};
     HouseManager.clear();
     TreeManager.clear();
 
