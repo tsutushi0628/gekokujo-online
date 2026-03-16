@@ -74,6 +74,13 @@ const GAME = {
     },
   },
 
+  intimidation: {
+    checkInterval: 0.5,
+    minParade: 4,
+    range: 200,
+    surrenderTime: 1.0,
+  },
+
   enemies: [
     { name: "野盗",   hp: 20,  score: 100,  grit: 3 },
     { name: "足軽隊", hp: 35,  score: 250,  grit: 10 },
@@ -118,7 +125,7 @@ const GAME = {
   // 一揆 (main.js: IkkiSystem)
   ikkiConsumeRate: 0.5,        // Math.floor(paradeLen * 0.5)
   ikkiDamagePerMember: 8,      // paradeLen * 8
-  ikkiUltMult: 2.6,            // main.js: ultMult = 2.6
+  ikkiQMult: 2.6,            // main.js: ultMult = 2.6
   ikkiCD: 10,
 
   // 突撃
@@ -144,23 +151,26 @@ function applyKokuReward(baseValue) {
 function getEnemyTier(gameTime) {
   const e = GAME.enemies;
   if (gameTime < 15) {
-    return { avgScore: e[0].score, avgHp: e[0].hp };
+    return { avgScore: e[0].score, avgHp: e[0].hp, avgGrit: 3 };
   }
   if (gameTime < 30) {
     return {
       avgScore: (e[0].score + e[1].score) / 2,
       avgHp: (e[0].hp + e[1].hp) / 2,
+      avgGrit: 6.5,
     };
   }
   if (gameTime < 45) {
     return {
       avgScore: e[0].score * 0.3 + e[1].score * 0.3 + e[2].score * 0.4,
       avgHp: e[0].hp * 0.3 + e[1].hp * 0.3 + e[2].hp * 0.4,
+      avgGrit: e[0].grit * 0.3 + e[1].grit * 0.3 + e[2].grit * 0.4,
     };
   }
   return {
     avgScore: e[0].score * 0.2 + e[1].score * 0.25 + e[2].score * 0.3 + e[3].score * 0.25,
     avgHp: e[0].hp * 0.2 + e[1].hp * 0.25 + e[2].hp * 0.3 + e[3].hp * 0.25,
+    avgGrit: e[0].grit * 0.2 + e[1].grit * 0.2 + e[2].grit * 0.3 + e[3].grit * 0.3,
   };
 }
 
@@ -228,6 +238,7 @@ function getScenario(level) {
       tsujigiriSuccessRate: 0.8,
       bridgeBossKill: true,
       terrainType: "castleTown",
+      distanceFactor: 0.85,
     };
   }
   if (level === "mid") {
@@ -238,6 +249,7 @@ function getScenario(level) {
       tsujigiriSuccessRate: 0.5,
       bridgeBossKill: true,
       terrainType: "village",
+      distanceFactor: 0.60,
     };
   }
   return {
@@ -247,6 +259,7 @@ function getScenario(level) {
     tsujigiriSuccessRate: 0,
     bridgeBossKill: false,
     terrainType: "grassland",
+    distanceFactor: 0.40,
   };
 }
 
@@ -279,12 +292,16 @@ function simulateOnce(charKey, ikkiMode, scenarioLevel) {
     bridgeBoss: 0,
     gekokujoBonus: 0,
     bukoBonus: 0,
-    ikkiUltScore: 0,
-    ikkiUltKills: 0,
+    ikkiQScore: 0,
+    ikkiQKills: 0,
   };
 
   // メインループ（フィールド戦闘）
-  for (let t = 0; t < maxTime; t += dt) {
+  let fieldTime = maxTime;
+  if (ikkiMode) {
+    fieldTime = 50;
+  }
+  for (let t = 0; t < fieldTime; t += dt) {
     const tier = getEnemyTier(t);
 
     // パレード成長
@@ -298,9 +315,10 @@ function simulateOnce(charKey, ikkiMode, scenarioLevel) {
         autoHireTimer = GAME.autoHireCD;
       }
     } else {
-      // 非商人: 民間人からリクルート
+      // 非商人: 民間人からリクルート（距離係数適用）
       if (paradeLen < 20) {
-        paradeLen += scenario.recruitRate * dt;
+        var effectiveRecruit = scenario.recruitRate * scenario.distanceFactor;
+        paradeLen += effectiveRecruit * dt;
       }
     }
 
@@ -339,7 +357,12 @@ function simulateOnce(charKey, ikkiMode, scenarioLevel) {
     } else {
       projHitRate = 0.7;
     }
-    const projDmgPerSec = atkPower * projHitRate * (1 / cd.attackCD) * scenario.attackShare;
+    var effectiveAttackShare = scenario.attackShare;
+    if (charKey !== "merchant") {
+      effectiveAttackShare = scenario.attackShare - (1 - scenario.distanceFactor) * 0.3;
+      if (effectiveAttackShare < 0.1) effectiveAttackShare = 0.1;
+    }
+    const projDmgPerSec = atkPower * projHitRate * (1 / cd.attackCD) * effectiveAttackShare;
 
     const followerActive = Math.min(flooredParade, enemiesOnField) * 0.4;
     const followerDmgPerSec = followerActive * cd.followerDamage / cd.followerCD;
@@ -367,6 +390,43 @@ function simulateOnce(charKey, ikkiMode, scenarioLevel) {
     stat.enemyKillScore += earnedScore;
     enemiesOnField = Math.max(0, enemiesOnField - killsThisSec * dt);
 
+    // 農民: 攻撃ヒット時30%で民間人スポーン → リクルート促進
+    if (charKey === "farmer") {
+      const attacksPerSec = 1 / cd.attackCD;
+      const civilianSpawns = attacksPerSec * 0.3 * scenario.attackShare * dt;
+      // These civilians can be recruited, effectively boosting recruit rate
+      const bonusRecruit = civilianSpawns * 0.5 * scenario.distanceFactor; // 50% chance to actually recruit
+      if (paradeLen < 20) {
+        paradeLen += bonusRecruit;
+      }
+    }
+
+    // 威圧（降伏）
+    if (flooredParade >= 4) {
+      let surrenderKills = 0;
+      if (tier.avgGrit < flooredParade) {
+        // Proportion of enemies that can be intimidated (grit < paradeLen)
+        let intimidateRatio = 0;
+        if (flooredParade > 3) intimidateRatio += 0.3;   // 野盗 (grit=3)
+        if (flooredParade > 10) intimidateRatio += 0.2;   // 足軽隊 (grit=10)
+        // 侍・武将 (grit=999) never surrender
+        surrenderKills = enemiesOnField * intimidateRatio * 0.5 * dt; // 0.5s check interval
+        surrenderKills = Math.min(surrenderKills, enemiesOnField * 0.3);
+      }
+      if (surrenderKills > 0) {
+        let surrenderScore = 0;
+        for (let sk = 0; sk < Math.floor(surrenderKills); sk++) {
+          surrenderScore += Math.floor(applyKokuReward(tier.avgScore) * scoreMult);
+        }
+        if (surrenderKills - Math.floor(surrenderKills) > 0) {
+          surrenderScore += Math.floor(applyKokuReward(tier.avgScore) * scoreMult * (surrenderKills - Math.floor(surrenderKills)));
+        }
+        koku += surrenderScore;
+        stat.enemyKillScore += surrenderScore;
+        enemiesOnField = Math.max(0, enemiesOnField - surrenderKills);
+      }
+    }
+
     // 商人テリトリー収入
     if (charKey === "merchant") {
       const terrainRate = GAME.terrainIncome[scenario.terrainType];
@@ -392,20 +452,21 @@ function simulateOnce(charKey, ikkiMode, scenarioLevel) {
       }
     }
 
-    // 一揆ULT（フィールド戦闘中）
+    // 一揆Q（フィールド戦闘中）
     if (ikkiMode) {
       ikkiCDTimer -= dt;
       if (ikkiCDTimer <= 0 && flooredParade >= 1 && t > 5) {
         const consumed = Math.max(1, Math.floor(paradeLen * GAME.ikkiConsumeRate));
-        const enemiesHit = Math.min(Math.floor(enemiesOnField * 0.35), 4);
+        var ikkiEfficiency = scenario.distanceFactor * 0.8 + 0.2;
+        const enemiesHit = Math.min(Math.floor(enemiesOnField * 0.35 * ikkiEfficiency), 4);
         if (enemiesHit > 0) {
-          let ultScore = 0;
+          let qScore = 0;
           for (let u = 0; u < enemiesHit; u++) {
-            ultScore += Math.floor(applyKokuReward(tier.avgScore) * GAME.ikkiUltMult * scoreMult);
+            qScore += Math.floor(applyKokuReward(tier.avgScore) * GAME.ikkiQMult * scoreMult);
           }
-          koku += ultScore;
-          stat.ikkiUltScore += ultScore;
-          stat.ikkiUltKills += enemiesHit;
+          koku += qScore;
+          stat.ikkiQScore += qScore;
+          stat.ikkiQKills += enemiesHit;
           enemiesOnField = Math.max(0, enemiesOnField - enemiesHit);
         }
         paradeLen -= consumed;
@@ -433,13 +494,33 @@ function simulateOnce(charKey, ikkiMode, scenarioLevel) {
   // 殿様戦
   let bossDefeated = false;
   const paradeLenAtBoss = Math.floor(paradeLen);
-  const dps = getBossDPS(cd, paradeLenAtBoss);
+
+  // CASTLE_WAIT無敵時間: ボスは約20%の時間無敵
+  const effectiveBattleTime = GAME.bossBattleTime * 0.80;
+
+  // 殿様ランク連動強化
+  const rIdx = Math.min(getRankIndex(koku) + 2, GAME.ranks.length - 1);
+  const bossAttack = 8 + rIdx * 4;
+
+  // 衝撃波によるパレード除去（ボス戦中2-3回発生）
+  const shockwaveCount = Math.floor(effectiveBattleTime / 5); // roughly every 5s
+  let paradeLenDuringBoss = paradeLenAtBoss;
+  for (let sw = 0; sw < shockwaveCount; sw++) {
+    paradeLenDuringBoss = Math.max(0, paradeLenDuringBoss - Math.floor(paradeLenDuringBoss * 0.15));
+  }
+
+  const dps = getBossDPS(cd, paradeLenDuringBoss);
+
+  // RETREAT弾ダメージ (12ダメ/1.5秒間隔)
+  const retreatTime = effectiveBattleTime * 0.25; // ~25% in RETREAT state
+  const retreatHits = Math.floor(retreatTime / 1.5);
+  const retreatDmg = retreatHits * 12 * cd.damageTakenMultiplier;
 
   // 一揆ダメージ（ボス戦中に最大2回）
   let ikkiBossDmg = 0;
-  if (ikkiMode && paradeLenAtBoss >= 1) {
-    const ikkiUsesInBoss = Math.min(2, Math.floor(GAME.bossBattleTime / GAME.ikkiCD));
-    let tempParade = paradeLenAtBoss;
+  if (ikkiMode && paradeLenDuringBoss >= 1) {
+    const ikkiUsesInBoss = Math.min(2, Math.floor(effectiveBattleTime / GAME.ikkiCD));
+    let tempParade = paradeLenDuringBoss;
     for (let u = 0; u < ikkiUsesInBoss; u++) {
       ikkiBossDmg += tempParade * GAME.ikkiDamagePerMember;
       tempParade -= Math.max(1, Math.floor(tempParade * GAME.ikkiConsumeRate));
@@ -447,9 +528,12 @@ function simulateOnce(charKey, ikkiMode, scenarioLevel) {
   }
 
   const remainingBossHp = Math.max(0, GAME.tonoBoss.hp - ikkiBossDmg);
-  const timeToKill = (dps > 0) ? (remainingBossHp / dps) : Infinity;
+  let timeToKill = Infinity;
+  if (dps > 0) {
+    timeToKill = remainingBossHp / dps;
+  }
 
-  if (timeToKill <= GAME.bossBattleTime) {
+  if (timeToKill <= effectiveBattleTime) {
     bossDefeated = true;
 
     // 武功ボーナス（足軽のみ、15秒以内撃破）
@@ -582,8 +666,8 @@ function run() {
   const modes = [
     { key: "ashigaru", ikki: false, label: "足軽" },
     { key: "merchant", ikki: false, label: "商人" },
-    { key: "farmer",   ikki: false, label: "農民(ULT無)" },
-    { key: "farmer",   ikki: true,  label: "農民(ULT有)" },
+    { key: "farmer",   ikki: false, label: "農民(Q無)" },
+    { key: "farmer",   ikki: true,  label: "農民(Q有)" },
   ];
 
   const scenarios = ["low", "mid", "high"];
@@ -651,7 +735,7 @@ function run() {
   // ============================================================
   console.log("[収入内訳 (標準シナリオ・平均)]");
   console.log("┌────────────┬────────┬────────┬────────┬────────┬────────┬────────┬────────┐");
-  console.log("│ キャラ     │敵撃破  │テリトリ│辻斬り  │橋ボス  │武功    │下克上  │ULT     │");
+  console.log("│ キャラ     │敵撃破  │テリトリ│辻斬り  │橋ボス  │武功    │下克上  │Q       │");
   console.log("├────────────┼────────┼────────┼────────┼────────┼────────┼────────┼────────┤");
   for (const mode of modes) {
     const s = allResults[mode.label]["mid"].avgStat;
@@ -663,7 +747,7 @@ function run() {
       " │ " + pad(s.bridgeBoss, 6) +
       " │ " + pad(s.bukoBonus, 6) +
       " │ " + pad(s.gekokujoBonus, 6) +
-      " │ " + pad(s.ikkiUltScore, 6) + " │"
+      " │ " + pad(s.ikkiQScore, 6) + " │"
     );
   }
   console.log("└────────────┴────────┴────────┴────────┴────────┴────────┴────────┴────────┘");
@@ -773,19 +857,19 @@ function run() {
   console.log("    積極時: 収入=" + merchantHighStat.terrainIncome + " 雇用費=" + merchantHighStat.recruitCost + " 維持費=" + Math.round(merchantHighStat.maintenanceCost));
   console.log("    消極時: 収入=" + merchantLowStat.terrainIncome + " 雇用費=" + merchantLowStat.recruitCost + " 維持費=" + Math.round(merchantLowStat.maintenanceCost));
 
-  // 一揆ULTの影響度
-  const farmerNoUlt = midResults["農民(ULT無)"].avg;
-  const farmerUlt = midResults["農民(ULT有)"].avg;
-  const ultBoost = farmerUlt - farmerNoUlt;
-  const ultPercent = Math.round(ultBoost / farmerNoUlt * 100);
-  console.log("\n  [一揆ULTの影響]");
-  console.log("    ULT無: " + farmerNoUlt + "石 → ULT有: " + farmerUlt + "石 (+" + ultBoost + "石, +" + ultPercent + "%)");
-  if (ultPercent > 50) {
-    console.log("    ⚠ ULT依存度が高い。ULT無しの農民が弱すぎる可能性");
-  } else if (ultPercent < 10) {
-    console.log("    ⚠ ULTの影響が小さい。一揆スキルの存在意義が薄い");
+  // 一揆Qの影響度
+  const farmerNoQ = midResults["農民(Q無)"].avg;
+  const farmerQ = midResults["農民(Q有)"].avg;
+  const qBoost = farmerQ - farmerNoQ;
+  const qPercent = Math.round(qBoost / farmerNoQ * 100);
+  console.log("\n  [一揆Qの影響]");
+  console.log("    Q無: " + farmerNoQ + "石 → Q有: " + farmerQ + "石 (+" + qBoost + "石, +" + qPercent + "%)");
+  if (qPercent > 50) {
+    console.log("    ⚠ Q依存度が高い。Q無しの農民が弱すぎる可能性");
+  } else if (qPercent < 10) {
+    console.log("    ⚠ Qの影響が小さい。一揆スキルの存在意義が薄い");
   } else {
-    console.log("    ○ ULTは有意な上乗せだがゲーム全体のバランスを崩すほどではない");
+    console.log("    ○ Qは有意な上乗せだがゲーム全体のバランスを崩すほどではない");
   }
 
   console.log("");
@@ -810,7 +894,7 @@ function run() {
         if (s.bridgeBoss > 0) console.log("    橋ボス:     " + s.bridgeBoss);
         if (s.bukoBonus > 0) console.log("    武功:       " + s.bukoBonus);
         if (s.gekokujoBonus > 0) console.log("    下克上:     " + s.gekokujoBonus);
-        if (s.ikkiUltScore > 0) console.log("    一揆ULT:   " + s.ikkiUltScore + " (" + s.ikkiUltKills + "体)");
+        if (s.ikkiQScore > 0) console.log("    一揆Q:     " + s.ikkiQScore + " (" + s.ikkiQKills + "体)");
         if (s.recruitCost > 0) console.log("    傭兵費:     -" + s.recruitCost);
         if (s.maintenanceCost > 0) console.log("    維持費:     -" + Math.round(s.maintenanceCost));
       }

@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>下克上オンライン バランスシミュレータ</title>
+<style>
+  :root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f6f8fa;
+    --bg-tertiary: #eef1f5;
+    --border: #d0d7de;
+    --text-primary: #1f2328;
+    --text-secondary: #656d76;
+    --text-muted: #8c959f;
+    --accent: #0969da;
+    --accent-dim: #0550ae;
+    --success: #1a7f37;
+    --warning: #9a6700;
+    --danger: #cf222e;
+    --navy-mid: #3d5a80;
+    --font-mono: "SF Mono", "Cascadia Code", "Fira Code", Consolas, monospace;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.5;
+    padding: 16px;
+  }
+
+  h1 {
+    font-size: 18px;
+    margin-bottom: 4px;
+    color: var(--accent);
+  }
+
+  h2 {
+    font-size: 14px;
+    margin: 20px 0 8px;
+    padding: 4px 8px;
+    border-left: 3px solid var(--navy-mid);
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+  }
+
+  h3 {
+    font-size: 13px;
+    margin: 12px 0 6px;
+    color: var(--text-secondary);
+  }
+
+  .subtitle {
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-bottom: 16px;
+  }
+
+  .controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    transition: background 0.15s;
+  }
+
+  button:hover {
+    background: var(--border);
+  }
+
+  button.primary {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  button.primary:hover {
+    background: var(--accent);
+  }
+
+  .param-section {
+    margin-bottom: 12px;
+  }
+
+  .param-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 4px 16px;
+  }
+
+  .param-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 0;
+  }
+
+  .param-row label {
+    flex: 1;
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .param-row input {
+    width: 80px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 3px 6px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    text-align: right;
+  }
+
+  .param-row input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .param-row input.changed {
+    border-color: var(--warning);
+    background: #fef9e7;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 6px 0;
+    font-size: 12px;
+  }
+
+  th, td {
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  th {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-weight: normal;
+    position: sticky;
+    top: 0;
+  }
+
+  td.label-cell {
+    text-align: left;
+    color: var(--accent);
+    font-weight: bold;
+  }
+
+  td.success {
+    color: var(--success);
+  }
+
+  td.warning {
+    color: var(--warning);
+  }
+
+  td.danger {
+    color: var(--danger);
+  }
+
+  .rank-star {
+    color: var(--warning);
+  }
+
+  .rank-dash {
+    color: var(--text-muted);
+  }
+
+  .balance-item {
+    padding: 4px 8px;
+    margin: 4px 0;
+    border-left: 3px solid var(--navy-mid);
+    background: var(--bg-secondary);
+    font-size: 12px;
+  }
+
+  .balance-item.ok {
+    border-left-color: var(--success);
+  }
+
+  .balance-item.warn {
+    border-left-color: var(--warning);
+  }
+
+  .balance-item.bad {
+    border-left-color: var(--danger);
+  }
+
+  .trial-input {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .trial-input input {
+    width: 80px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 3px 6px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    text-align: right;
+  }
+
+  .collapsible-header {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .collapsible-header::before {
+    content: "[ - ] ";
+    color: var(--text-muted);
+  }
+
+  .collapsible-header.collapsed::before {
+    content: "[ + ] ";
+  }
+
+  .collapsible-body.hidden {
+    display: none;
+  }
+
+  .results-container {
+    margin-top: 20px;
+  }
+
+  .scroll-wrap {
+    overflow-x: auto;
+  }
+
+  .loading {
+    color: var(--text-muted);
+    padding: 8px;
+  }
+
+  .summary-table {
+    font-size: 16px;
+    margin: 12px 0;
+  }
+
+  .summary-table th {
+    font-size: 14px;
+    padding: 8px 12px;
+  }
+
+  .summary-table td {
+    font-size: 16px;
+    padding: 8px 12px;
+    font-weight: bold;
+  }
+
+  .summary-table td.diff-cell {
+    color: var(--accent);
+    font-size: 18px;
+  }
+</style>
+</head>
+<body>
+
+<h1>下克上オンライン バランスシミュレータ</h1>
+<div class="subtitle">Monte Carlo simulation - パラメータを変更して再計算</div>
+
+<div class="controls">
+  <button class="primary" id="btn-run">再計算 (Run)</button>
+  <button id="btn-reset">デフォルトに戻す</button>
+  <div class="trial-input">
+    <label for="input-trials">試行回数:</label>
+    <input type="number" id="input-trials" value="500" min="10" max="10000" step="10">
+  </div>
+</div>
+
+<div id="params-container"></div>
+<div id="results-container" class="results-container"></div>
+
+<script>
+// ============================================================
+// デフォルトゲーム定数
+// ============================================================
+const DEFAULT_GAME = {
+  maxTime: 60,
+  bossBattleTime: 20,
+
+  chars: {
+    ashigaru: {
+      name: "足軽",
+      attack: 7,
+      projectileCount: 5,
+      projectileSpeed: 8,
+      projectileLifetime: 24,
+      followerBonus: 0.008,
+      followerDamage: 2,
+      followerCD: 0.7,
+      chargeMultiplier: 1.0,
+      scoreMultiplier: 1.0,
+      damageTakenMultiplier: 1.0,
+      recruitTime: 0.2,
+      maxEnemies: 12,
+      spawnInterval: 3,
+      initialKoku: 0,
+      recruitCost: 0,
+      loyaltyAvg: 20,
+      attackCD: 0.25,
+    },
+    merchant: {
+      name: "商人",
+      attack: 2,
+      projectileCount: 2,
+      projectileSpeed: 5,
+      projectileLifetime: 50,
+      followerBonus: 0.012,
+      followerDamage: 3,
+      followerCD: 0.7,
+      chargeMultiplier: 0.5,
+      scoreMultiplier: 1.2,
+      damageTakenMultiplier: 1.2,
+      recruitTime: 0,
+      maxEnemies: 12,
+      spawnInterval: 3,
+      initialKoku: 6500,
+      recruitCost: 300,
+      attackCD: 0.25,
+    },
+    farmer: {
+      name: "農民",
+      attack: 3,
+      projectileCount: 1,
+      projectileSpeed: 6,
+      projectileLifetime: 56,
+      followerBonus: 0.025,
+      followerDamage: 3,
+      followerCD: 0.7,
+      chargeMultiplier: 0.8,
+      scoreMultiplier: 1.4,
+      damageTakenMultiplier: 1.4,
+      recruitTime: 0.4,
+      maxEnemies: 17,
+      spawnInterval: 2,
+      initialKoku: 0,
+      recruitCost: 0,
+      attackCD: 0.125,
+    },
+  },
+
+  enemies: [
+    { name: "野盗",   hp: 20,  score: 100,  grit: 3 },
+    { name: "足軽隊", hp: 35,  score: 250,  grit: 10 },
+    { name: "侍",     hp: 55,  score: 500,  grit: 999 },
+    { name: "武将",   hp: 80,  score: 800,  grit: 999 },
+  ],
+
+  ranks: [
+    { name: "農民",   threshold: 0 },
+    { name: "足軽",   threshold: 500 },
+    { name: "侍",     threshold: 1500 },
+    { name: "武将",   threshold: 3500 },
+    { name: "大名",   threshold: 7000 },
+    { name: "天下人", threshold: 12000 },
+  ],
+
+  tonoBoss: { hp: 500 },
+  bridgeBoss: { hp: 240, score: 2000 },
+
+  tsujigiriBaseReward: 1000,
+  bukoBaseReward: 2000,
+  bukoTimeLimit: 15,
+
+  gekokujoBaseMin: 2000,
+  gekokujoPerRank: 1000,
+
+  terrainIncome: { castleTown: 50, village: 30, grassland: 10 },
+  maintenanceCost: 2.0,
+  autoHireCost: 300,
+  autoHireCD: 3,
+  autoHireMaxParade: 12,
+  kokuZeroDepartureCD: 3,
+
+  ikkiConsumeRate: 0.5,
+  ikkiDamagePerMember: 8,
+  ikkiQMult: 2.6,
+  ikkiCD: 10,
+
+  chargeDamage: 5,
+  chargeCD: 6,
+
+  // シナリオパラメータ
+  scenarios: {
+    high: {
+      attackShare: 0.65,
+      recruitRate: 0.45,
+      tsujigiriCount: 1,
+      tsujigiriSuccessRate: 0.8,
+      bridgeBossKill: 1,
+      terrainType: "castleTown",
+      distanceFactor: 0.85,
+    },
+    mid: {
+      attackShare: 0.45,
+      recruitRate: 0.35,
+      tsujigiriCount: 1,
+      tsujigiriSuccessRate: 0.5,
+      bridgeBossKill: 1,
+      terrainType: "village",
+      distanceFactor: 0.60,
+    },
+    low: {
+      attackShare: 0.30,
+      recruitRate: 0.20,
+      tsujigiriCount: 0,
+      tsujigiriSuccessRate: 0,
+      bridgeBossKill: 0,
+      terrainType: "grassland",
+      distanceFactor: 0.40,
+    },
+  },
+};
+
+// ============================================================
+// 現在のゲーム定数（深いコピー）
+// ============================================================
+function deepClone(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+let GAME = deepClone(DEFAULT_GAME);
+
+// ============================================================
+// パラメータUI定義
+// ============================================================
+const PARAM_SECTIONS = [
+  {
+    title: "基本パラメータ",
+    params: [
+      { path: "maxTime", label: "フィールド戦闘時間(秒)", step: 1 },
+      { path: "bossBattleTime", label: "殿様戦制限時間(秒)", step: 1 },
+      { path: "tonoBoss.hp", label: "殿様HP", step: 10 },
+      { path: "bridgeBoss.hp", label: "橋ボスHP", step: 10 },
+      { path: "bridgeBoss.score", label: "橋ボス撃破スコア", step: 100 },
+      { path: "tsujigiriBaseReward", label: "辻斬り基本報酬", step: 100 },
+      { path: "bukoBaseReward", label: "武功基本報酬", step: 100 },
+      { path: "bukoTimeLimit", label: "武功制限時間(秒)", step: 1 },
+      { path: "gekokujoBaseMin", label: "下克上基本値", step: 100 },
+      { path: "gekokujoPerRank", label: "下克上ランク加算", step: 100 },
+      { path: "chargeDamage", label: "突撃ダメージ", step: 1 },
+      { path: "chargeCD", label: "突撃CD(秒)", step: 0.5 },
+    ],
+  },
+  {
+    title: "足軽パラメータ",
+    params: [
+      { path: "chars.ashigaru.attack", label: "攻撃力", step: 1 },
+      { path: "chars.ashigaru.projectileCount", label: "弾数", step: 1 },
+      { path: "chars.ashigaru.followerBonus", label: "フォロワーボーナス", step: 0.001 },
+      { path: "chars.ashigaru.followerDamage", label: "フォロワーDmg", step: 1 },
+      { path: "chars.ashigaru.followerCD", label: "フォロワーCD", step: 0.1 },
+      { path: "chars.ashigaru.chargeMultiplier", label: "突撃倍率", step: 0.1 },
+      { path: "chars.ashigaru.scoreMultiplier", label: "スコア倍率", step: 0.1 },
+      { path: "chars.ashigaru.damageTakenMultiplier", label: "被ダメ倍率", step: 0.1 },
+      { path: "chars.ashigaru.maxEnemies", label: "最大敵数", step: 1 },
+      { path: "chars.ashigaru.spawnInterval", label: "スポーン間隔(秒)", step: 0.5 },
+      { path: "chars.ashigaru.initialKoku", label: "初期石高", step: 100 },
+      { path: "chars.ashigaru.loyaltyAvg", label: "忠誠平均(秒)", step: 1 },
+      { path: "chars.ashigaru.attackCD", label: "攻撃CD(秒)", step: 0.025 },
+    ],
+  },
+  {
+    title: "商人パラメータ",
+    params: [
+      { path: "chars.merchant.attack", label: "攻撃力", step: 1 },
+      { path: "chars.merchant.projectileCount", label: "弾数", step: 1 },
+      { path: "chars.merchant.followerBonus", label: "フォロワーボーナス", step: 0.001 },
+      { path: "chars.merchant.followerDamage", label: "フォロワーDmg", step: 1 },
+      { path: "chars.merchant.followerCD", label: "フォロワーCD", step: 0.1 },
+      { path: "chars.merchant.chargeMultiplier", label: "突撃倍率", step: 0.1 },
+      { path: "chars.merchant.scoreMultiplier", label: "スコア倍率", step: 0.1 },
+      { path: "chars.merchant.damageTakenMultiplier", label: "被ダメ倍率", step: 0.1 },
+      { path: "chars.merchant.maxEnemies", label: "最大敵数", step: 1 },
+      { path: "chars.merchant.spawnInterval", label: "スポーン間隔(秒)", step: 0.5 },
+      { path: "chars.merchant.initialKoku", label: "初期石高", step: 100 },
+      { path: "chars.merchant.recruitCost", label: "傭兵コスト", step: 50 },
+      { path: "chars.merchant.attackCD", label: "攻撃CD(秒)", step: 0.025 },
+    ],
+  },
+  {
+    title: "農民パラメータ",
+    params: [
+      { path: "chars.farmer.attack", label: "攻撃力", step: 1 },
+      { path: "chars.farmer.projectileCount", label: "弾数", step: 1 },
+      { path: "chars.farmer.followerBonus", label: "フォロワーボーナス", step: 0.001 },
+      { path: "chars.farmer.followerDamage", label: "フォロワーDmg", step: 1 },
+      { path: "chars.farmer.followerCD", label: "フォロワーCD", step: 0.1 },
+      { path: "chars.farmer.chargeMultiplier", label: "突撃倍率", step: 0.1 },
+      { path: "chars.farmer.scoreMultiplier", label: "スコア倍率", step: 0.1 },
+      { path: "chars.farmer.damageTakenMultiplier", label: "被ダメ倍率", step: 0.1 },
+      { path: "chars.farmer.maxEnemies", label: "最大敵数", step: 1 },
+      { path: "chars.farmer.spawnInterval", label: "スポーン間隔(秒)", step: 0.5 },
+      { path: "chars.farmer.initialKoku", label: "初期石高", step: 100 },
+      { path: "chars.farmer.attackCD", label: "攻撃CD(秒)", step: 0.025 },
+    ],
+  },
+  {
+    title: "敵パラメータ",
+    params: [
+      { path: "enemies.0.hp", label: "野盗 HP", step: 5 },
+      { path: "enemies.0.score", label: "野盗 スコア", step: 50 },
+      { path: "enemies.1.hp", label: "足軽隊 HP", step: 5 },
+      { path: "enemies.1.score", label: "足軽隊 スコア", step: 50 },
+      { path: "enemies.2.hp", label: "侍 HP", step: 5 },
+      { path: "enemies.2.score", label: "侍 スコア", step: 50 },
+      { path: "enemies.3.hp", label: "武将 HP", step: 5 },
+      { path: "enemies.3.score", label: "武将 スコア", step: 50 },
+    ],
+  },
+  {
+    title: "ランク閾値",
+    params: [
+      { path: "ranks.0.threshold", label: "農民", step: 100 },
+      { path: "ranks.1.threshold", label: "足軽", step: 100 },
+      { path: "ranks.2.threshold", label: "侍", step: 100 },
+      { path: "ranks.3.threshold", label: "武将", step: 500 },
+      { path: "ranks.4.threshold", label: "大名", step: 500 },
+      { path: "ranks.5.threshold", label: "天下人", step: 1000 },
+    ],
+  },
+  {
+    title: "経済パラメータ",
+    params: [
+      { path: "terrainIncome.castleTown", label: "城下町収入/秒", step: 5 },
+      { path: "terrainIncome.village", label: "村収入/秒", step: 5 },
+      { path: "terrainIncome.grassland", label: "草原収入/秒", step: 5 },
+      { path: "maintenanceCost", label: "維持費/人/秒", step: 0.5 },
+      { path: "autoHireCost", label: "自動雇用コスト", step: 50 },
+      { path: "autoHireCD", label: "自動雇用CD(秒)", step: 0.5 },
+      { path: "autoHireMaxParade", label: "自動雇用上限人数", step: 1 },
+      { path: "kokuZeroDepartureCD", label: "石高0離脱CD(秒)", step: 0.5 },
+    ],
+  },
+  {
+    title: "一揆パラメータ",
+    params: [
+      { path: "ikkiConsumeRate", label: "消費率", step: 0.1 },
+      { path: "ikkiDamagePerMember", label: "一人当たりDmg", step: 1 },
+      { path: "ikkiQMult", label: "Qスコア倍率", step: 0.1 },
+      { path: "ikkiCD", label: "Q CD(秒)", step: 1 },
+    ],
+  },
+  {
+    title: "シナリオ: 積極",
+    params: [
+      { path: "scenarios.high.attackShare", label: "攻撃割合", step: 0.05 },
+      { path: "scenarios.high.recruitRate", label: "リクルート率/秒", step: 0.05 },
+      { path: "scenarios.high.tsujigiriCount", label: "辻斬り回数", step: 1 },
+      { path: "scenarios.high.tsujigiriSuccessRate", label: "辻斬り成功率", step: 0.1 },
+      { path: "scenarios.high.bridgeBossKill", label: "橋ボス撃破(0/1)", step: 1 },
+      { path: "scenarios.high.distanceFactor", label: "村城距離係数", step: 0.05 },
+    ],
+  },
+  {
+    title: "シナリオ: 標準",
+    params: [
+      { path: "scenarios.mid.attackShare", label: "攻撃割合", step: 0.05 },
+      { path: "scenarios.mid.recruitRate", label: "リクルート率/秒", step: 0.05 },
+      { path: "scenarios.mid.tsujigiriCount", label: "辻斬り回数", step: 1 },
+      { path: "scenarios.mid.tsujigiriSuccessRate", label: "辻斬り成功率", step: 0.1 },
+      { path: "scenarios.mid.bridgeBossKill", label: "橋ボス撃破(0/1)", step: 1 },
+      { path: "scenarios.mid.distanceFactor", label: "村城距離係数", step: 0.05 },
+    ],
+  },
+  {
+    title: "シナリオ: 消極",
+    params: [
+      { path: "scenarios.low.attackShare", label: "攻撃割合", step: 0.05 },
+      { path: "scenarios.low.recruitRate", label: "リクルート率/秒", step: 0.05 },
+      { path: "scenarios.low.tsujigiriCount", label: "辻斬り回数", step: 1 },
+      { path: "scenarios.low.tsujigiriSuccessRate", label: "辻斬り成功率", step: 0.1 },
+      { path: "scenarios.low.bridgeBossKill", label: "橋ボス撃破(0/1)", step: 1 },
+      { path: "scenarios.low.distanceFactor", label: "村城距離係数", step: 0.05 },
+    ],
+  },
+];
+
+// ============================================================
+// ユーティリティ: パスでオブジェクトの値を取得/設定
+// ============================================================
+function getByPath(obj, path) {
+  const keys = path.split(".");
+  let cur = obj;
+  for (const k of keys) {
+    cur = cur[k];
+  }
+  return cur;
+}
+
+function setByPath(obj, path, value) {
+  const keys = path.split(".");
+  let cur = obj;
+  for (let i = 0; i < keys.length - 1; i++) {
+    cur = cur[keys[i]];
+  }
+  cur[keys[keys.length - 1]] = value;
+}
+
+// ============================================================
+// パラメータUIの構築
+// ============================================================
+function buildParamUI() {
+  const container = document.getElementById("params-container");
+  while (container.firstChild) {
+    container.removeChild(container.firstChild);
+  }
+
+  for (const section of PARAM_SECTIONS) {
+    const sectionDiv = document.createElement("div");
+    sectionDiv.className = "param-section";
+
+    const header = document.createElement("h2");
+    header.className = "collapsible-header";
+    header.textContent = section.title;
+    header.addEventListener("click", () => {
+      header.classList.toggle("collapsed");
+      body.classList.toggle("hidden");
+    });
+    sectionDiv.appendChild(header);
+
+    const body = document.createElement("div");
+    body.className = "collapsible-body param-grid";
+
+    for (const p of section.params) {
+      const row = document.createElement("div");
+      row.className = "param-row";
+
+      const lbl = document.createElement("label");
+      lbl.textContent = p.label;
+      lbl.setAttribute("for", "param-" + p.path);
+      row.appendChild(lbl);
+
+      const input = document.createElement("input");
+      input.type = "number";
+      input.id = "param-" + p.path;
+      input.dataset.path = p.path;
+      input.step = p.step;
+      input.value = getByPath(GAME, p.path);
+
+      input.addEventListener("input", () => {
+        const val = parseFloat(input.value);
+        if (!isNaN(val)) {
+          setByPath(GAME, p.path, val);
+        }
+        const defaultVal = getByPath(DEFAULT_GAME, p.path);
+        if (parseFloat(input.value) !== defaultVal) {
+          input.classList.add("changed");
+        } else {
+          input.classList.remove("changed");
+        }
+      });
+
+      row.appendChild(input);
+      body.appendChild(row);
+    }
+
+    sectionDiv.appendChild(body);
+    container.appendChild(sectionDiv);
+  }
+}
+
+// ============================================================
+// シミュレーションロジック（score-simulator.js 完全移植）
+// ============================================================
+function applyKokuReward(baseValue) {
+  const rand = 0.75 + Math.random() * 0.5;
+  let value = Math.floor(baseValue * rand);
+  if (Math.random() < 0.1) {
+    value = value * 2;
+  }
+  return value;
+}
+
+function getEnemyTier(gameTime) {
+  const e = GAME.enemies;
+  if (gameTime < 15) {
+    return { avgScore: e[0].score, avgHp: e[0].hp, avgGrit: 3 };
+  }
+  if (gameTime < 30) {
+    return {
+      avgScore: (e[0].score + e[1].score) / 2,
+      avgHp: (e[0].hp + e[1].hp) / 2,
+      avgGrit: 6.5,
+    };
+  }
+  if (gameTime < 45) {
+    return {
+      avgScore: e[0].score * 0.3 + e[1].score * 0.3 + e[2].score * 0.4,
+      avgHp: e[0].hp * 0.3 + e[1].hp * 0.3 + e[2].hp * 0.4,
+      avgGrit: 300,
+    };
+  }
+  return {
+    avgScore: e[0].score * 0.2 + e[1].score * 0.25 + e[2].score * 0.3 + e[3].score * 0.25,
+    avgHp: e[0].hp * 0.2 + e[1].hp * 0.25 + e[2].hp * 0.3 + e[3].hp * 0.25,
+    avgGrit: 500,
+  };
+}
+
+function getAttackPower(charDef, paradeLen) {
+  const base = charDef.attack;
+  const followerBonus = Math.floor(paradeLen * charDef.followerBonus * base * 10);
+  return base + followerBonus;
+}
+
+function getBossDPS(charDef, paradeLen) {
+  const dmg = getAttackPower(charDef, paradeLen);
+  const shotsPerSec = 1 / charDef.attackCD;
+
+  let hitCount;
+  if (charDef.projectileCount >= 5) {
+    hitCount = 3.5;
+  } else if (charDef.projectileCount >= 2) {
+    hitCount = 1.5;
+  } else {
+    hitCount = 0.8;
+  }
+  const projDPS = dmg * hitCount * shotsPerSec;
+
+  const activeFollowers = Math.floor(paradeLen * 0.65);
+  const followerDPS = activeFollowers * charDef.followerDamage / charDef.followerCD;
+
+  const chargeDPS = GAME.chargeDamage * 1.5 * charDef.chargeMultiplier / GAME.chargeCD;
+
+  return projDPS + followerDPS + chargeDPS;
+}
+
+function getRankIndex(koku) {
+  let idx = 0;
+  for (let i = GAME.ranks.length - 1; i >= 0; i--) {
+    if (koku >= GAME.ranks[i].threshold) {
+      idx = i;
+      break;
+    }
+  }
+  return idx;
+}
+
+function getScenario(level) {
+  const sc = GAME.scenarios[level];
+  return {
+    attackShare: sc.attackShare,
+    recruitRate: sc.recruitRate,
+    tsujigiriCount: sc.tsujigiriCount,
+    tsujigiriSuccessRate: sc.tsujigiriSuccessRate,
+    bridgeBossKill: sc.bridgeBossKill >= 1,
+    terrainType: sc.terrainType,
+    distanceFactor: sc.distanceFactor,
+  };
+}
+
+function simulateOnce(charKey, ikkiMode, scenarioLevel) {
+  const cd = GAME.chars[charKey];
+  const maxTime = GAME.maxTime;
+  const scoreMult = cd.scoreMultiplier;
+  const dt = 1;
+  const scenario = getScenario(scenarioLevel);
+
+  let koku = cd.initialKoku;
+  let paradeLen = 0;
+  let enemiesOnField = 5;
+  let spawnTimer = cd.spawnInterval;
+  let autoHireTimer = GAME.autoHireCD;
+  let ikkiCDTimer = 0;
+  let kokuZeroTimer = GAME.kokuZeroDepartureCD;
+
+  const stat = {
+    enemyKillScore: 0,
+    terrainIncome: 0,
+    recruitCost: 0,
+    maintenanceCost: 0,
+    tsujigiri: 0,
+    bridgeBoss: 0,
+    gekokujoBonus: 0,
+    bukoBonus: 0,
+    ikkiQScore: 0,
+    ikkiQKills: 0,
+  };
+
+  var fieldTime = maxTime;
+  if (ikkiMode) { fieldTime = 50; }
+  for (var t = 0; t < fieldTime; t += dt) {
+    var tier = getEnemyTier(t);
+
+    if (charKey === "merchant") {
+      autoHireTimer -= dt;
+      if (autoHireTimer <= 0 && koku >= GAME.autoHireCost && Math.floor(paradeLen) < GAME.autoHireMaxParade) {
+        paradeLen += 1;
+        koku -= GAME.autoHireCost;
+        stat.recruitCost += GAME.autoHireCost;
+        autoHireTimer = GAME.autoHireCD;
+      }
+    } else {
+      if (paradeLen < 20) {
+        var effectiveRecruit = scenario.recruitRate * scenario.distanceFactor;
+        paradeLen += effectiveRecruit * dt;
+      }
+    }
+
+    if (charKey === "ashigaru" && paradeLen > 0 && t > 15) {
+      const departPerSec = paradeLen / cd.loyaltyAvg;
+      paradeLen = Math.max(0, paradeLen - departPerSec * dt);
+    }
+
+    if (paradeLen > 20) paradeLen = 20;
+    if (paradeLen < 0) paradeLen = 0;
+
+    spawnTimer -= dt;
+    if (spawnTimer <= 0) {
+      spawnTimer = cd.spawnInterval;
+      if (enemiesOnField < 6) {
+        enemiesOnField += 2;
+      } else if (enemiesOnField < 10) {
+        enemiesOnField += 1;
+      }
+      if (enemiesOnField > cd.maxEnemies) {
+        enemiesOnField = cd.maxEnemies;
+      }
+    }
+
+    const flooredParade = Math.floor(paradeLen);
+    const atkPower = getAttackPower(cd, flooredParade);
+
+    let projHitRate;
+    if (cd.projectileCount >= 5) {
+      projHitRate = 2.0;
+    } else if (cd.projectileCount >= 2) {
+      projHitRate = 1.2;
+    } else {
+      projHitRate = 0.7;
+    }
+    var effectiveAttackShare = scenario.attackShare;
+    if (charKey !== "merchant") {
+      effectiveAttackShare = scenario.attackShare - (1 - scenario.distanceFactor) * 0.3;
+      if (effectiveAttackShare < 0.1) effectiveAttackShare = 0.1;
+    }
+
+    // 農民: 攻撃ヒット30%民間人スポーン → リクルート促進
+    if (charKey === "farmer") {
+      var attacksPerSec = 1 / cd.attackCD;
+      var civilianSpawns = attacksPerSec * 0.3 * effectiveAttackShare * dt;
+      var bonusRecruit = civilianSpawns * 0.5 * scenario.distanceFactor;
+      if (paradeLen < 20) {
+        paradeLen += bonusRecruit;
+      }
+    }
+
+    const projDmgPerSec = atkPower * projHitRate * (1 / cd.attackCD) * effectiveAttackShare;
+
+    const followerActive = Math.min(flooredParade, enemiesOnField) * 0.4;
+    const followerDmgPerSec = followerActive * cd.followerDamage / cd.followerCD;
+
+    const totalFieldDPS = projDmgPerSec + followerDmgPerSec;
+    let killsThisSec = totalFieldDPS / tier.avgHp;
+    killsThisSec = Math.min(killsThisSec, enemiesOnField * 0.5);
+
+    const killCount = Math.floor(killsThisSec * dt * 10) / 10;
+    let earnedScore = 0;
+    if (killCount >= 1) {
+      for (let k = 0; k < Math.floor(killCount); k++) {
+        earnedScore += applyKokuReward(tier.avgScore) * scoreMult;
+      }
+      const fractional = killCount - Math.floor(killCount);
+      if (fractional > 0) {
+        earnedScore += applyKokuReward(tier.avgScore) * scoreMult * fractional;
+      }
+    } else {
+      earnedScore = applyKokuReward(tier.avgScore) * scoreMult * killCount;
+    }
+    earnedScore = Math.floor(earnedScore);
+    koku += earnedScore;
+    stat.enemyKillScore += earnedScore;
+    enemiesOnField = Math.max(0, enemiesOnField - killsThisSec * dt);
+
+    // 威圧（降伏）
+    if (flooredParade >= 4) {
+      var surrenderKills = 0;
+      var intimidateRatio = 0;
+      if (flooredParade > 3) { intimidateRatio += 0.3; }
+      if (flooredParade > 10) { intimidateRatio += 0.2; }
+      if (tier.avgGrit < flooredParade) {
+        surrenderKills = enemiesOnField * intimidateRatio * 0.5 * dt;
+        surrenderKills = Math.min(surrenderKills, enemiesOnField * 0.3);
+      }
+      if (surrenderKills > 0) {
+        var surrenderScore = 0;
+        var skInt = Math.floor(surrenderKills);
+        for (var sk = 0; sk < skInt; sk++) {
+          surrenderScore += Math.floor(applyKokuReward(tier.avgScore) * scoreMult);
+        }
+        var skFrac = surrenderKills - skInt;
+        if (skFrac > 0) {
+          surrenderScore += Math.floor(applyKokuReward(tier.avgScore) * scoreMult * skFrac);
+        }
+        koku += surrenderScore;
+        stat.enemyKillScore += surrenderScore;
+        enemiesOnField = Math.max(0, enemiesOnField - surrenderKills);
+      }
+    }
+
+    if (charKey === "merchant") {
+      const terrainRate = GAME.terrainIncome[scenario.terrainType];
+      const income = Math.floor(terrainRate * scoreMult * dt);
+      koku += income;
+      stat.terrainIncome += income;
+
+      const maintenance = GAME.maintenanceCost * flooredParade * dt;
+      koku -= maintenance;
+      stat.maintenanceCost += maintenance;
+
+      if (koku <= 0) {
+        koku = 0;
+        kokuZeroTimer -= dt;
+        if (kokuZeroTimer <= 0 && paradeLen > 0) {
+          paradeLen -= 1;
+          kokuZeroTimer = GAME.kokuZeroDepartureCD;
+        }
+      } else {
+        kokuZeroTimer = GAME.kokuZeroDepartureCD;
+      }
+    }
+
+    if (ikkiMode) {
+      ikkiCDTimer -= dt;
+      if (ikkiCDTimer <= 0 && flooredParade >= 1 && t > 5) {
+        const consumed = Math.max(1, Math.floor(paradeLen * GAME.ikkiConsumeRate));
+        var ikkiEfficiency = scenario.distanceFactor * 0.8 + 0.2;
+        var enemiesHit = Math.min(Math.floor(enemiesOnField * 0.35 * ikkiEfficiency), 4);
+        if (enemiesHit > 0) {
+          var qScore = 0;
+          for (var qu = 0; qu < enemiesHit; qu++) {
+            qScore += Math.floor(applyKokuReward(tier.avgScore) * GAME.ikkiQMult * scoreMult);
+          }
+          koku += qScore;
+          stat.ikkiQScore += qScore;
+          stat.ikkiQKills += enemiesHit;
+          enemiesOnField = Math.max(0, enemiesOnField - enemiesHit);
+        }
+        paradeLen -= consumed;
+        ikkiCDTimer = GAME.ikkiCD;
+      }
+    }
+  }
+
+  for (let ts = 0; ts < scenario.tsujigiriCount; ts++) {
+    if (Math.random() < scenario.tsujigiriSuccessRate) {
+      const tsujReward = Math.floor(applyKokuReward(GAME.tsujigiriBaseReward) * scoreMult);
+      koku += tsujReward;
+      stat.tsujigiri += tsujReward;
+    }
+  }
+
+  if (scenario.bridgeBossKill) {
+    const bbReward = Math.floor(applyKokuReward(GAME.bridgeBoss.score) * scoreMult);
+    koku += bbReward;
+    stat.bridgeBoss = bbReward;
+  }
+
+  var bossDefeated = false;
+  var paradeLenAtBoss = Math.floor(paradeLen);
+
+  // 殿様ランク連動
+  var rIdx = Math.min(getRankIndex(koku) + 2, GAME.ranks.length - 1);
+  var bossAttack = 8 + rIdx * 4;
+
+  // CASTLE_WAIT無敵: 実効戦闘時間は80%
+  var effectiveBattleTime = GAME.bossBattleTime * 0.80;
+
+  // 衝撃波パレード除去
+  var shockwaveCount = Math.floor(effectiveBattleTime / 5);
+  var paradeLenDuringBoss = paradeLenAtBoss;
+  for (var sw = 0; sw < shockwaveCount; sw++) {
+    paradeLenDuringBoss = Math.max(0, paradeLenDuringBoss - Math.floor(paradeLenDuringBoss * 0.15));
+  }
+
+  var dps = getBossDPS(cd, paradeLenDuringBoss);
+
+  var ikkiBossDmg = 0;
+  if (ikkiMode && paradeLenAtBoss >= 1) {
+    var ikkiUsesInBoss = Math.min(2, Math.floor(effectiveBattleTime / GAME.ikkiCD));
+    var tempParade = paradeLenAtBoss;
+    for (var u = 0; u < ikkiUsesInBoss; u++) {
+      ikkiBossDmg += tempParade * GAME.ikkiDamagePerMember;
+      tempParade -= Math.max(1, Math.floor(tempParade * GAME.ikkiConsumeRate));
+    }
+  }
+
+  var remainingBossHp = Math.max(0, GAME.tonoBoss.hp - ikkiBossDmg);
+  var timeToKill;
+  if (dps > 0) {
+    timeToKill = remainingBossHp / dps;
+  } else {
+    timeToKill = Infinity;
+  }
+
+  if (timeToKill <= effectiveBattleTime) {
+    bossDefeated = true;
+
+    if (charKey === "ashigaru" && timeToKill <= GAME.bukoTimeLimit) {
+      const bukoReward = applyKokuReward(GAME.bukoBaseReward);
+      koku += bukoReward;
+      stat.bukoBonus = bukoReward;
+    }
+
+    const rankIdx = getRankIndex(koku);
+    const gekBase = GAME.gekokujoBaseMin + rankIdx * GAME.gekokujoPerRank;
+    const gekReward = Math.floor(applyKokuReward(gekBase) * scoreMult);
+    koku += gekReward;
+    stat.gekokujoBonus = gekReward;
+  }
+
+  return {
+    koku: Math.floor(koku),
+    bossDefeated,
+    paradeLenAtBoss,
+    dps,
+    timeToKill,
+    stat,
+  };
+}
+
+function monteCarlo(charKey, ikkiMode, scenarioLevel, trials) {
+  const results = [];
+  let bossWins = 0;
+  const statSums = {};
+
+  for (let i = 0; i < trials; i++) {
+    const r = simulateOnce(charKey, ikkiMode, scenarioLevel);
+    results.push(r.koku);
+    if (r.bossDefeated) bossWins++;
+
+    if (i === 0) {
+      for (const key of Object.keys(r.stat)) {
+        statSums[key] = 0;
+      }
+    }
+    for (const key of Object.keys(r.stat)) {
+      statSums[key] += r.stat[key];
+    }
+  }
+
+  results.sort((a, b) => a - b);
+  const min = results[0];
+  const max = results[results.length - 1];
+  const avg = Math.round(results.reduce((a, b) => a + b, 0) / trials);
+  const p10 = results[Math.floor(trials * 0.1)];
+  const p50 = results[Math.floor(trials * 0.5)];
+  const p90 = results[Math.floor(trials * 0.9)];
+
+  const avgStat = {};
+  for (const key of Object.keys(statSums)) {
+    avgStat[key] = Math.round(statSums[key] / trials);
+  }
+
+  const lastR = simulateOnce(charKey, ikkiMode, scenarioLevel);
+
+  return {
+    min, max, avg, p10, p50, p90,
+    bossWinRate: Math.round(bossWins / trials * 100),
+    avgStat,
+    paradeLenAtBoss: lastR.paradeLenAtBoss,
+    dps: lastR.dps,
+  };
+}
+
+// ============================================================
+// 結果表示
+// ============================================================
+function createEl(tag, className, textContent) {
+  const el = document.createElement(tag);
+  if (className) el.className = className;
+  if (textContent !== undefined) el.textContent = textContent;
+  return el;
+}
+
+function buildTable(headers, rows) {
+  const table = document.createElement("table");
+  const thead = document.createElement("thead");
+  const headerRow = document.createElement("tr");
+  for (const h of headers) {
+    const th = document.createElement("th");
+    th.textContent = h;
+    headerRow.appendChild(th);
+  }
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  for (const row of rows) {
+    const tr = document.createElement("tr");
+    for (const cell of row) {
+      const td = document.createElement("td");
+      if (cell.isLabel) td.className = "label-cell";
+      if (cell.className) td.className = cell.className;
+      td.textContent = cell.text;
+      tbody.appendChild(tr);
+      tr.appendChild(td);
+    }
+  }
+  table.appendChild(tbody);
+  return table;
+}
+
+function renderResults() {
+  const container = document.getElementById("results-container");
+  while (container.firstChild) {
+    container.removeChild(container.firstChild);
+  }
+
+  const trialsInput = document.getElementById("input-trials");
+  const trials = parseInt(trialsInput.value, 10);
+  if (isNaN(trials) || trials < 1) {
+    container.appendChild(createEl("div", "loading", "試行回数が不正です"));
+    return;
+  }
+
+  container.appendChild(createEl("div", "loading", "計算中..."));
+
+  // 非同期にして再描画させる
+  setTimeout(() => {
+    while (container.firstChild) {
+      container.removeChild(container.firstChild);
+    }
+    renderResultsSync(container, trials);
+  }, 10);
+}
+
+function renderResultsSync(container, trials) {
+  const modes = [
+    { key: "ashigaru", ikki: false, label: "足軽" },
+    { key: "merchant", ikki: false, label: "商人" },
+    { key: "farmer",   ikki: false, label: "農民(Q無)" },
+    { key: "farmer",   ikki: true,  label: "農民(Q有)" },
+  ];
+  const scenarios = ["low", "mid", "high"];
+  const scenarioLabels = { low: "消極", mid: "標準", high: "積極" };
+
+  const allResults = {};
+  for (const mode of modes) {
+    allResults[mode.label] = {};
+    for (const sc of scenarios) {
+      allResults[mode.label][sc] = monteCarlo(mode.key, mode.ikki, sc, trials);
+    }
+  }
+
+  // --- スコアレンジ表 ---
+  container.appendChild(createEl("h2", null, "スコアレンジ (Monte Carlo " + trials + "回)"));
+
+  const scoreWrap = createEl("div", "scroll-wrap");
+  const scoreHeaders = ["キャラ", "シナリオ", "最低", "P10", "平均", "P90", "最高", "殿様撃破率"];
+  const scoreRows = [];
+  for (const mode of modes) {
+    for (const sc of scenarios) {
+      const r = allResults[mode.label][sc];
+      let winClass = "success";
+      if (r.bossWinRate < 30) winClass = "danger";
+      else if (r.bossWinRate < 60) winClass = "warning";
+
+      scoreRows.push([
+        { text: mode.label, isLabel: true },
+        { text: scenarioLabels[sc] },
+        { text: r.min.toLocaleString() },
+        { text: r.p10.toLocaleString() },
+        { text: r.avg.toLocaleString() },
+        { text: r.p90.toLocaleString() },
+        { text: r.max.toLocaleString() },
+        { text: r.bossWinRate + "%", className: winClass },
+      ]);
+    }
+  }
+  scoreWrap.appendChild(buildTable(scoreHeaders, scoreRows));
+  container.appendChild(scoreWrap);
+
+  // --- キャラ別スコアサマリー（大きめ表示） ---
+  container.appendChild(createEl("h2", null, "キャラ別スコアサマリー"));
+  const summaryWrap = createEl("div", "scroll-wrap");
+  const summaryHeaders = ["キャラ", "平均最低", "平均最高", "差分"];
+  const summaryRows = [];
+  for (const mode of modes) {
+    const low = allResults[mode.label]["low"];
+    const high = allResults[mode.label]["high"];
+    const diff = high.avg - low.avg;
+    summaryRows.push([
+      { text: mode.label, isLabel: true },
+      { text: low.avg.toLocaleString() },
+      { text: high.avg.toLocaleString() },
+      { text: "+" + diff.toLocaleString(), className: "diff-cell" },
+    ]);
+  }
+  const summaryTable = buildTable(summaryHeaders, summaryRows);
+  summaryTable.className = "summary-table";
+  summaryWrap.appendChild(summaryTable);
+  container.appendChild(summaryWrap);
+
+  // --- ランク到達予測 ---
+  container.appendChild(createEl("h2", null, "ランク到達予測 (標準シナリオ)"));
+  const rankWrap = createEl("div", "scroll-wrap");
+  const rankHeaders = ["キャラ"];
+  for (const rank of GAME.ranks) {
+    rankHeaders.push(rank.name);
+  }
+  const rankRows = [];
+  for (const mode of modes) {
+    const r = allResults[mode.label]["mid"];
+    const row = [{ text: mode.label, isLabel: true }];
+    for (const rank of GAME.ranks) {
+      const reached = r.avg >= rank.threshold;
+      if (reached) {
+        row.push({ text: "\u2605", className: "rank-star" });
+      } else {
+        row.push({ text: "-", className: "rank-dash" });
+      }
+    }
+    rankRows.push(row);
+  }
+  rankWrap.appendChild(buildTable(rankHeaders, rankRows));
+  const note1 = createEl("div", null);
+  note1.textContent = "\u2605 = 平均スコアで到達可能";
+  note1.style.cssText = "";
+  container.appendChild(rankWrap);
+  container.appendChild(note1);
+
+  // --- 収入内訳 ---
+  container.appendChild(createEl("h2", null, "収入内訳 (標準シナリオ・平均)"));
+  const incomeWrap = createEl("div", "scroll-wrap");
+  const incomeHeaders = ["キャラ", "敵撃破", "テリトリー", "辻斬り", "橋ボス", "武功", "下克上", "Q"];
+  const incomeRows = [];
+  for (const mode of modes) {
+    const s = allResults[mode.label]["mid"].avgStat;
+    incomeRows.push([
+      { text: mode.label, isLabel: true },
+      { text: s.enemyKillScore.toLocaleString() },
+      { text: s.terrainIncome.toLocaleString() },
+      { text: s.tsujigiri.toLocaleString() },
+      { text: s.bridgeBoss.toLocaleString() },
+      { text: s.bukoBonus.toLocaleString() },
+      { text: s.gekokujoBonus.toLocaleString() },
+      { text: s.ikkiQScore.toLocaleString() },
+    ]);
+  }
+  incomeWrap.appendChild(buildTable(incomeHeaders, incomeRows));
+  container.appendChild(incomeWrap);
+
+  // 商人支出
+  const merchantMid = allResults["\u5546\u4eba"]["mid"].avgStat;
+  if (merchantMid.recruitCost > 0 || merchantMid.maintenanceCost > 0) {
+    container.appendChild(createEl("h3", null, "商人 支出内訳 (標準・平均)"));
+    const expDiv = createEl("div", "balance-item");
+    expDiv.textContent = "傭兵雇用費: -" + merchantMid.recruitCost.toLocaleString() + " / 維持費: -" + Math.round(merchantMid.maintenanceCost).toLocaleString();
+    container.appendChild(expDiv);
+  }
+
+  // --- 殿様戦DPS ---
+  const requiredDPS = (GAME.tonoBoss.hp / GAME.bossBattleTime).toFixed(1);
+  container.appendChild(createEl("h2", null, "殿様戦DPS (HP=" + GAME.tonoBoss.hp + ", 制限" + GAME.bossBattleTime + "秒, 必要DPS=" + requiredDPS + ")"));
+
+  const dpsWrap = createEl("div", "scroll-wrap");
+  const dpsChars = [
+    { key: "ashigaru", label: "足軽" },
+    { key: "merchant", label: "商人" },
+    { key: "farmer",   label: "農民" },
+  ];
+  const sizes = [2, 4, 6, 8, 10, 12, 15];
+  const dpsHeaders = ["人数"];
+  for (const dc of dpsChars) {
+    dpsHeaders.push(dc.label + " DPS");
+    dpsHeaders.push(dc.label + " TTK");
+  }
+  const dpsRows = [];
+  for (const sz of sizes) {
+    const row = [{ text: sz + "人" }];
+    for (const dc of dpsChars) {
+      const cDef = GAME.chars[dc.key];
+      const dpsVal = getBossDPS(cDef, sz);
+      const ttk = GAME.tonoBoss.hp / dpsVal;
+      const canKill = ttk <= GAME.bossBattleTime;
+      let cls = "danger";
+      if (canKill) cls = "success";
+      row.push({ text: dpsVal.toFixed(1) + "/s" });
+      row.push({ text: ttk.toFixed(0) + "秒 " + (canKill ? "\u2713" : "\u2717"), className: cls });
+    }
+    dpsRows.push(row);
+  }
+  dpsWrap.appendChild(buildTable(dpsHeaders, dpsRows));
+  container.appendChild(dpsWrap);
+
+  // --- バランス分析 ---
+  container.appendChild(createEl("h2", null, "バランス分析"));
+
+  const midResults = {};
+  for (const mode of modes) {
+    midResults[mode.label] = allResults[mode.label]["mid"];
+  }
+
+  // キャラ間格差
+  let bestChar = null;
+  let worstChar = null;
+  let bestAvg = -Infinity;
+  let worstAvg = Infinity;
+  for (const label of Object.keys(midResults)) {
+    const avg = midResults[label].avg;
+    if (avg > bestAvg) { bestAvg = avg; bestChar = label; }
+    if (avg < worstAvg) { worstAvg = avg; worstChar = label; }
+  }
+
+  const ratio = bestAvg / worstAvg;
+  let balanceClass = "ok";
+  let balanceText = "\u25CB スコア差は許容範囲";
+  if (ratio > 2.0) {
+    balanceClass = "bad";
+    balanceText = "\u26A0 大きなバランス差";
+  } else if (ratio > 1.5) {
+    balanceClass = "warn";
+    balanceText = "\u25B3 やや差がある";
+  }
+  const balDiv = createEl("div", "balance-item " + balanceClass);
+  balDiv.textContent = balanceText + ": " + bestChar + "(" + bestAvg.toLocaleString() + ") vs " + worstChar + "(" + worstAvg.toLocaleString() + ") = " + ratio.toFixed(2) + "倍";
+  container.appendChild(balDiv);
+
+  // scoreMultiplier補正
+  container.appendChild(createEl("h3", null, "scoreMultiplier補正の効果"));
+  for (const mode of modes) {
+    const scoreMult = GAME.chars[mode.key].scoreMultiplier;
+    const avg = midResults[mode.label].avg;
+    const item = createEl("div", "balance-item");
+    item.textContent = mode.label + ": \u00D7" + scoreMult.toFixed(1) + " \u2192 平均" + avg.toLocaleString() + "石";
+    container.appendChild(item);
+  }
+
+  // 殿様戦勝率
+  container.appendChild(createEl("h3", null, "殿様戦 勝率バランス"));
+  for (const mode of modes) {
+    const r = midResults[mode.label];
+    const winRate = r.bossWinRate;
+    let assessment, cls;
+    if (winRate >= 90) { assessment = "安定 \u25CB"; cls = "ok"; }
+    else if (winRate >= 60) { assessment = "適正 \u25B3"; cls = "warn"; }
+    else if (winRate >= 30) { assessment = "やや困難 \u25BD"; cls = "warn"; }
+    else { assessment = "極めて困難 \u2717"; cls = "bad"; }
+    const item = createEl("div", "balance-item " + cls);
+    item.textContent = mode.label + ": " + winRate + "% " + assessment;
+    container.appendChild(item);
+  }
+
+  // 商人経済バランス
+  container.appendChild(createEl("h3", null, "商人経済バランス"));
+  const merchantHighStat = allResults["\u5546\u4eba"]["high"].avgStat;
+  const merchantLowStat = allResults["\u5546\u4eba"]["low"].avgStat;
+  const econ1 = createEl("div", "balance-item");
+  econ1.textContent = "積極時: 収入=" + merchantHighStat.terrainIncome.toLocaleString() + " 雇用費=" + merchantHighStat.recruitCost.toLocaleString() + " 維持費=" + Math.round(merchantHighStat.maintenanceCost).toLocaleString();
+  container.appendChild(econ1);
+  const econ2 = createEl("div", "balance-item");
+  econ2.textContent = "消極時: 収入=" + merchantLowStat.terrainIncome.toLocaleString() + " 雇用費=" + merchantLowStat.recruitCost.toLocaleString() + " 維持費=" + Math.round(merchantLowStat.maintenanceCost).toLocaleString();
+  container.appendChild(econ2);
+
+  // 一揆Qの影響
+  container.appendChild(createEl("h3", null, "一揆Qの影響"));
+  var farmerNoQ = midResults["\u8FB2\u6C11(Q\u7121)"].avg;
+  var farmerQ = midResults["\u8FB2\u6C11(Q\u6709)"].avg;
+  var qBoost = farmerQ - farmerNoQ;
+  var qPercent = Math.round(qBoost / farmerNoQ * 100);
+  var qCls = "ok";
+  var qAssessment = "\u25CB Qは有意な上乗せだがバランスを崩すほどではない";
+  if (qPercent > 50) {
+    qCls = "bad";
+    qAssessment = "\u26A0 Q依存度が高い。Q無しの農民が弱すぎる可能性";
+  } else if (qPercent < 10) {
+    qCls = "warn";
+    qAssessment = "\u26A0 Qの影響が小さい。一揆スキルの存在意義が薄い";
+  }
+  var qDiv = createEl("div", "balance-item " + qCls);
+  qDiv.textContent = "Q無: " + farmerNoQ.toLocaleString() + "石 \u2192 Q有: " + farmerQ.toLocaleString() + "石 (+" + qBoost.toLocaleString() + "石, +" + qPercent + "%) \u2014 " + qAssessment;
+  container.appendChild(qDiv);
+}
+
+// ============================================================
+// イベントバインド
+// ============================================================
+document.getElementById("btn-run").addEventListener("click", renderResults);
+
+document.getElementById("btn-reset").addEventListener("click", () => {
+  GAME = deepClone(DEFAULT_GAME);
+  buildParamUI();
+  renderResults();
+});
+
+// ============================================================
+// 初期化
+// ============================================================
+buildParamUI();
+renderResults();
+</script>
+</body>
+</html>
