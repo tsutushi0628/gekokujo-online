@@ -297,10 +297,40 @@ var ResultRenderer = {
     img.src = "";
   },
 
-  _submitScoreAndShowRank: function(score) {
-    var serverRankArea = document.getElementById("serverRankArea");
-    serverRankArea.style.display = "none";
+  _calcRankFromThresholds: function(score) {
+    var thresholds = gameState.rankThresholds;
+    if (!thresholds || thresholds.length === 0) { return null; }
 
+    if (score >= thresholds[0].score) { return 1; }
+
+    var last = thresholds[thresholds.length - 1];
+    if (score < last.score) { return null; }
+    if (score === last.score) { return last.rank; }
+
+    for (var i = 0; i < thresholds.length; i++) {
+      if (score === thresholds[i].score) { return thresholds[i].rank; }
+    }
+
+    var lowerIndex = -1;
+    for (var j = 0; j < thresholds.length; j++) {
+      if (score >= thresholds[j].score) { lowerIndex = j; break; }
+    }
+    if (lowerIndex <= 0) { return thresholds[0].rank; }
+
+    var upper = thresholds[lowerIndex - 1];
+    var lower = thresholds[lowerIndex];
+    var scoreDiff = upper.score - lower.score;
+    var ratio = scoreDiff > 0 ? (upper.score - score) / scoreDiff : 0;
+    var baseRank = upper.rank + (lower.rank - upper.rank) * ratio;
+    var granularity = lower.rank - upper.rank;
+    var jitter = (Math.random() - 0.5) * 2 * granularity * 0.1;
+    var approxRank = Math.round(baseRank + jitter);
+    if (approxRank < upper.rank + 1) { approxRank = upper.rank + 1; }
+    if (approxRank > lower.rank - 1) { approxRank = lower.rank - 1; }
+    return approxRank;
+  },
+
+  _submitScore: function(score) {
     if (!gameState.sessionId) { return; }
 
     var maxTime = MAX_TIME;
@@ -308,32 +338,27 @@ var ResultRenderer = {
     var playDurationSec = Math.max(1, Math.floor(gameState.gameTime));
     if (playDurationSec > maxTime) { playDurationSec = maxTime; }
 
-    var data = {
+    ScoreboardApi.submitScore({
       sessionId: gameState.sessionId,
       score: score,
       playDurationSec: playDurationSec,
       playLog: {}
-    };
+    }, function() {});
+  },
 
-    ScoreboardApi.submitScore(data, function(err, result) {
-      if (err) { return; }
-      if (!result) { return; }
-      if (result.rank === null) { return; }
-
-      var label = document.getElementById("serverRankLabel");
-      var number = document.getElementById("serverRankNumber");
-      label.textContent = "全国ランキング";
-      var suffix = "";
-      if (result.isApprox) { suffix = "（推定）"; }
-      number.textContent = "第" + result.rank + "位 / " + result.totalPlayers + "人中" + suffix;
-      serverRankArea.style.display = "";
-    });
+  _showRank: function(score) {
+    var rank = this._calcRankFromThresholds(score);
+    var rankNumber = document.getElementById("rankNumber");
+    if (rank !== null) {
+      rankNumber.textContent = rank + "位";
+    } else {
+      rankNumber.textContent = "圏外";
+    }
   },
 
   showNormal: function(customTitle) {
     var score = Math.floor(gameState.koku);
     RankingManager.save(score, gameState.charDef.name);
-    var rank = RankingManager.getRank(score);
 
     var title = "時間切れ";
     if (customTitle) { title = customTitle; }
@@ -341,28 +366,27 @@ var ResultRenderer = {
     document.getElementById("resultTitle").textContent = title;
     document.getElementById("resultTitle").className = "";
     document.getElementById("rankLabel").textContent = "お主は";
-    document.getElementById("rankNumber").textContent = rank + "位";
+    this._showRank(score);
     document.getElementById("resultScore").textContent = score + "石";
     document.getElementById("resultDetails").textContent =
       "身分: " + RANKS[gameState.rankIndex].name + "\n仲間の民衆: " + ParadeController.getLength() + "人\n使用キャラ: " + gameState.charDef.name;
-    this._submitScoreAndShowRank(score);
+    this._submitScore(score);
     resultScreen.classList.add("active");
   },
 
   showGekokujoSuccess: function() {
     var score = Math.floor(gameState.koku);
     RankingManager.save(score, gameState.charDef.name);
-    var rank = RankingManager.getRank(score);
 
     this._hideImage();
     document.getElementById("resultTitle").textContent = "下克上成功!!";
     document.getElementById("resultTitle").className = "success-banner";
     document.getElementById("rankLabel").textContent = "お主は";
-    document.getElementById("rankNumber").textContent = rank + "位";
+    this._showRank(score);
     document.getElementById("resultScore").textContent = score + "石";
     document.getElementById("resultDetails").textContent =
       "身分: " + RANKS[gameState.rankIndex].name + "\n仲間の民衆: " + ParadeController.getLength() + "人\n使用キャラ: " + gameState.charDef.name;
-    this._submitScoreAndShowRank(score);
+    this._submitScore(score);
     ConcentrationLines.show(2000);
     resultScreen.classList.add("active");
   }

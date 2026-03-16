@@ -5,7 +5,7 @@
  * Handler → Service → Util(firebase-kit) の三層アーキテクチャ Service層
  */
 
-import { createDocument, updateDocument, getDocument, getDb, getLogger } from 'firebase-kit/backend';
+import { createDocument, updateDocument, getDb, getLogger } from 'firebase-kit/backend';
 import type {
   SessionData,
   ScoreSubmission,
@@ -108,21 +108,15 @@ export async function saveScore(data: ScoreSubmission): Promise<SaveScoreResult>
  * @returns 近似順位結果
  */
 export async function calculateApproxRank(score: number): Promise<ApproxRankResult> {
-  const result = await getDocument('rankSnapshots', 'latest');
+  const snapshot = await getThresholdSnapshot();
 
   // スナップショット未生成
-  if (!result || !result.exists || !result.data) {
-    return { rank: null, isApprox: false, totalPlayers: 0 };
+  if (snapshot.thresholds.length === 0) {
+    return { rank: null, isApprox: false, totalPlayers: snapshot.totalPlayers };
   }
 
-  const snapshot = result.data as unknown as RankSnapshotDocument;
   const thresholds = snapshot.thresholds;
   const totalPlayers = snapshot.totalPlayers;
-
-  // 閾値が空の場合
-  if (thresholds.length === 0) {
-    return { rank: null, isApprox: false, totalPlayers };
-  }
 
   // 1位のスコア以上 → rank=1
   if (score >= thresholds[0].score) {
@@ -220,16 +214,21 @@ function interpolateRank(
 /**
  * 閾値スナップショットを取得する
  *
+ * firebase-kitの getDocument は where('id', '==', docId) クエリのため
+ * rankSnapshots/latest（idフィールドなし）を読めない。
+ * getDb() で直接ドキュメントを取得する。
+ *
  * @returns 閾値スナップショットデータ
  */
 export async function getThresholdSnapshot(): Promise<ThresholdSnapshot> {
-  const result = await getDocument('rankSnapshots', 'latest');
+  const db = getDb();
+  const doc = await db.collection('rankSnapshots').doc('latest').get();
 
-  if (!result || !result.exists || !result.data) {
+  if (!doc.exists) {
     return { thresholds: [], totalPlayers: 0, generatedAt: null };
   }
 
-  const snapshot = result.data as unknown as RankSnapshotDocument;
+  const snapshot = doc.data() as unknown as Omit<RankSnapshotDocument, 'id'>;
   return {
     thresholds: snapshot.thresholds,
     totalPlayers: snapshot.totalPlayers,
@@ -263,8 +262,8 @@ export async function regenerateSnapshot(): Promise<void> {
   // 3. 閾値ポイント抽出
   const thresholds = extractThresholds(scoresQuery.docs);
 
-  // 4. rankSnapshots/latest を更新
-  await updateDocument('rankSnapshots', 'latest', {
+  // 4. rankSnapshots/latest を作成 or 上書き
+  await db.collection('rankSnapshots').doc('latest').set({
     thresholds,
     totalPlayers,
     generatedAt: new Date().toISOString(),

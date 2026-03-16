@@ -86,7 +86,9 @@ var gameState = {
   ikkiMode: false,
   sessionId: null,
   rankIndex: 0,
-  criticalTimer: 0
+  criticalTimer: 0,
+  rankThresholds: null,
+  rankTotalPlayers: 0
 };
 
 var dialogCallback = null;
@@ -160,9 +162,10 @@ var IkkiSystem = {
     }
     RankSystem.check();
 
-    // 殿様にはダメージ（即死ではない）
+    // 殿様には現在HPの80%ダメージ（一揆をどこで使うかの戦略判断）
     if (GekokujoSystem.boss && !GekokujoSystem.boss.defeated) {
-      GekokujoSystem.boss.hp -= damageAmount;
+      var bossDamage = Math.floor(GekokujoSystem.boss.hp * 0.8);
+      GekokujoSystem.boss.hp -= bossDamage;
       EffectRenderer.add(GekokujoSystem.boss.x, GekokujoSystem.boss.y, "hit");
       if (GekokujoSystem.boss.hp <= 0) { GekokujoSystem.success(); }
     }
@@ -2206,6 +2209,14 @@ creditsLink.addEventListener("click", function(e) {
 
 document.getElementById("creditsCloseBtn").addEventListener("click", function() {
   creditsOverlay.classList.remove("active");
+});
+
+// 起動時に閾値をプリフェッチ（タイトル画面表示中にバックグラウンドで取得）
+ScoreboardApi.getThresholds(function(err, data) {
+  if (err) { return; }
+  if (!data) { return; }
+  gameState.rankThresholds = data.thresholds;
+  gameState.rankTotalPlayers = data.totalPlayers;
 });
 
 // Init input
