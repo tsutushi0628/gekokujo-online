@@ -356,7 +356,23 @@ var ResultRenderer = {
     }
   },
 
+  _applyIkkiParadeBonus: function() {
+    if (!gameState.ikkiMode) { return; }
+    var paradeLen = ParadeController.getLength();
+    var bonusPerPerson;
+    if (paradeLen >= 20) {
+      bonusPerPerson = 500;
+    } else if (paradeLen >= 10) {
+      bonusPerPerson = 100;
+    } else {
+      return;
+    }
+    gameState.koku += paradeLen * bonusPerPerson;
+    AnnouncementSystem.add("民衆の結束！ +" + (paradeLen * bonusPerPerson) + "石！", "good");
+  },
+
   showNormal: function(customTitle) {
+    this._applyIkkiParadeBonus();
     var score = Math.floor(gameState.koku);
     RankingManager.save(score, gameState.charDef.name);
 
@@ -369,12 +385,13 @@ var ResultRenderer = {
     this._showRank(score);
     document.getElementById("resultScore").textContent = score + "石";
     document.getElementById("resultDetails").textContent =
-      "身分: " + RANKS[gameState.rankIndex].name + "\n仲間の民衆: " + ParadeController.getLength() + "人\n使用キャラ: " + gameState.charDef.name;
+      "身分: " + gameState.charDef.name + "\n称号: " + RANKS[gameState.rankIndex].name + "\n仲間につけた民衆の数: " + ParadeController.getLength() + "人";
     this._submitScore(score);
     resultScreen.classList.add("active");
   },
 
   showGekokujoSuccess: function() {
+    this._applyIkkiParadeBonus();
     var score = Math.floor(gameState.koku);
     RankingManager.save(score, gameState.charDef.name);
 
@@ -385,7 +402,7 @@ var ResultRenderer = {
     this._showRank(score);
     document.getElementById("resultScore").textContent = score + "石";
     document.getElementById("resultDetails").textContent =
-      "身分: " + RANKS[gameState.rankIndex].name + "\n仲間の民衆: " + ParadeController.getLength() + "人\n使用キャラ: " + gameState.charDef.name;
+      "身分: " + gameState.charDef.name + "\n称号: " + RANKS[gameState.rankIndex].name + "\n仲間につけた民衆の数: " + ParadeController.getLength() + "人";
     this._submitScore(score);
     ConcentrationLines.show(2000);
     resultScreen.classList.add("active");

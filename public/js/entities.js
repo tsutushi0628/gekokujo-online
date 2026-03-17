@@ -491,26 +491,23 @@ var EnemyManager = {
         ctx.fillText("降伏!", sp.x, sp.y - en.size - 8);
       } else if (spritesLoaded) {
         var enemySpriteKey = "nobushi";
-        // nobushi default faces LEFT -> flip when enemy needs to face RIGHT (player is to the right)
         var enFlipH = (en.x < PlayerController.x);
         var enemySpriteH = 64 + en.size;
-        if (en.doushiuchi) {
-          ctx.shadowColor = "rgba(180, 60, 255, 0.8)";
-        } else {
-          ctx.shadowColor = "rgba(255, 40, 40, 0.8)";
-        }
-        ctx.shadowBlur = 8;
+        var enShadowColor = en.doushiuchi ? "180, 60, 255" : "255, 40, 40";
+        var enShadowY = sp.y + (64 + en.size) / 2;
+        var enShadowRx = (14 + en.size * 0.3) * 1.5;
+        var enGrad = ctx.createRadialGradient(sp.x, enShadowY, 0, sp.x, enShadowY, enShadowRx);
+        enGrad.addColorStop(0,   "rgba(" + enShadowColor + ", 0.55)");
+        enGrad.addColorStop(0.4, "rgba(" + enShadowColor + ", 0.25)");
+        enGrad.addColorStop(1,   "rgba(" + enShadowColor + ", 0)");
+        ctx.fillStyle = enGrad;
+        ctx.beginPath();
+        ctx.ellipse(sp.x, enShadowY, enShadowRx, 7, 0, 0, Math.PI * 2);
+        ctx.fill();
         drawSpriteCentered(ctx, enemySpriteKey, sp.x, sp.y, enemySpriteH, enFlipH);
-        ctx.shadowBlur = 0;
       } else {
         var facingLeft = (en.x > PlayerController.x);
         ctx.font = Math.round((en.size + 4) * 1.5) + "px " + FONT_FAMILY;
-        if (en.doushiuchi) {
-          ctx.shadowColor = "rgba(180, 60, 255, 0.8)";
-        } else {
-          ctx.shadowColor = "rgba(255, 40, 40, 0.8)";
-        }
-        ctx.shadowBlur = 8;
         ctx.save();
         if (facingLeft) {
           ctx.translate(sp.x, sp.y + en.size / 3);
@@ -520,7 +517,6 @@ var EnemyManager = {
           ctx.fillText(en.emoji, sp.x, sp.y + en.size / 3);
         }
         ctx.restore();
-        ctx.shadowBlur = 0;
       }
 
       // HP bar
@@ -883,8 +879,15 @@ var ParadeController = {
         }
       }
 
-      ctx.shadowColor = "rgba(0, 120, 255, 0.8)";
-      ctx.shadowBlur = 8;
+      // [光輪案] ctx.shadowColor = "rgba(0, 120, 255, 0.8)"; ctx.shadowBlur = 8;
+      var fGrad = ctx.createRadialGradient(sp.x, sp.y + 26, 0, sp.x, sp.y + 26, 16);
+      fGrad.addColorStop(0,   "rgba(0, 120, 255, 0.5)");
+      fGrad.addColorStop(0.4, "rgba(0, 120, 255, 0.25)");
+      fGrad.addColorStop(1,   "rgba(0, 120, 255, 0)");
+      ctx.fillStyle = fGrad;
+      ctx.beginPath();
+      ctx.ellipse(sp.x, sp.y + 26, 16, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
       if (spritesLoaded && !isIkki) {
         var mFacingLeft = PlayerController.facingLeft;
         if (i > 0) {
@@ -901,7 +904,7 @@ var ParadeController = {
           ctx.fillText("\uD83D\uDE0A", sp.x, sp.y + 3);
         }
       }
-      ctx.shadowBlur = 0;
+      // [光輪案] ctx.shadowBlur = 0;
 
       ctx.globalAlpha = savedAlpha;
     }

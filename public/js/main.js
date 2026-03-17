@@ -779,7 +779,7 @@ var GekokujoSystem = {
       retreatShotTimer: 0,
       scaleMultiplier: 1.0
     };
-    AnnouncementSystem.add("下克上チャレンジ! 殿様出現! 20秒以内に倒せ!", "announce");
+    AnnouncementSystem.add("下克上の好機！殿様出現！20秒以内に倒せ！", "announce");
   },
 
   success: function() {
@@ -807,7 +807,7 @@ var GekokujoSystem = {
         var bukoReward = KokuReward.apply(2000, gameState);
         gameState.koku += bukoReward;
         FloatingScoreSystem.show(bukoReward);
-        AnnouncementSystem.add("武功ボーナス! +" + bukoReward + "石!", "good");
+        AnnouncementSystem.add("武功により大量石高獲得！+" + bukoReward + "石！", "good");
       }
       // 本懐ボーナス: 3000±25%
       var honkaiBase = 3000;
@@ -952,7 +952,7 @@ var RankSystem = {
       if (gameState.koku >= RANKS[i].threshold) {
         if (i > gameState.rankIndex) {
           gameState.rankIndex = i;
-          AnnouncementSystem.add("身分上昇! " + RANKS[i].name + "になった!", "good");
+          AnnouncementSystem.add("称号上昇！" + RANKS[i].name + "になった！", "good");
         }
         break;
       }
@@ -1707,7 +1707,7 @@ var GameDirector = {
     ctx.textAlign = "left";
     ctx.font = "14px " + FONT_FAMILY;
     ctx.fillStyle = "#9a8a6a";
-    ctx.fillText("身分", scoreX + 12, scoreY + 58);
+    ctx.fillText("称号", scoreX + 12, scoreY + 58);
     ctx.textAlign = "right";
     ctx.font = "20px " + FONT_FAMILY;
     ctx.fillStyle = "#6b4226";
@@ -2144,15 +2144,19 @@ document.getElementById("ikkiNo").addEventListener("click", function() {
 
 document.getElementById("replayBtn").addEventListener("click", function() {
   resultScreen.classList.remove("active");
-  titleScreen.classList.add("active");
-  gameState.phase = "title";
+  ctx.fillStyle = "#c8b898";
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  charSelect.classList.add("active");
+  gameState.phase = "charSelect";
   muteBtn.style.display = "none";
 });
 
 document.getElementById("skullReplayBtn").addEventListener("click", function() {
   skullScreen.classList.remove("active");
-  titleScreen.classList.add("active");
-  gameState.phase = "title";
+  ctx.fillStyle = "#c8b898";
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  charSelect.classList.add("active");
+  gameState.phase = "charSelect";
   muteBtn.style.display = "none";
 });
 
@@ -2224,4 +2228,7 @@ ScoreboardApi.getThresholds(function(err, data) {
 
 // Init input
 InputManager.init();
+
+ctx.fillStyle = "#c8b898";
+ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
