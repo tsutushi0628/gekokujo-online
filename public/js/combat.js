@@ -105,6 +105,7 @@ var IntimidationSystem = {
 // ParadeChargeSystem
 // ============================================================
 var ParadeChargeSystem = {
+  COOLDOWN_MAX: 6,
   active: false,
   timer: 0,
   regroupTimer: 0,
@@ -130,7 +131,7 @@ var ParadeChargeSystem = {
     this.active = true;
     this.timer = 1.2;
     this.cutinTimer = 0.8;
-    PlayerController.chargeCooldown = 6;
+    PlayerController.chargeCooldown = this.COOLDOWN_MAX;
   },
 
   update: function(dt) {

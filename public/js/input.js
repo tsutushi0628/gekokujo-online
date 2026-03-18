@@ -1,6 +1,7 @@
 // InputManager — キーボード・マウス入力の一元管理
 var InputManager = {
-  keys: { w: false, a: false, s: false, d: false, space: false, q: false },
+  keys: { w: false, a: false, s: false, d: false, space: false, q: false, f: false },
+  _justPressed: {},
   mouseX: 400,
   mouseY: 300,
   mouseWorldX: 400,
@@ -20,6 +21,12 @@ var InputManager = {
         self.keys.space = true;
       }
       if (e.code === "KeyQ") { self.keys.q = true; }
+      if (e.code === "KeyF") {
+        if (!self.keys.f) {
+          self._justPressed.f = true;
+        }
+        self.keys.f = true;
+      }
     });
     document.addEventListener("keyup", function(e) {
       if (e.code === "KeyW") { self.keys.w = false; }
@@ -28,6 +35,7 @@ var InputManager = {
       if (e.code === "KeyD") { self.keys.d = false; }
       if (e.code === "Space") { self.keys.space = false; }
       if (e.code === "KeyQ") { self.keys.q = false; }
+      if (e.code === "KeyF") { self.keys.f = false; }
     });
     canvas.addEventListener("mousemove", function(e) {
       var rect = canvas.getBoundingClientRect();
@@ -62,6 +70,14 @@ var InputManager = {
 
   consumeQ: function() {
     if (this.keys.q) { this.keys.q = false; return true; }
+    return false;
+  },
+
+  consumeF: function() {
+    if (this._justPressed.f) {
+      this._justPressed.f = false;
+      return true;
+    }
     return false;
   },
 

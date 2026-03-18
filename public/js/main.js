@@ -88,7 +88,9 @@ var gameState = {
   rankIndex: 0,
   criticalTimer: 0,
   rankThresholds: null,
-  rankTotalPlayers: 0
+  rankTotalPlayers: 0,
+  _chargeFlashTimer: 0,
+  _chargeWasCooling: false
 };
 
 var dialogCallback = null;
@@ -100,6 +102,7 @@ var IkkiSystem = {
   available: false,
   active: false,
   cooldown: 0,
+  cooldownMax: 10,
   flashTimer: 0,
   cutinTimer: 0,
 
@@ -173,7 +176,7 @@ var IkkiSystem = {
     // Flash + cutin
     this.flashTimer = 0.3;
     this.cutinTimer = 0.8;
-    this.cooldown = 10;
+    this.cooldown = this.cooldownMax;
   }
 };
 
@@ -1562,7 +1565,11 @@ var GameDirector = {
     if (InputManager.consumeLeftClick()) {
       CombatSystem.handleAttack();
     }
-    if (InputManager.consumeRightClick()) {
+    var chargeTriggered = InputManager.consumeRightClick();
+    if (!chargeTriggered) {
+      chargeTriggered = InputManager.consumeF();
+    }
+    if (chargeTriggered) {
       ParadeChargeSystem.start();
     }
     if (InputManager.consumeQ()) {
@@ -1595,6 +1602,17 @@ var GameDirector = {
     OnboardingSystem.update(dt);
     DamageVignette.update(dt);
     if (gameState.criticalTimer > 0) { gameState.criticalTimer -= dt; }
+
+    // Charge cooldown flash detection
+    if (gameState._chargeFlashTimer > 0) {
+      gameState._chargeFlashTimer -= dt;
+      if (gameState._chargeFlashTimer < 0) { gameState._chargeFlashTimer = 0; }
+    }
+    var chargeCoolingNow = PlayerController.chargeCooldown > 0;
+    if (gameState._chargeWasCooling && !chargeCoolingNow) {
+      gameState._chargeFlashTimer = 0.3;
+    }
+    gameState._chargeWasCooling = chargeCoolingNow;
   },
 
   render: function() {
@@ -1750,31 +1768,49 @@ var GameDirector = {
     ctx.roundRect(barStartX, barY, slotW, slotH, 14);
     ctx.stroke();
 
-    // Label "右クリック"
+    // Label "F / 右Click"
     ctx.textAlign = "center";
     ctx.font = "12px " + FONT_FAMILY;
     ctx.fillStyle = chargeNameColor;
-    ctx.fillText("右クリック", barStartX + slotW / 2, barY + 22);
+    ctx.fillText("F / 右Click", barStartX + slotW / 2, barY + 22);
 
     // Name "突撃"
     ctx.font = "bold 26px " + FONT_FAMILY;
     ctx.fillStyle = chargeKanjiColor;
     ctx.fillText("突撃", barStartX + slotW / 2, barY + 54);
 
-    // Charge cooldown overlay
+    // Charge cooldown vertical wipe overlay
     if (!chargeReady) {
-      var cdOverlayH = slotH * 0.55;
+      var chargeCdMax = ParadeChargeSystem.COOLDOWN_MAX;
+      var chargeCdCurrent = PlayerController.chargeCooldown;
+      var chargeCdRatio = chargeCdCurrent / chargeCdMax;
+      // Grey overlay covers bottom portion (ratio of remaining CD)
+      var greyH = Math.floor(slotH * chargeCdRatio);
+      var greyY = barY + slotH - greyH;
       ctx.save();
       ctx.beginPath();
-      ctx.roundRect(barStartX, barY + slotH - cdOverlayH, slotW, cdOverlayH, [0, 0, 12, 12]);
+      ctx.roundRect(barStartX, barY, slotW, slotH, 14);
       ctx.clip();
       ctx.fillStyle = "rgba(200, 190, 170, 0.7)";
-      ctx.fillRect(barStartX, barY + slotH - cdOverlayH, slotW, cdOverlayH);
+      ctx.fillRect(barStartX, greyY, slotW, greyH);
       ctx.restore();
+      // CD number
       ctx.font = "bold 22px " + FONT_FAMILY;
       ctx.fillStyle = "#5a4a3a";
       ctx.textAlign = "center";
-      ctx.fillText("" + Math.ceil(PlayerController.chargeCooldown), barStartX + slotW / 2, barY + slotH - cdOverlayH / 2 + 8);
+      ctx.fillText("" + Math.ceil(chargeCdCurrent), barStartX + slotW / 2, barY + slotH / 2 + 8);
+    }
+
+    // Charge ready flash
+    if (gameState._chargeFlashTimer > 0) {
+      var cfAlpha = gameState._chargeFlashTimer / 0.3;
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(barStartX, barY, slotW, slotH, 14);
+      ctx.clip();
+      ctx.fillStyle = "rgba(255, 240, 200, " + (cfAlpha * 0.5) + ")";
+      ctx.fillRect(barStartX, barY, slotW, slotH);
+      ctx.restore();
     }
 
     // Slot 2: Q ability (ikki farmer only)
@@ -1831,20 +1867,23 @@ var GameDirector = {
       ctx.fillText(qName, qSlotX + slotW / 2, barY + 54);
       ctx.restore();
 
-      // Q cooldown overlay
+      // Q cooldown vertical wipe overlay
       if (qOnCD) {
-        var qOverlayH = slotH * 0.55;
+        var qCdMax = IkkiSystem.cooldownMax;
+        var qCdRatio = qCooldownVal / qCdMax;
+        var qGreyH = Math.floor(slotH * qCdRatio);
+        var qGreyY = barY + slotH - qGreyH;
         ctx.save();
         ctx.beginPath();
-        ctx.roundRect(qSlotX, barY + slotH - qOverlayH, slotW, qOverlayH, [0, 0, 12, 12]);
+        ctx.roundRect(qSlotX, barY, slotW, slotH, 14);
         ctx.clip();
         ctx.fillStyle = "rgba(200, 190, 170, 0.7)";
-        ctx.fillRect(qSlotX, barY + slotH - qOverlayH, slotW, qOverlayH);
+        ctx.fillRect(qSlotX, qGreyY, slotW, qGreyH);
         ctx.restore();
         ctx.font = "bold 22px " + FONT_FAMILY;
         ctx.fillStyle = "#5a4a3a";
         ctx.textAlign = "center";
-        ctx.fillText("" + Math.ceil(qCooldownVal), qSlotX + slotW / 2, barY + slotH - qOverlayH / 2 + 7);
+        ctx.fillText("" + Math.ceil(qCooldownVal), qSlotX + slotW / 2, barY + slotH / 2 + 7);
       }
     }
 
@@ -1983,7 +2022,7 @@ var GameDirector = {
       ctx.fillStyle = "#7a6a4a";
       ctx.font = "12px " + FONT_FAMILY;
       ctx.textAlign = "center";
-      ctx.fillText("WASD 移動  左Click 攻撃", CANVAS_W / 2, hintY + 16);
+      ctx.fillText("WASD 移動  左Click 攻撃  F 突撃", CANVAS_W / 2, hintY + 16);
     }
 
     // Floating score popups
