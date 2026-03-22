@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>下克上オンライン - オンボーディングモック</title>
+  <style>
+    /* --- Fonts --- */
+    @font-face {
+      font-family: 'Chika';
+      src: url('assets/chika-Regular.ttf') format('truetype');
+    }
+    @font-face {
+      font-family: 'MokoMori';
+      src: url('assets/mikiyu-newpenji-p.ttf') format('truetype');
+    }
+
+    /* --- Reset --- */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #2a2a2a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Chika', 'MokoMori', sans-serif;
+    }
+
+    /* --- Game Container (模擬) --- */
+    .game-container {
+      position: relative;
+      width: 1280px;
+      height: 720px;
+      border: 3px solid #1a1a1a;
+      background: #333;
+      overflow: hidden;
+    }
+
+    /* --- Onboarding Overlay --- */
+    .onboarding-overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(20, 18, 12, 0.85);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 20;
+    }
+
+    /* --- 巻物 (Scroll) --- */
+    .scroll-container {
+      position: relative;
+      width: 780px;
+      min-height: 400px;
+      max-height: 640px;
+    }
+
+    /* 巻物の上下の軸 */
+    .scroll-rod {
+      width: 100%;
+      height: 28px;
+      background: linear-gradient(180deg, #8b7355 0%, #6b5740 40%, #4a3c2a 100%);
+      border-radius: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      position: relative;
+      z-index: 2;
+    }
+    .scroll-rod::before,
+    .scroll-rod::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 40% 35%, #a08060, #5a4530);
+      box-shadow: inset 0 1px 3px rgba(255,255,255,0.2);
+    }
+    .scroll-rod::before { left: -8px; }
+    .scroll-rod::after { right: -8px; }
+
+    .scroll-rod-top { margin-bottom: -6px; }
+    .scroll-rod-bottom { margin-top: -6px; }
+
+    /* 巻物の紙面 */
+    .scroll-body {
+      background: linear-gradient(180deg, #f5f0e8 0%, #ede5d5 50%, #e8dcc8 100%);
+      border-left: 4px solid #c8b898;
+      border-right: 4px solid #c8b898;
+      padding: 32px 48px 28px;
+      position: relative;
+      box-shadow: inset 0 0 40px rgba(139, 115, 85, 0.15);
+    }
+
+    /* 紙のテクスチャ感 */
+    .scroll-body::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 3px,
+        rgba(139, 115, 85, 0.03) 3px,
+        rgba(139, 115, 85, 0.03) 4px
+      );
+      pointer-events: none;
+    }
+
+    /* --- Step Content --- */
+    .step {
+      display: none;
+    }
+    .step.active {
+      display: block;
+    }
+
+    .step-title {
+      font-size: 28px;
+      color: #2a1a0a;
+      text-align: center;
+      margin-bottom: 22px;
+      letter-spacing: 4px;
+      border-bottom: 2px solid #c8b898;
+      padding-bottom: 10px;
+    }
+
+    /* ステップインジケーター */
+    .step-indicator {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+    .step-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #c8b898;
+      transition: background 0.2s;
+    }
+    .step-dot.active {
+      background: #5a3a1a;
+    }
+
+    /* --- キャラクターカード群 (Step1) --- */
+    .char-row {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 10px;
+    }
+
+    .char-block {
+      flex: 1;
+      background: rgba(255,255,255,0.5);
+      border: 2px solid #c8b898;
+      border-left: 4px solid #5a3a1a;
+      border-radius: 4px;
+      padding: 12px 14px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .char-block-sprite {
+      flex-shrink: 0;
+      image-rendering: pixelated;
+    }
+
+    .char-block-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .char-block-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .char-block-name {
+      font-size: 19px;
+      font-weight: bold;
+      color: #2a1a0a;
+    }
+
+    .char-block-tag {
+      font-size: 13px;
+      color: #fff;
+      background: #8b7355;
+      border-radius: 3px;
+      padding: 1px 8px;
+      margin-left: auto;
+    }
+
+    .char-block-desc {
+      font-size: 15px;
+      color: #4a3a2a;
+      line-height: 1.7;
+    }
+
+    /* 民衆説明 */
+    .minshuu-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255,255,255,0.5);
+      border: 2px solid #5a8a3a;
+      border-left: 4px solid #5a8a3a;
+      border-radius: 4px;
+      padding: 10px 14px;
+      margin-top: 12px;
+    }
+    .minshuu-box .minshuu-sprite {
+      flex-shrink: 0;
+      image-rendering: pixelated;
+    }
+    .minshuu-box .minshuu-text {
+      font-size: 16px;
+      color: #4a3a2a;
+      line-height: 1.6;
+    }
+    .minshuu-box .minshuu-name {
+      font-size: 17px;
+      font-weight: bold;
+      color: #3a6a2a;
+    }
+
+    /* 農民モード選択 */
+    .nomin-mode {
+      margin-top: 6px;
+      font-size: 14px;
+      color: #4a3a2a;
+      line-height: 1.7;
+    }
+    .nomin-mode .ikki-label {
+      display: inline-block;
+      font-weight: bold;
+      color: #c04040;
+      font-size: 15px;
+      border: 2px solid #c04040;
+      border-radius: 3px;
+      padding: 0px 6px;
+      margin-right: 4px;
+      background: rgba(255, 200, 200, 0.4);
+    }
+    .nomin-mode .ikki-desc {
+      color: #c04040;
+      font-weight: bold;
+    }
+
+    /* --- 操作と遊び方 (Step2) --- */
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .control-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255,255,255,0.5);
+      border: 1px solid #c8b898;
+      border-radius: 4px;
+      padding: 10px 14px;
+    }
+    .control-key {
+      font-size: 16px;
+      font-weight: bold;
+      color: #2a1a0a;
+      background: #e8dcc8;
+      border: 1px solid #b0a080;
+      border-radius: 3px;
+      padding: 4px 10px;
+      white-space: nowrap;
+      min-width: 60px;
+      text-align: center;
+    }
+    .control-desc {
+      font-size: 16px;
+      color: #4a3a2a;
+    }
+
+    /* 遊び方フロー */
+    .flow-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .flow-step {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.5);
+      border: 2px solid #c8b898;
+      border-radius: 6px;
+    }
+    .flow-step.final {
+      border-color: #5a3a1a;
+      border-width: 3px;
+      background: rgba(90, 58, 26, 0.1);
+    }
+    .flow-number {
+      font-size: 28px;
+      font-weight: bold;
+      color: #5a3a1a;
+      flex-shrink: 0;
+      width: 40px;
+      text-align: center;
+    }
+    .flow-step.final .flow-number {
+      color: #c04040;
+    }
+    .flow-sprite {
+      flex-shrink: 0;
+      image-rendering: pixelated;
+    }
+    .flow-text {
+      font-size: 18px;
+      color: #2a1a0a;
+      font-weight: bold;
+    }
+    .flow-step.final .flow-text {
+      font-size: 20px;
+      color: #2a1a0a;
+    }
+    .flow-arrow {
+      text-align: center;
+      font-size: 22px;
+      color: #8b7355;
+      padding: 2px 0;
+      letter-spacing: 4px;
+    }
+
+    /* --- 敵一覧 (Step3) --- */
+    .enemy-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .enemy-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255,255,255,0.5);
+      border: 1px solid #c8b898;
+      border-radius: 4px;
+      padding: 10px 14px;
+    }
+    .enemy-row.boss {
+      border-color: #c04040;
+      border-width: 2px;
+      background: rgba(255, 230, 230, 0.3);
+    }
+    .enemy-sprite {
+      flex-shrink: 0;
+      image-rendering: pixelated;
+    }
+    .enemy-info {
+      flex: 1;
+    }
+    .enemy-name {
+      font-size: 17px;
+      font-weight: bold;
+      color: #2a1a0a;
+    }
+    .enemy-desc {
+      font-size: 14px;
+      color: #6b5740;
+      margin-top: 2px;
+    }
+    .enemy-badge {
+      font-size: 13px;
+      color: #fff;
+      border-radius: 3px;
+      padding: 3px 8px;
+      flex-shrink: 0;
+    }
+    .enemy-badge.final { background: #8b4513; }
+
+    /* 辻斬り詳細 */
+    .tsujigiri-details {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .tsujigiri-sub {
+      font-size: 14px;
+      color: #6b5740;
+      padding-left: 12px;
+      position: relative;
+    }
+    .tsujigiri-sub::before {
+      content: '・';
+      position: absolute;
+      left: 0;
+    }
+    .tsujigiri-sub.warn {
+      color: #c04040;
+      font-weight: bold;
+    }
+    .tsujigiri-sub.reward {
+      color: #3a6a2a;
+      font-weight: bold;
+    }
+
+    /* --- 締め (Step4) --- */
+    .finale-content {
+      text-align: center;
+      padding: 20px 0 10px;
+    }
+    .finale-icon {
+      margin-bottom: 12px;
+    }
+    .finale-text {
+      font-size: 26px;
+      color: #2a1a0a;
+      font-weight: bold;
+      margin-bottom: 10px;
+      letter-spacing: 2px;
+    }
+    .finale-sub {
+      font-size: 18px;
+      color: #6b5740;
+      margin-bottom: 24px;
+    }
+
+    .skip-check {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 16px;
+      font-size: 14px;
+      color: #8b7355;
+      cursor: pointer;
+    }
+    .skip-check input[type="checkbox"] {
+      cursor: pointer;
+    }
+
+    /* --- ボタン --- */
+    .scroll-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .btn-scroll {
+      font-family: 'Chika', 'MokoMori', sans-serif;
+      font-size: 18px;
+      color: #2a1a0a;
+      background: linear-gradient(180deg, #f5f0e8, #e0d4be);
+      border: 2px solid #8b7355;
+      border-radius: 4px;
+      padding: 10px 36px;
+      cursor: pointer;
+      letter-spacing: 2px;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn-scroll:hover {
+      background: linear-gradient(180deg, #fff, #f0e8d8);
+      transform: translateY(-1px);
+    }
+    .btn-scroll:active {
+      transform: translateY(1px);
+    }
+
+    .btn-scroll.primary {
+      background: linear-gradient(180deg, #5a3a1a, #3a2410);
+      color: #f5f0e8;
+      border-color: #2a1a0a;
+    }
+    .btn-scroll.primary:hover {
+      background: linear-gradient(180deg, #6b4a2a, #4a3420);
+    }
+
+    .btn-scroll.start {
+      font-size: 22px;
+      padding: 12px 52px;
+      background: linear-gradient(180deg, #5a3a1a, #3a2410);
+      color: #f5f0e8;
+      border-color: #2a1a0a;
+      letter-spacing: 4px;
+    }
+    .btn-scroll.start:hover {
+      background: linear-gradient(180deg, #6b4a2a, #4a3420);
+    }
+  </style>
+</head>
+<body>
+
+<div class="game-container">
+  <div class="onboarding-overlay" id="onboardingOverlay">
+    <div class="scroll-container">
+      <div class="scroll-rod scroll-rod-top"></div>
+
+      <div class="scroll-body">
+
+        <div class="step-indicator" id="stepIndicator">
+          <div class="step-dot active"></div>
+          <div class="step-dot"></div>
+          <div class="step-dot"></div>
+          <div class="step-dot"></div>
+          <div class="step-dot"></div>
+        </div>
+
+        <!-- STEP 1: 身分と仲間 -->
+        <div class="step active" id="step1">
+          <div class="step-title">身分と仲間</div>
+
+          <div class="char-row">
+            <div class="char-block">
+              <img src="assets/ashigaru_play.png" class="char-block-sprite" style="width:64px; height:64px; object-fit:contain;">
+              <div class="char-block-content">
+                <div class="char-block-header">
+                  <span class="char-block-name">足軽</span>
+                  <span class="char-block-tag">入門</span>
+                </div>
+                <div class="char-block-desc">
+                  攻撃力が高く、広範囲に攻撃できる<br>
+                  民衆は時間で離脱していく
+                </div>
+              </div>
+            </div>
+            <div class="char-block">
+              <img src="assets/shonin_play.png" class="char-block-sprite" style="width:64px; height:64px; object-fit:contain;">
+              <div class="char-block-content">
+                <div class="char-block-header">
+                  <span class="char-block-name">商人</span>
+                  <span class="char-block-tag">戦略</span>
+                </div>
+                <div class="char-block-desc">
+                  石高を使って民衆を自動で雇う<br>
+                  攻撃は控えめだが足が速い
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="char-block">
+            <img src="assets/nomin_play.png" class="char-block-sprite" style="width:64px; height:64px; object-fit:contain;">
+            <div class="char-block-content">
+              <div class="char-block-header">
+                <span class="char-block-name">農民</span>
+                <span class="char-block-tag">玄人</span>
+              </div>
+              <div class="char-block-desc">
+                民衆が多いほど強くなる
+              </div>
+              <div class="nomin-mode">
+                <span class="ikki-label">一揆に参加する</span>を選ぶと…<br>
+                <span class="ikki-desc">必殺技で画面中の敵が全滅！ ただし民衆が半分いなくなる</span><br>
+                最高難易度。腕に自信があるならどうぞ
+              </div>
+            </div>
+          </div>
+
+          <div class="minshuu-box">
+            <img src="assets/nomin_npc.png" class="minshuu-sprite" style="width:48px; height:48px; object-fit:contain;">
+            <div>
+              <div class="minshuu-name">民衆</div>
+              <div class="minshuu-text">近づくと仲間になる。集めるほど攻撃力アップ!</div>
+            </div>
+          </div>
+
+          <div class="scroll-buttons">
+            <button class="btn-scroll primary" onclick="goStep(2)">次へ</button>
+          </div>
+        </div>
+
+        <!-- STEP 2: 敵を知れ -->
+        <div class="step" id="step2">
+          <div class="step-title">敵を知れ</div>
+
+          <div class="enemy-list">
+            <div class="enemy-row">
+              <img src="assets/nobushi.png" class="enemy-sprite" style="width:48px; height:48px; object-fit:contain;">
+              <div class="enemy-info">
+                <div class="enemy-name">通常敵</div>
+                <div class="enemy-desc">時間が経つほど強い敵が出てくる</div>
+              </div>
+            </div>
+            <div class="enemy-row">
+              <img src="assets/tsujigiri.png" class="enemy-sprite" style="width:48px; height:48px; object-fit:contain;">
+              <div class="enemy-info">
+                <div class="enemy-name">辻斬り</div>
+                <div class="tsujigiri-details">
+                  <span class="tsujigiri-sub">橋を守るやつ — 力で倒して先に進め</span>
+                  <span class="tsujigiri-sub warn">突然現れるやつ — タイミング良く撃退しないと即死！</span>
+                  <span class="tsujigiri-sub reward">撃退に成功するとたくさん石高が手に入る</span>
+                </div>
+              </div>
+            </div>
+            <div class="enemy-row boss">
+              <img src="assets/tonosama.png" class="enemy-sprite" style="width:48px; height:48px; object-fit:contain;">
+              <div class="enemy-info">
+                <div class="enemy-name">殿様</div>
+                <div class="enemy-desc">城門が出現したら突入! とにかくタフだが、倒せば下克上達成!</div>
+              </div>
+              <span class="enemy-badge final">最終ボス</span>
+            </div>
+          </div>
+
+          <div class="scroll-buttons">
+            <button class="btn-scroll" onclick="goStep(1)">戻る</button>
+            <button class="btn-scroll primary" onclick="goStep(3)">次へ</button>
+          </div>
+        </div>
+
+        <!-- STEP 3: 操作 -->
+        <div class="step" id="step3">
+          <div class="step-title">操作</div>
+
+          <div class="controls-grid">
+            <div class="control-item">
+              <span class="control-key">W A S D</span>
+              <span class="control-desc">移動</span>
+            </div>
+            <div class="control-item">
+              <span class="control-key">SPACE</span>
+              <span class="control-desc">辻斬りを撃退</span>
+            </div>
+            <div class="control-item">
+              <span class="control-key">左クリック</span>
+              <span class="control-desc">攻撃</span>
+            </div>
+            <div class="control-item">
+              <span class="control-key">右クリック</span>
+              <span class="control-desc">民衆で突撃</span>
+            </div>
+            <div class="control-item">
+              <span class="control-key">Q</span>
+              <span class="control-desc">一揆（農民のみ）</span>
+            </div>
+          </div>
+
+          <div class="scroll-buttons">
+            <button class="btn-scroll" onclick="goStep(2)">戻る</button>
+            <button class="btn-scroll primary" onclick="goStep(4)">次へ</button>
+          </div>
+        </div>
+
+        <!-- STEP 4: 遊び方 -->
+        <div class="step" id="step4">
+          <div class="step-title">遊び方</div>
+
+          <div class="flow-list">
+            <div class="flow-step">
+              <span class="flow-number">一</span>
+              <img src="assets/nomin_npc.png" class="flow-sprite" style="width:40px; height:40px; object-fit:contain;">
+              <span class="flow-text">民衆を集めて攻撃力を上げろ</span>
+            </div>
+            <div class="flow-arrow">▼</div>
+            <div class="flow-step">
+              <span class="flow-number">二</span>
+              <img src="assets/nobushi.png" class="flow-sprite" style="width:40px; height:40px; object-fit:contain;">
+              <span class="flow-text">敵を倒して石高を稼げ</span>
+            </div>
+            <div class="flow-arrow">▼</div>
+            <div class="flow-step final">
+              <span class="flow-number">三</span>
+              <img src="assets/castle.png" class="flow-sprite" style="width:40px; height:40px; object-fit:contain;">
+              <span class="flow-text">城の殿様を倒せば…下克上!</span>
+            </div>
+          </div>
+
+          <div class="scroll-buttons">
+            <button class="btn-scroll" onclick="goStep(3)">戻る</button>
+            <button class="btn-scroll primary" onclick="goStep(5)">次へ</button>
+          </div>
+        </div>
+
+        <!-- STEP 5: いざ出陣 -->
+        <div class="step" id="step5">
+          <div class="step-title">いざ、出陣</div>
+
+          <div class="finale-content">
+            <img src="assets/castle.png" class="finale-icon" style="width:80px; height:80px; object-fit:contain; image-rendering:pixelated;">
+            <div class="finale-text">下克上を果たせ!</div>
+            <div class="finale-sub">城を目指し、殿様を倒して天下を取れ</div>
+
+            <button class="btn-scroll start" onclick="startGame()">始める</button>
+
+            <label class="skip-check">
+              <input type="checkbox" id="skipOnboarding">
+              次回から表示しない
+            </label>
+          </div>
+
+          <div class="scroll-buttons">
+            <button class="btn-scroll" onclick="goStep(4)">戻る</button>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="scroll-rod scroll-rod-bottom"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var currentStep = 1;
+  var totalSteps = 5;
+
+  function goStep(n) {
+    var i;
+    var steps = document.querySelectorAll('.step');
+    for (i = 0; i < steps.length; i++) {
+      steps[i].className = 'step';
+    }
+
+    var target = document.getElementById('step' + n);
+    if (target) {
+      target.className = 'step active';
+    }
+
+    var dots = document.querySelectorAll('.step-dot');
+    for (i = 0; i < dots.length; i++) {
+      if (i < n) {
+        dots[i].className = 'step-dot active';
+      } else {
+        dots[i].className = 'step-dot';
+      }
+    }
+
+    currentStep = n;
+  }
+
+  function startGame() {
+    var skipChecked = document.getElementById('skipOnboarding').checked;
+    if (skipChecked) {
+      try {
+        localStorage.setItem('gekokujo_skip_onboarding', '1');
+      } catch (e) {
+        // localStorage使えない環境は無視
+      }
+    }
+
+    var overlay = document.getElementById('onboardingOverlay');
+    overlay.style.opacity = '0';
+    overlay.style.transition = 'opacity 0.4s';
+    setTimeout(function() {
+      overlay.style.display = 'none';
+    }, 400);
+  }
+</script>
+
+</body>
+</html>

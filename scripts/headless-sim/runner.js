@@ -13,7 +13,7 @@
 const fs = require("fs");
 const path = require("path");
 const { GameEngine } = require("./engine");
-const { AIPlayer } = require("./ai-player");
+const { AIPlayer, SKILL_PARAMS } = require("./ai-player");
 
 // ============================================================
 // CLI引数パース
@@ -132,10 +132,9 @@ function pickMixedSkill() {
 // ============================================================
 function runSingleGame(charKey, ikkiMode, skillLevel, paramOverrides, collectLog) {
   // Merge skill-based tsujigiri success rate into param overrides
-  const tsujigiriRates = { high: 0.9, mid: 0.65, low: 0.35 };
   const mergedOverrides = Object.assign({}, paramOverrides);
   if (mergedOverrides.tsujigiriSuccessRate == null) {
-    mergedOverrides.tsujigiriSuccessRate = tsujigiriRates[skillLevel];
+    mergedOverrides.tsujigiriSuccessRate = SKILL_PARAMS[skillLevel].tsujigiriSuccessRate;
   }
   const engine = new GameEngine(charKey, ikkiMode, { paramOverrides: mergedOverrides });
   const ai = new AIPlayer(skillLevel, charKey, ikkiMode);

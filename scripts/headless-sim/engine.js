@@ -62,7 +62,7 @@ const CHAR_DEFS = {
     name: "商人", attack: 2, speed: 3.6,
     recruitRange: 55, recruitTime: 0, followerBonus: 0.012,
     regroupSpeed: 0.7, chargeMultiplier: 0.5,
-    initialKoku: 6500, recruitCost: 120,
+    initialKoku: 2500, recruitCost: 120,
     scoreMultiplier: 1.2, damageTakenMultiplier: 1.2,
     maxEnemies: null, spawnInterval: null
   },
@@ -70,7 +70,7 @@ const CHAR_DEFS = {
     name: "農民", attack: 3, speed: 3.2,
     recruitRange: 65, recruitTime: 400, followerBonus: 0.025,
     regroupSpeed: 1.0, chargeMultiplier: 0.8,
-    scoreMultiplier: 1.4, damageTakenMultiplier: 1.4,
+    scoreMultiplier: 1.2, damageTakenMultiplier: 1.4,
     maxEnemies: 17, spawnInterval: 2
   }
 };
@@ -771,9 +771,7 @@ class GameEngine {
       orbitAngle: this.rng.random() * Math.PI * 2,
       orbitRadius: this.rng.random() * 40
     };
-    if (this.charKey === "ashigaru") {
-      member.loyaltyTimer = 15 + this.rng.random() * 10;
-    }
+    // 足軽: 忠誠離脱は確率モデルで管理（loyaltyTimer不要）
     this.paradeMembers.push(member);
     this.stats.totalRecruits++;
     if (this.paradeMembers.length > this.stats.peakParadeLen) {
@@ -988,7 +986,7 @@ class GameEngine {
     const spawnInt = this.charDef.spawnInterval != null ? this.charDef.spawnInterval : 3;
     if (this.enemySpawnTimer > spawnInt) {
       this.enemySpawnTimer = 0;
-      if (this.enemies.length < 6) { this._spawnEnemy(); this._spawnEnemy(); this._spawnEnemy(); }
+      if (this.enemies.length < 6) { this._spawnEnemy(); this._spawnEnemy(); }
       else if (this.enemies.length < 10) { this._spawnEnemy(); this._spawnEnemy(); }
       else { this._spawnEnemy(); }
     }
@@ -1163,19 +1161,23 @@ class GameEngine {
     for (let i = this.paradeMembers.length - 1; i >= 0; i--) {
       const m = this.paradeMembers[i];
 
-      // Ashigaru loyalty timer (entities.js:729-743)
-      if (this.charKey === "ashigaru" && m.loyaltyTimer !== undefined) {
-        m.loyaltyTimer -= dt;
-        if (m.loyaltyTimer <= 0) {
-          // Return as civilian
+      // 足軽: 確率的離脱モデル（毎秒 ~4%±1% でグループから1人抜ける）
+      // 固定タイマーより自然なじわじわ離脱を再現
+      if (this.charKey === "ashigaru" && this.paradeMembers.length > 0) {
+        const baseRate = 0.04;
+        const variance = 0.01;
+        const departRate = baseRate + (this.rng.random() - 0.5) * 2 * variance;
+        if (this.rng.random() < departRate * dt) {
+          const idx = Math.floor(this.rng.random() * this.paradeMembers.length);
+          const leaving = this.paradeMembers[idx];
           this.civilians.push({
-            x: m.x, y: m.y,
+            x: leaving.x, y: leaving.y,
             wanderAngle: this.rng.random() * Math.PI * 2,
             wanderTimer: 0,
             recruitTimer: 0
           });
-          this.paradeMembers.splice(i, 1);
-          continue;
+          this.paradeMembers.splice(idx, 1);
+          break; // 1秒に1人まで
         }
       }
 
@@ -1576,10 +1578,10 @@ class GameEngine {
       if (en.name === "野盗" || en.name === "侍") {
         const tdx = en.x - this.player.x;
         const tdy = en.y - this.player.y;
-        const tDistSq = tdx * tdx + tdy * tdy;
-        if (tDistSq > 22500) { continue; } // 150px range
         const terrainMult = this._getTsujigiriTerrainMultiplier();
-        const chance = 0.025 * terrainMult;
+        const baseChance = this.paramOverrides.tsujigiriBaseChance != null
+          ? this.paramOverrides.tsujigiriBaseChance : 0.025;
+        const chance = baseChance * terrainMult;
         if (this.rng.random() < chance) {
           // QTE success rate (configurable, default 50%)
           const tsujigiriSuccessRate = this.paramOverrides.tsujigiriSuccessRate != null
@@ -1613,7 +1615,13 @@ class GameEngine {
     if (this._isInRiver(px, py)) { return 0; }
     const terrain = this._getTerrainAt(px, py);
     if (terrain === TERRAIN_TYPES.CASTLE) { return 0; }
-    const charTable = TSUJIGIRI_TERRAIN_CHANCES[this.charKey];
+    const defaultTable = TSUJIGIRI_TERRAIN_CHANCES[this.charKey];
+    const overrideTable = this.paramOverrides.tsujigiriTerrainChances;
+    const charTable = overrideTable != null
+      ? { village: overrideTable.village != null ? overrideTable.village : defaultTable.village,
+          castleTown: overrideTable.castleTown != null ? overrideTable.castleTown : defaultTable.castleTown,
+          grassland: overrideTable.grassland != null ? overrideTable.grassland : defaultTable.grassland }
+      : defaultTable;
     if (terrain === TERRAIN_TYPES.VILLAGE) { return charTable.village; }
     if (terrain === TERRAIN_TYPES.CASTLE_TOWN) { return charTable.castleTown; }
     if (terrain === TERRAIN_TYPES.GRASSLAND) { return charTable.grassland; }

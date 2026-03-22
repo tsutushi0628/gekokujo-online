@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>キャラ選択画面モック - 下克上オンライン</title>
+  <style>
+    /* --- CSS Variables (from style.css) --- */
+    :root {
+      --color-primary: #1a1a1a;
+      --color-bg: #fafafa;
+      --color-white: #fff;
+      --color-gray-light: #f0f0f0;
+      --color-gray-mid: #ddd;
+      --color-gray-dark: #666;
+      --color-text-secondary: #2a2a2a;
+      --color-accent-yellow: #ffe033;
+      --color-danger: #c04040;
+      --color-overlay-light: rgba(255, 255, 255, 0.97);
+      --font-main: 'Chika', 'MokoMori', sans-serif;
+      --border-main: 3px solid var(--color-primary);
+      --game-width: 1280px;
+      --game-height: 720px;
+      --navy-mid: #4a6fa5;
+    }
+
+    /* --- Fonts --- */
+    @font-face {
+      font-family: 'Chika';
+      src: url('assets/chika-Regular.ttf') format('truetype');
+    }
+    @font-face {
+      font-family: 'MokoMori';
+      src: url('assets/mikiyu-newpenji-p.ttf') format('truetype');
+    }
+
+    /* --- Reset / Base --- */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #333;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: var(--font-main);
+      color: var(--color-primary);
+    }
+
+    /* --- Game Container --- */
+    .game-container {
+      position: relative;
+      width: var(--game-width);
+      height: var(--game-height);
+      border: var(--border-main);
+      background: var(--color-overlay-light);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    /* =============================================
+       DESIGN A: Vertical Card (recommended)
+       - Reference: Monster Hunter character select
+       - Full-height cards with centered content
+       ============================================= */
+
+    .design-a h2 {
+      font-size: 38px;
+      color: var(--color-primary);
+      margin-bottom: 24px;
+      letter-spacing: 4px;
+      text-align: center;
+    }
+
+    .design-a .char-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+      padding: 0 40px;
+      width: 100%;
+      max-width: 1100px;
+    }
+
+    .design-a .char-card {
+      background: rgba(255,255,255,0.95);
+      border: 2px solid var(--color-gray-mid);
+      padding: 20px 16px 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+      position: relative;
+    }
+    .design-a .char-card:hover {
+      border-color: var(--color-primary);
+      background: var(--color-white);
+      transform: translateY(-4px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+    }
+
+    /* Label ribbon */
+    .design-a .char-label {
+      position: absolute;
+      top: 0;
+      left: 0;
+      background: var(--color-primary);
+      color: var(--color-white);
+      font-size: 13px;
+      padding: 4px 12px;
+      letter-spacing: 1px;
+      font-weight: bold;
+    }
+
+    /* Score multiplier badge */
+    .design-a .score-badge {
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: var(--color-accent-yellow);
+      color: var(--color-primary);
+      font-size: 14px;
+      padding: 4px 10px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      border-left: 2px solid var(--color-primary);
+      border-bottom: 2px solid var(--color-primary);
+    }
+
+    .design-a .char-img {
+      display: block;
+      height: 100px;
+      margin: 8px auto 8px auto;
+      image-rendering: pixelated;
+    }
+
+    .design-a .char-name {
+      font-size: 24px;
+      font-weight: bold;
+      color: var(--color-primary);
+      margin-bottom: 2px;
+    }
+
+    .design-a .char-catchcopy {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      margin-bottom: 12px;
+      line-height: 1.5;
+      border-left: 3px solid var(--navy-mid);
+      padding-left: 8px;
+      text-align: left;
+      display: inline-block;
+    }
+
+    .design-a .char-stats {
+      margin-top: 4px;
+      text-align: left;
+    }
+    .design-a .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 3px;
+    }
+    .design-a .stat-label {
+      font-size: 14px;
+      color: var(--color-gray-dark);
+      min-width: 48px;
+    }
+    .design-a .stat-value {
+      font-size: 18px;
+      letter-spacing: 2px;
+      color: var(--color-accent-yellow);
+      text-shadow: 0 0 1px rgba(0,0,0,0.3);
+    }
+    .design-a .stat-value.max-stat {
+      color: #ffb800;
+      font-weight: bold;
+    }
+
+  </style>
+</head>
+<body>
+
+<div class="game-container design-a" id="designA">
+  <h2>身分を選べ</h2>
+  <div class="char-grid">
+
+    <!-- 足軽 -->
+    <div class="char-card" data-char="ashigaru">
+      <div class="char-label">まずはコレ！</div>
+      <img src="assets/ashigaru_play.png" class="char-img" alt="足軽">
+      <div class="char-name">足軽（あしがる）</div>
+      <div class="char-catchcopy">5方向の弾幕で敵をなぎ倒せ</div>
+      <div class="char-stats">
+        <div class="stat-row">
+          <span class="stat-label">攻撃力</span>
+          <span class="stat-value max-stat">&#x2605;&#x2605;&#x2605;&#x2605;&#x2605;</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">機動力</span>
+          <span class="stat-value">&#x2605;&#x2605;&#x2605;&#x2606;&#x2606;</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">成長力</span>
+          <span class="stat-value">&#x2605;&#x2606;&#x2606;&#x2606;&#x2606;</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">経済力</span>
+          <span class="stat-value">&#x2605;&#x2606;&#x2606;&#x2606;&#x2606;</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 商人 -->
+    <div class="char-card" data-char="merchant">
+      <div class="char-label">お金で解決！</div>
+      <div class="score-badge">石高×1.2</div>
+      <img src="assets/shonin_play.png" class="char-img" alt="商人">
+      <div class="char-name">商人（あきんど）</div>
+      <div class="char-catchcopy">金の力で最強軍団を即編成</div>
+      <div class="char-stats">
+        <div class="stat-row">
+          <span class="stat-label">攻撃力</span>
+          <span class="stat-value">&#x2605;&#x2606;&#x2606;&#x2606;&#x2606;</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">機動力</span>
+          <span class="stat-value">&#x2605;&#x2605;&#x2605;&#x2605;&#x2606;</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">成長力</span>
+          <span class="stat-value">&#x2605;&#x2605;&#x2606;&#x2606;&#x2606;</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">経済力</span>
+          <span class="stat-value max-stat">&#x2605;&#x2605;&#x2605;&#x2605;&#x2605;</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 農民 -->
+    <div class="char-card" data-char="farmer">
+      <div class="char-label">最強スコア狙い</div>
+      <div class="score-badge">石高×1.4</div>
+      <img src="assets/nomin_play.png" class="char-img" alt="農民">
+      <div class="char-name">農民（ひゃくしょう）</div>
+      <div class="char-catchcopy">最弱から始まる大逆転劇</div>
+      <div class="char-stats">
+        <div class="stat-row">
+          <span class="stat-label">攻撃力</span>
+          <span class="stat-value">&#x2605;&#x2605;&#x2606;&#x2606;&#x2606;</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">機動力</span>
+          <span class="stat-value">&#x2605;&#x2605;&#x2605;&#x2606;&#x2606;</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">成長力</span>
+          <span class="stat-value max-stat">&#x2605;&#x2605;&#x2605;&#x2605;&#x2605;</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">経済力</span>
+          <span class="stat-value">&#x2605;&#x2606;&#x2606;&#x2606;&#x2606;</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  /* ES5 only - no const/let/class/arrow/ternary/template literals */
+  var allCards = document.querySelectorAll('.char-card');
+  var i;
+  for (i = 0; i < allCards.length; i++) {
+    allCards[i].addEventListener('click', function() {
+      var card = this;
+      card.style.border = '3px solid ' + getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim();
+      card.style.background = '#f8f6f0';
+      setTimeout(function() {
+        card.style.border = '';
+        card.style.background = '';
+      }, 400);
+    });
+  }
+</script>
+
+</body>
+</html>

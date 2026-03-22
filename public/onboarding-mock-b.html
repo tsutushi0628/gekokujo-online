@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>下克上オンライン — オンボーディングモック B</title>
+<style>
+/* === Reset & Base === */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+@font-face {
+  font-family: 'Chika';
+  src: url('assets/chika-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'MokoMori';
+  src: url('assets/mikiyu-newpenji-p.ttf') format('truetype');
+}
+
+body {
+  background: #2a2a2a;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  font-family: 'Chika', 'MokoMori', sans-serif;
+  color: #1a1a1a;
+  overflow: hidden;
+}
+
+/* === Game Container (1280x720 frame) === */
+#game-container {
+  position: relative;
+  width: 1280px;
+  height: 720px;
+  border: 3px solid #1a1a1a;
+  background: #333;
+  overflow: hidden;
+}
+
+/* === Onboarding Overlay === */
+#onboarding-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1280px;
+  height: 720px;
+  background: rgba(245, 240, 232, 0.97);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+}
+
+/* === Header === */
+.onb-header {
+  text-align: center;
+  padding: 18px 0 6px;
+  flex-shrink: 0;
+}
+.onb-header h1 {
+  font-size: 32px;
+  letter-spacing: 6px;
+  color: #2a1a0a;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.08);
+}
+.onb-header .subtitle {
+  font-size: 14px;
+  color: #8a7a6a;
+  margin-top: 2px;
+  letter-spacing: 2px;
+}
+
+/* === Scroll Track (horizontal scroll area) === */
+.scroll-track-wrapper {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.scroll-track {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  transition: transform 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+  will-change: transform;
+}
+
+/* === Step Panel === */
+.step-panel {
+  width: 1280px;
+  min-width: 1280px;
+  height: 100%;
+  padding: 10px 60px 16px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.step-number {
+  font-size: 13px;
+  color: #b8a898;
+  letter-spacing: 3px;
+  margin-bottom: 4px;
+}
+
+.step-title {
+  font-size: 26px;
+  color: #2a1a0a;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 3px solid #2a1a0a;
+  position: relative;
+}
+
+/* 筆ストローク風の装飾線 */
+.step-title::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    #c8b8a0 5%,
+    #a89878 20%,
+    #c8b8a0 50%,
+    #a89878 80%,
+    #c8b8a0 95%,
+    transparent 100%
+  );
+}
+
+.step-content {
+  flex: 1;
+  display: flex;
+  gap: 24px;
+  overflow: hidden;
+}
+
+/* === Character Cards (Step 1) === */
+.char-cards {
+  display: flex;
+  gap: 20px;
+  width: 100%;
+}
+
+.char-card-onb {
+  flex: 1;
+  background: rgba(255, 252, 245, 0.8);
+  border: 2px solid #d0c0a0;
+  border-left: 4px solid #2a1a0a;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.char-card-onb .char-name-onb {
+  font-size: 22px;
+  color: #2a1a0a;
+  margin-bottom: 2px;
+}
+
+.char-card-onb .char-role {
+  font-size: 12px;
+  color: #8a7a6a;
+  margin-bottom: 10px;
+  letter-spacing: 1px;
+}
+
+.char-card-onb .char-features {
+  list-style: none;
+  padding: 0;
+}
+
+.char-card-onb .char-features li {
+  font-size: 14px;
+  line-height: 1.7;
+  padding-left: 16px;
+  position: relative;
+  color: #3a2a1a;
+}
+
+.char-card-onb .char-features li::before {
+  content: '\25B6';
+  position: absolute;
+  left: 0;
+  font-size: 8px;
+  top: 5px;
+  color: #a89070;
+}
+
+.char-difficulty {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid #e0d8c8;
+  font-size: 13px;
+  color: #8a7a6a;
+}
+
+.char-difficulty .difficulty-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  font-size: 12px;
+  border: 1px solid #c0b090;
+  color: #6a5a4a;
+  margin-left: 4px;
+}
+
+.difficulty-hard {
+  border-color: #c04040 !important;
+  color: #c04040 !important;
+  font-weight: bold;
+}
+
+/* === Ikki Sub-options === */
+.ikki-options {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: rgba(200, 180, 150, 0.15);
+  border-left: 3px solid #a89070;
+}
+
+.ikki-option {
+  font-size: 13px;
+  color: #4a3a2a;
+  line-height: 1.8;
+}
+
+.ikki-option .ikki-label {
+  font-weight: bold;
+  color: #2a1a0a;
+}
+
+/* === Info Columns (Step 2 & 3) === */
+.info-columns {
+  display: flex;
+  gap: 28px;
+  width: 100%;
+}
+
+.info-col {
+  flex: 1;
+  background: rgba(255, 252, 245, 0.8);
+  border: 2px solid #d0c0a0;
+  border-left: 4px solid #2a1a0a;
+  padding: 18px;
+}
+
+.info-col h3 {
+  font-size: 18px;
+  color: #2a1a0a;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #d0c0a0;
+}
+
+.info-list {
+  list-style: none;
+  padding: 0;
+}
+
+.info-list li {
+  font-size: 14px;
+  line-height: 1.8;
+  padding: 3px 0 3px 18px;
+  position: relative;
+  color: #3a2a1a;
+}
+
+.info-list li::before {
+  content: '\25C6';
+  position: absolute;
+  left: 0;
+  font-size: 9px;
+  top: 6px;
+  color: #a89070;
+}
+
+.key-badge {
+  display: inline-block;
+  background: #2a1a0a;
+  color: #f5f0e8;
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 3px;
+  font-family: monospace;
+  margin: 0 2px;
+  vertical-align: middle;
+}
+
+/* === Threat Cards (Step 3) === */
+.threat-cards {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+}
+
+.threat-card {
+  flex: 1;
+  background: rgba(255, 252, 245, 0.8);
+  border: 2px solid #d0c0a0;
+  border-left: 4px solid #2a1a0a;
+  padding: 16px;
+}
+
+.threat-card h3 {
+  font-size: 17px;
+  color: #2a1a0a;
+  margin-bottom: 8px;
+}
+
+.threat-card p {
+  font-size: 14px;
+  line-height: 1.7;
+  color: #3a2a1a;
+}
+
+.threat-card.threat-danger {
+  border-left-color: #c04040;
+  background: rgba(255, 240, 235, 0.9);
+}
+
+.threat-card.threat-danger h3 {
+  color: #c04040;
+}
+
+.threat-card .threat-tip {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: rgba(192, 64, 64, 0.08);
+  border-left: 3px solid #c04040;
+  font-size: 13px;
+  color: #8a2020;
+  font-weight: bold;
+}
+
+.threat-card .reward-badge {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 8px;
+  background: #ffe033;
+  color: #2a1a0a;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* === Final Step (Step 4) === */
+.final-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  gap: 28px;
+}
+
+.final-catchphrase {
+  font-size: 36px;
+  color: #2a1a0a;
+  letter-spacing: 4px;
+  line-height: 1.6;
+}
+
+.final-sub {
+  font-size: 16px;
+  color: #8a7a6a;
+  letter-spacing: 2px;
+}
+
+.skip-check-area {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.skip-check-area input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #2a1a0a;
+  cursor: pointer;
+}
+
+.skip-check-area label {
+  font-size: 14px;
+  color: #6a5a4a;
+  cursor: pointer;
+}
+
+.btn-sortie {
+  display: inline-block;
+  padding: 16px 60px;
+  font-size: 26px;
+  font-family: 'Chika', 'MokoMori', sans-serif;
+  color: #f5f0e8;
+  background: #2a1a0a;
+  border: 3px solid #2a1a0a;
+  cursor: pointer;
+  letter-spacing: 6px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.btn-sortie:hover {
+  background: #f5f0e8;
+  color: #2a1a0a;
+}
+
+/* === Navigation (bottom bar) === */
+.onb-nav {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 40px 14px;
+  border-top: 2px solid #d0c0a0;
+  background: rgba(245, 240, 232, 0.95);
+}
+
+.nav-btn {
+  font-family: 'Chika', 'MokoMori', sans-serif;
+  font-size: 16px;
+  padding: 8px 28px;
+  background: transparent;
+  border: 2px solid #2a1a0a;
+  color: #2a1a0a;
+  cursor: pointer;
+  letter-spacing: 2px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.nav-btn:hover {
+  background: #2a1a0a;
+  color: #f5f0e8;
+}
+
+.nav-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.nav-btn:disabled:hover {
+  background: transparent;
+  color: #2a1a0a;
+}
+
+/* Step indicators (dots) */
+.step-dots {
+  display: flex;
+  gap: 10px;
+}
+
+.step-dot {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #2a1a0a;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.step-dot.active {
+  background: #2a1a0a;
+}
+
+/* === Skip Link (top right) === */
+.skip-link {
+  position: absolute;
+  top: 12px;
+  right: 20px;
+  font-size: 13px;
+  color: #a09080;
+  cursor: pointer;
+  z-index: 10;
+  letter-spacing: 1px;
+  transition: color 0.2s;
+}
+
+.skip-link:hover {
+  color: #2a1a0a;
+}
+
+/* === Scroll hint arrow === */
+.scroll-hint {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 28px;
+  color: #c0b090;
+  animation: pulse-arrow 1.5s infinite;
+  pointer-events: none;
+  z-index: 5;
+}
+
+@keyframes pulse-arrow {
+  0%, 100% { opacity: 0.4; transform: translateY(-50%) translateX(0); }
+  50% { opacity: 1; transform: translateY(-50%) translateX(6px); }
+}
+
+/* === Decorative Emaki borders between panels === */
+.emaki-border {
+  position: absolute;
+  right: 0;
+  top: 10%;
+  height: 80%;
+  width: 3px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    #c8b8a0 10%,
+    #8a7a6a 30%,
+    #c8b8a0 50%,
+    #8a7a6a 70%,
+    #c8b8a0 90%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+</style>
+</head>
+<body>
+
+<div id="game-container">
+  <!-- Fake canvas background -->
+  <canvas id="gameCanvas" width="1280" height="720"></canvas>
+
+  <!-- Onboarding Overlay -->
+  <div id="onboarding-overlay">
+    <!-- Skip link -->
+    <span class="skip-link" id="skipLink">SKIP &raquo;</span>
+
+    <!-- Header -->
+    <div class="onb-header">
+      <h1>下克上指南書</h1>
+      <div class="subtitle">~ 戦の手引き ~</div>
+    </div>
+
+    <!-- Scroll Track -->
+    <div class="scroll-track-wrapper">
+      <div class="scroll-track" id="scrollTrack">
+
+        <!-- ===== STEP 1: キャラクター紹介 ===== -->
+        <div class="step-panel" data-step="0">
+          <div class="step-number">其の壱</div>
+          <div class="step-title">身分を知れ</div>
+          <div class="step-content">
+            <div class="char-cards">
+
+              <!-- 足軽 -->
+              <div class="char-card-onb">
+                <div class="char-name-onb">足軽</div>
+                <div class="char-role">武闘派 / 入門向け</div>
+                <ul class="char-features">
+                  <li>前方5発の扇状攻撃</li>
+                  <li>戦闘の基本が学べる</li>
+                  <li>仲間は時間で離脱する</li>
+                </ul>
+                <div class="char-difficulty">
+                  難易度 <span class="difficulty-tag">入門</span>
+                </div>
+              </div>
+
+              <!-- 商人 -->
+              <div class="char-card-onb">
+                <div class="char-name-onb">商人</div>
+                <div class="char-role">経済型 / 戦略向け</div>
+                <ul class="char-features">
+                  <li>金で傭兵を即リクルート</li>
+                  <li>初期石高 650 で開始</li>
+                  <li>遠距離2発攻撃</li>
+                </ul>
+                <div class="char-difficulty">
+                  難易度 <span class="difficulty-tag">中級</span>
+                </div>
+              </div>
+
+              <!-- 農民 -->
+              <div class="char-card-onb">
+                <div class="char-name-onb">農民</div>
+                <div class="char-role">テクニカル / 玄人向け</div>
+                <ul class="char-features">
+                  <li>仲間の数がそのまま力</li>
+                  <li>一揆の選択肢あり</li>
+                </ul>
+                <div class="ikki-options">
+                  <div class="ikki-option">
+                    <span class="ikki-label">一揆なし:</span> 制限60秒・安定プレイ
+                  </div>
+                  <div class="ikki-option">
+                    <span class="ikki-label">一揆あり:</span> 制限50秒・<span class="key-badge">Q</span>で画面一掃
+                  </div>
+                </div>
+                <div class="char-difficulty">
+                  難易度 <span class="difficulty-tag difficulty-hard">最高</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+          <div class="emaki-border"></div>
+          <span class="scroll-hint" id="scrollHint">&rsaquo;</span>
+        </div>
+
+        <!-- ===== STEP 2: 目的と操作 ===== -->
+        <div class="step-panel" data-step="1">
+          <div class="step-number">其の弐</div>
+          <div class="step-title">戦の作法</div>
+          <div class="step-content">
+            <div class="info-columns">
+
+              <!-- 目的 -->
+              <div class="info-col">
+                <h3>目的</h3>
+                <ul class="info-list">
+                  <li>城の殿様を倒せ（下克上）</li>
+                  <li>石高 = スコア = お金</li>
+                  <li>商人は傭兵代として石高を消費</li>
+                </ul>
+              </div>
+
+              <!-- 基本操作 -->
+              <div class="info-col">
+                <h3>基本操作</h3>
+                <ul class="info-list">
+                  <li><span class="key-badge">W</span><span class="key-badge">A</span><span class="key-badge">S</span><span class="key-badge">D</span> 移動</li>
+                  <li><span class="key-badge">左クリック</span> 攻撃</li>
+                  <li><span class="key-badge">右クリック</span> 仲間で突撃（3人以上）</li>
+                </ul>
+              </div>
+
+              <!-- 仲間 -->
+              <div class="info-col">
+                <h3>仲間を集めろ</h3>
+                <ul class="info-list">
+                  <li>民間人に近づくと仲間になる</li>
+                  <li>行列を作って付いてくる</li>
+                  <li>3人以上で突撃が使える</li>
+                </ul>
+              </div>
+
+            </div>
+          </div>
+          <div class="emaki-border"></div>
+        </div>
+
+        <!-- ===== STEP 3: 敵と脅威 ===== -->
+        <div class="step-panel" data-step="2">
+          <div class="step-number">其の参</div>
+          <div class="step-title">敵を知れ</div>
+          <div class="step-content">
+            <div class="threat-cards">
+
+              <div class="threat-card">
+                <h3>雑魚敵</h3>
+                <p>時間経過で強い敵が出現。序盤に稼げ。</p>
+              </div>
+
+              <div class="threat-card">
+                <h3>橋ボス</h3>
+                <p>橋を守る番人。倒すと先へ進める。</p>
+                <span class="reward-badge">+200石</span>
+              </div>
+
+              <div class="threat-card threat-danger">
+                <h3>辻斬り</h3>
+                <p>突然現れる死神。逃げ場なし。</p>
+                <div class="threat-tip">
+                  <span class="key-badge">SPACE</span> で撃退。失敗 = 即死
+                </div>
+              </div>
+
+              <div class="threat-card">
+                <h3>殿様</h3>
+                <p>城門に出現。入城後20秒以内に倒せ。</p>
+              </div>
+
+            </div>
+          </div>
+          <div class="emaki-border"></div>
+        </div>
+
+        <!-- ===== STEP 4: 締め ===== -->
+        <div class="step-panel" data-step="3">
+          <div class="step-number">其の四</div>
+          <div class="step-title">いざ出陣</div>
+          <div class="step-content">
+            <div class="final-section">
+              <div class="final-catchphrase">
+                石高を稼いで、<br>下克上を果たせ！
+              </div>
+              <div class="final-sub">身分も運命も、己の手で変えろ</div>
+              <div class="skip-check-area">
+                <input type="checkbox" id="skipNextTime">
+                <label for="skipNextTime">次回から表示しない</label>
+              </div>
+              <button class="btn-sortie" id="sortieBtn">いざ、出陣！</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="onb-nav">
+      <button class="nav-btn" id="prevBtn" disabled>&laquo; 戻る</button>
+      <div class="step-dots" id="stepDots">
+        <div class="step-dot active" data-dot="0"></div>
+        <div class="step-dot" data-dot="1"></div>
+        <div class="step-dot" data-dot="2"></div>
+        <div class="step-dot" data-dot="3"></div>
+      </div>
+      <button class="nav-btn" id="nextBtn">次へ &raquo;</button>
+    </div>
+
+  </div>
+</div>
+
+<p style="text-align:center; color:#777; font-size:12px; margin-top:10px; font-family:sans-serif;">
+  Onboarding Mock B — 戦国の絵巻物コンセプト
+</p>
+
+<script>
+(function() {
+  'use strict';
+
+  var currentStep = 0;
+  var totalSteps = 4;
+  var scrollTrack = document.getElementById('scrollTrack');
+  var prevBtn = document.getElementById('prevBtn');
+  var nextBtn = document.getElementById('nextBtn');
+  var stepDots = document.getElementById('stepDots').children;
+  var skipLink = document.getElementById('skipLink');
+  var sortieBtn = document.getElementById('sortieBtn');
+  var scrollHint = document.getElementById('scrollHint');
+  var overlay = document.getElementById('onboarding-overlay');
+
+  function goToStep(step) {
+    if (step < 0 || step >= totalSteps) {
+      return;
+    }
+    currentStep = step;
+    scrollTrack.style.transform = 'translateX(-' + (currentStep * 1280) + 'px)';
+
+    // Update dots
+    var i;
+    for (i = 0; i < stepDots.length; i++) {
+      if (i === currentStep) {
+        stepDots[i].className = 'step-dot active';
+      } else {
+        stepDots[i].className = 'step-dot';
+      }
+    }
+
+    // Update buttons
+    prevBtn.disabled = (currentStep === 0);
+
+    if (currentStep === totalSteps - 1) {
+      nextBtn.style.visibility = 'hidden';
+    } else {
+      nextBtn.style.visibility = 'visible';
+    }
+
+    // Hide scroll hint after first step
+    if (scrollHint) {
+      if (currentStep > 0) {
+        scrollHint.style.display = 'none';
+      } else {
+        scrollHint.style.display = 'block';
+      }
+    }
+  }
+
+  prevBtn.addEventListener('click', function() {
+    goToStep(currentStep - 1);
+  });
+
+  nextBtn.addEventListener('click', function() {
+    goToStep(currentStep + 1);
+  });
+
+  // Dot click navigation
+  var dotIdx;
+  for (dotIdx = 0; dotIdx < stepDots.length; dotIdx++) {
+    (function(idx) {
+      stepDots[idx].addEventListener('click', function() {
+        goToStep(idx);
+      });
+    })(dotIdx);
+  }
+
+  // Skip link
+  skipLink.addEventListener('click', function() {
+    closeOnboarding();
+  });
+
+  // Sortie button
+  sortieBtn.addEventListener('click', function() {
+    var checkbox = document.getElementById('skipNextTime');
+    if (checkbox.checked) {
+      // In real implementation: localStorage.setItem('skipOnboarding', '1');
+    }
+    closeOnboarding();
+  });
+
+  function closeOnboarding() {
+    overlay.style.opacity = '0';
+    overlay.style.transition = 'opacity 0.4s ease';
+    setTimeout(function() {
+      overlay.style.display = 'none';
+    }, 400);
+  }
+
+  // Keyboard navigation
+  document.addEventListener('keydown', function(e) {
+    if (overlay.style.display === 'none') {
+      return;
+    }
+    if (e.key === 'ArrowRight' || e.key === 'd') {
+      goToStep(currentStep + 1);
+    }
+    if (e.key === 'ArrowLeft' || e.key === 'a') {
+      goToStep(currentStep - 1);
+    }
+    if (e.key === 'Escape') {
+      closeOnboarding();
+    }
+  });
+
+  // Draw fake game background on canvas
+  var canvas = document.getElementById('gameCanvas');
+  var ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#4A7C3F';
+  ctx.fillRect(0, 0, 1280, 720);
+  ctx.fillStyle = '#3a6a2f';
+  var rx, ry;
+  for (rx = 0; rx < 20; rx++) {
+    for (ry = 0; ry < 12; ry++) {
+      if ((rx + ry) % 3 === 0) {
+        ctx.fillRect(rx * 64, ry * 60, 64, 60);
+      }
+    }
+  }
+  ctx.fillStyle = '#C4A35A';
+  ctx.fillRect(500, 200, 280, 320);
+  ctx.fillStyle = '#8A7A6A';
+  ctx.fillRect(900, 100, 300, 250);
+  ctx.fillStyle = '#3A6EA5';
+  ctx.fillRect(0, 350, 500, 40);
+
+  // Initialize
+  goToStep(0);
+})();
+</script>
+</body>
+</html>

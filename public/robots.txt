@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://gekokujo-online.web.app/sitemap.xml
+Sitemap: https://gekokujo-online.web.app/sitemap2.xml

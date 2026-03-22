@@ -1,0 +1,123 @@
+@font-face {
+  font-family: 'Chika';
+  src: url('../assets/chika-Regular.woff2') format('woff2'),
+       url('../assets/chika-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'MokoMori';
+  src: url('../assets/mikiyu-newpenji-p.woff2') format('woff2'),
+       url('../assets/mikiyu-newpenji-p.ttf') format('truetype');
+  font-display: swap;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  background: #fff;
+}
+
+.notice-card {
+  width: 100%;
+  min-height: 100vh;
+  text-align: center;
+  padding: 40px 24px 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+}
+
+.ofuregaki {
+  font-family: 'Chika', 'MokoMori', serif;
+  font-size: 28px;
+  letter-spacing: 0.4em;
+  color: #888;
+}
+
+.notice-title-img {
+  width: 80%;
+  max-width: 320px;
+  opacity: 0.9;
+}
+
+.divider {
+  width: 48px;
+  height: 1px;
+  background: #bbb;
+}
+
+.notice-lead {
+  font-family: 'Chika', 'MokoMori', serif;
+  font-size: 24px;
+  color: #1a1a1a;
+  letter-spacing: 0.1em;
+}
+
+.battle-section {
+  width: 100%;
+  max-width: 560px;
+}
+
+.battle-title {
+  font-family: 'Chika', 'MokoMori', serif;
+  font-size: 20px;
+  font-weight: normal;
+  color: #1a1a1a;
+  letter-spacing: 0.15em;
+  margin-bottom: 12px;
+}
+
+.battle-title::before {
+  content: '◆ ';
+  color: #888;
+}
+
+.video-wrapper {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%;
+  height: 0;
+  overflow: hidden;
+}
+
+.video-wrapper iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.coming-soon {
+  font-family: 'Chika', 'MokoMori', serif;
+  font-size: 16px;
+  color: #aaa;
+  letter-spacing: 0.1em;
+  padding: 32px 0;
+}
+
+.emphasis {
+  color: #c04040;
+}
+
+.notice-disclaimer {
+  font-family: 'Chika', 'MokoMori', serif;
+  font-size: 15px;
+  color: #aaa;
+  letter-spacing: 0.05em;
+}
+
+.notice-sub {
+  font-family: 'Chika', 'MokoMori', serif;
+  font-size: 20px;
+  color: #999;
+  line-height: 2;
+  letter-spacing: 0.05em;
+  margin-top: 8px;
+}

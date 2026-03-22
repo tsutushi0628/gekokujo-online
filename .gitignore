@@ -2,3 +2,20 @@
 node_modules/
 dist/
 logs/
+
+# Claude Code (project-specific settings)
+.claude/
+
+# Investigation findings (project-specific notes)
+docs/findings/
+
+# Environment variables
+.env*
+!.env.example
+
+# Firebase
+.firebase/
+
+# Service account keys
+*serviceAccount*.json
+.wasurenagusa/

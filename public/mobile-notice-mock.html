@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>モバイル非対応モック</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #f5f0e8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .notice-card {
+      text-align: center;
+      padding: 40px 36px 48px;
+      max-width: 340px;
+      width: 90%;
+      background: #fff;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+    }
+
+    /* 御触書ヘッダー：文書の冒頭に掲げる */
+    .ofuregaki {
+      font-family: 'Chika', 'MokoMori', serif;
+      font-size: 11px;
+      letter-spacing: 0.4em;
+      color: #888;
+      margin-bottom: 28px;
+    }
+
+    .notice-title-img {
+      width: 180px;
+      margin-bottom: 28px;
+      opacity: 0.9;
+    }
+
+    .divider {
+      width: 32px;
+      height: 1px;
+      background: #bbb;
+      margin: 0 auto 28px;
+    }
+
+    .notice-main {
+      font-family: 'Chika', 'MokoMori', serif;
+      font-size: 20px;
+      line-height: 2;
+      color: #1a1a1a;
+      letter-spacing: 0.05em;
+      margin-bottom: 28px;
+    }
+
+    .notice-main .emphasis {
+      color: #c04040;
+    }
+
+    .notice-sub {
+      font-family: 'Chika', 'MokoMori', serif;
+      font-size: 13px;
+      color: #999;
+      line-height: 2;
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body>
+  <div class="notice-card">
+    <div class="ofuregaki">御 触 書</div>
+
+    <img class="notice-title-img" src="assets/title.png" alt="下克上オンライン">
+
+    <div class="divider"></div>
+
+    <div class="notice-main">
+      このゲームは<br>
+      <span class="emphasis">携帯端末</span>では<br>
+      動かぬで候
+    </div>
+
+    <div class="notice-sub">
+      机上の陣にてお越しくだされ
+    </div>
+  </div>
+</body>
+</html>

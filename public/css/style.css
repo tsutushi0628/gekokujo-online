@@ -25,11 +25,15 @@
 /* --- Fonts --- */
 @font-face {
   font-family: 'Chika';
-  src: url('../assets/chika-Regular.ttf') format('truetype');
+  src: url('../assets/chika-Regular.woff2') format('woff2'),
+       url('../assets/chika-Regular.ttf') format('truetype');
+  font-display: swap;
 }
 @font-face {
   font-family: 'MokoMori';
-  src: url('../assets/mikiyu-newpenji-p.ttf') format('truetype');
+  src: url('../assets/mikiyu-newpenji-p.woff2') format('woff2'),
+       url('../assets/mikiyu-newpenji-p.ttf') format('truetype');
+  font-display: swap;
 }
 
 /* --- Utility --- */

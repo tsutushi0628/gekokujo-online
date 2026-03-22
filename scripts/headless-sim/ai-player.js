@@ -9,7 +9,7 @@
 const SKILL_NOISE = {
   high: { evalNoise: 0.0, moveNoise: 0.05, randomActionChance: 0.0 },
   mid:  { evalNoise: 0.2, moveNoise: 0.15, randomActionChance: 0.0 },
-  low:  { evalNoise: 0.5, moveNoise: 0.30, randomActionChance: 0.08 },
+  low:  { evalNoise: 0.5, moveNoise: 0.30, randomActionChance: 0.03 },
 };
 
 // ============================================================
@@ -17,6 +17,7 @@ const SKILL_NOISE = {
 // ============================================================
 const SKILL_PARAMS = {
   high: {
+    ikkiAttentionRate: 1.0,   // 毎秒100%: 常にQを監視している
     dodgeRate: 0.9,
     reactionTime: 0.2,
     missGateChance: 0.0,
@@ -28,8 +29,10 @@ const SKILL_PARAMS = {
     fleeKiteEnabled: true,
     ikkiMinParadeBoss: 6,
     ikkiMinBossHp: 200,
+    tsujigiriSuccessRate: 0.97,
   },
   mid: {
+    ikkiAttentionRate: 0.3,   // 毎秒30%: 3秒に1回くらい意識する
     dodgeRate: 0.6,
     reactionTime: 0.5,
     missGateChance: 0.05,
@@ -41,8 +44,10 @@ const SKILL_PARAMS = {
     fleeKiteEnabled: false,
     ikkiMinParadeBoss: 3,
     ikkiMinBossHp: 100,
+    tsujigiriSuccessRate: 0.82,
   },
   low: {
+    ikkiAttentionRate: 0.02,  // 毎秒2%: WASD必死で Qに気づかない初見（平均0.2回目標）
     dodgeRate: 0.2,
     reactionTime: 1.0,
     missGateChance: 0.15,
@@ -54,6 +59,7 @@ const SKILL_PARAMS = {
     fleeKiteEnabled: false,
     ikkiMinParadeBoss: 1,
     ikkiMinBossHp: 0,
+    tsujigiriSuccessRate: 0.72,
   },
 };
 
@@ -75,21 +81,27 @@ const AI_STATE = {
 /**
  * 村に行ってフォロワーを集める価値を計算する
  * @param {object} belief - 現在の信念状態
+ * @param {string} skillLevel - "low"|"mid"|"high"
  * @returns {number} 0〜100のスコア
  */
-function calcRecruitPriority(belief) {
+function calcRecruitPriority(belief, skillLevel) {
+  // スキル別の「仲間を集めたい上限人数」
+  // 高スキルは多人数の複利効果（収入・攻撃・ボス戦）を理解している
+  const targetParade = skillLevel === "high" ? 20 : skillLevel === "mid" ? 12 : 8;
+
   let score = 0;
 
-  // フォロワーが少ないほど価値が高い
+  // フォロワーが目標より少ないほど価値が高い
   if (belief.paradeLen < 3) {
     score += 60;
   } else if (belief.paradeLen < 5) {
     score += 40;
   } else if (belief.paradeLen < 8) {
     score += 15;
+  } else if (belief.paradeLen < targetParade) {
+    score += 8;
   }
-  // 8人以上はほぼ不要
-  // （ただし0人は最優先）
+  // 0人は最優先
   if (belief.paradeLen === 0) {
     score += 20;
   }
@@ -288,7 +300,7 @@ class AIPlayer {
    * @returns {object} goal priorities
    */
   _evaluateGoals(belief) {
-    let recruit = calcRecruitPriority(belief);
+    let recruit = calcRecruitPriority(belief, this.skillLevel);
     let fight = calcFightPriority(belief);
     let castle = calcCastlePriority(belief);
 
@@ -579,21 +591,17 @@ class AIPlayer {
   }
 
   _shouldIkki(state, belief) {
-    if (this.charKey !== "farmer") {
-      return false;
-    }
-    if (!this.ikkiMode) {
-      return false;
-    }
-    if (!state.game.ikkiAvailable) {
-      return false;
-    }
+    if (this.charKey !== "farmer") { return false; }
+    if (!this.ikkiMode) { return false; }
+    if (!state.game.ikkiAvailable) { return false; }
 
-    // 高スキル: 敵が多い＋パレードが多い時のみ
-    // 低スキル: 使えればすぐ使う
+    // 注意率モデル: 毎tick、ikkiAttentionRate * dt の確率でQを意識する
+    const dt = 0.1;
+    if (Math.random() >= this.params.ikkiAttentionRate * dt) { return false; }
+
+    // 高スキル: 最良の敵分布を待つ / 低スキル: 条件ゆるく即押し
     const minParade = this.skillLevel === "high" ? 6 : this.skillLevel === "mid" ? 3 : 1;
     const minEnemies = this.skillLevel === "high" ? 8 : this.skillLevel === "mid" ? 5 : 1;
-
     const enemyCount = state.enemies ? state.enemies.length : 0;
 
     if (belief.paradeLen >= minParade && enemyCount >= minEnemies) {
@@ -610,15 +618,14 @@ class AIPlayer {
   }
 
   _shouldIkkiBoss(state, belief, boss) {
-    if (this.charKey !== "farmer") {
-      return false;
-    }
-    if (!this.ikkiMode) {
-      return false;
-    }
-    if (!state.game.ikkiAvailable) {
-      return false;
-    }
+    if (this.charKey !== "farmer") { return false; }
+    if (!this.ikkiMode) { return false; }
+    if (!state.game.ikkiAvailable) { return false; }
+
+    // ボス戦中は注意率を高める（ボスがいれば誰でも気づく）
+    const bossAttentionRate = this.skillLevel === "low" ? 0.2 : 1.0;
+    const dt = 0.1;
+    if (Math.random() >= bossAttentionRate * dt) { return false; }
 
     const paradeLen = belief.paradeLen;
 

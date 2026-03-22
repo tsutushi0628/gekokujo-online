@@ -2,8 +2,8 @@
 #
 # deploy.sh - gekokujo-online Firebase デプロイ
 #
-# GCPアカウント: tsutushi0628@gmail.com
-# Firebase プロジェクト: gekokujo-online
+# 事前設定:
+#   export DEPLOY_ACCOUNT="your-account@example.com"
 #
 # Usage:
 #   ./scripts/deploy.sh                    # 全デプロイ（hosting + functions + firestore）
@@ -14,7 +14,7 @@
 
 set -euo pipefail
 
-ACCOUNT="tsutushi0628@gmail.com"
+ACCOUNT="${DEPLOY_ACCOUNT:?DEPLOY_ACCOUNT is required}"
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 FUNCTIONS_DIR="$ROOT_DIR/functions"
 

@@ -1,3 +1,3 @@
 [submodule "functions/firebase-kit"]
 	path = functions/firebase-kit
-	url = git@github.com-work:bengo4com/firebase-kit.git
+	url = https://github.com/tsutushi0628/firebase-kit.git

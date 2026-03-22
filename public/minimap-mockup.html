@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>ミニマップ改善モック — 3案比較</title>
+<style>
+  body { background: #2a2a2a; color: #eee; font-family: sans-serif; margin: 20px; }
+  h1 { text-align: center; font-size: 20px; }
+  .proposals { display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+  .proposal { text-align: center; }
+  .proposal h2 { font-size: 16px; margin-bottom: 8px; color: #ffd700; }
+  .proposal p { font-size: 12px; color: #aaa; max-width: 300px; margin: 8px auto; }
+  canvas { border: 1px solid #555; border-radius: 4px; }
+  .game-frame { position: relative; display: inline-block; }
+  .legend { display: flex; gap: 16px; justify-content: center; margin-top: 30px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+  .legend-color { width: 16px; height: 16px; border-radius: 3px; border: 1px solid #555; }
+</style>
+</head>
+<body>
+<h1>ミニマップ改善モック — 3案比較</h1>
+<p style="text-align:center;color:#aaa;font-size:13px;">ゲーム画面(1280x720)を50%縮小表示。ミニマップは実寸で描画。</p>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-color" style="background:#4A7C3F"></div>草原</div>
+  <div class="legend-item"><div class="legend-color" style="background:#C4A35A"></div>村</div>
+  <div class="legend-item"><div class="legend-color" style="background:#5A6A7A"></div>城下町</div>
+  <div class="legend-item"><div class="legend-color" style="background:#8A7A6A"></div>城</div>
+  <div class="legend-item"><div class="legend-color" style="background:#3A6EA5"></div>川</div>
+  <div class="legend-item"><div class="legend-color" style="background:#d8c5b4"></div>空地</div>
+  <div class="legend-item"><div class="legend-color" style="background:#fff;border-color:#333"></div>プレイヤー(三角=向き)</div>
+  <div class="legend-item"><div class="legend-color" style="background:rgba(255,255,255,0.2);border-color:#999"></div>カメラ範囲</div>
+</div>
+
+<div class="proposals">
+  <div class="proposal">
+    <h2>A案: 右下・200x150・和紙風</h2>
+    <p>UXデザイナー推薦。右下配置でMOBA標準。和紙背景で世界観統一。三角矢印+視野扇形。</p>
+    <div class="game-frame"><canvas id="canvasA" width="640" height="360"></canvas></div>
+  </div>
+  <div class="proposal">
+    <h2>B案: 左上・180x135・ダーク</h2>
+    <p>現行位置（左上）を維持。ダーク背景で視認性重視。矢印はシンプルな三角のみ（扇形なし）。</p>
+    <div class="game-frame"><canvas id="canvasB" width="640" height="360"></canvas></div>
+  </div>
+  <div class="proposal">
+    <h2>C案: 右下・160x120・コンパクト</h2>
+    <p>現行比25%拡大の控えめサイズ。右下配置。枠なし半透明でゲーム画面への干渉を最小化。</p>
+    <div class="game-frame"><canvas id="canvasC" width="640" height="360"></canvas></div>
+  </div>
+</div>
+
+<script>
+// --- サンプル地形データ（3x3グリッド） ---
+var BLOCK_W = 1280, BLOCK_H = 720;
+var MAP_W = 3840, MAP_H = 2160;
+var CANVAS_W = 1280, CANVAS_H = 720;
+
+var sampleGrid = [
+  ["grassland", "village",   "castle"],
+  ["village",   "grassland", "castleTown"],
+  ["grassland", "empty",     "grassland"]
+];
+
+var sampleBlocks = [];
+for (var r = 0; r < 3; r++) {
+  for (var c = 0; c < 3; c++) {
+    sampleBlocks.push({ type: sampleGrid[r][c], x: c * BLOCK_W, y: r * BLOCK_H, w: BLOCK_W, h: BLOCK_H });
+  }
+}
+
+var riverX = 1400, riverW = 100;
+var castlePos = { x: 2 * BLOCK_W + BLOCK_W / 2, y: 0 * BLOCK_H + BLOCK_H / 2 };
+var playerPos = { x: 0 * BLOCK_W + BLOCK_W / 2, y: 1 * BLOCK_H + BLOCK_H / 2 };
+var playerFacingRight = true;
+var cameraX = playerPos.x - CANVAS_W / 2;
+var cameraY = playerPos.y - CANVAS_H / 2;
+
+// 民間人サンプル
+var civilians = [];
+for (var ci = 0; ci < 12; ci++) {
+  civilians.push({ x: 200 + Math.random() * 1200, y: 200 + Math.random() * 1800 });
+}
+// 敵サンプル
+var enemies = [];
+for (var ei = 0; ei < 6; ei++) {
+  enemies.push({ x: 1600 + Math.random() * 1200, y: 200 + Math.random() * 1800 });
+}
+// 仲間サンプル
+var followers = [];
+for (var fi = 0; fi < 5; fi++) {
+  followers.push({ x: playerPos.x + (Math.random() - 0.5) * 100, y: playerPos.y + (Math.random() - 0.5) * 100 });
+}
+
+var terrainColors = {
+  grassland:  "#4A7C3F",
+  village:    "#C4A35A",
+  castleTown: "#5A6A7A",
+  castle:     "#8A7A6A",
+  empty:      "#d8c5b4"
+};
+
+function drawGameBg(ctx) {
+  // 50%縮小のゲーム画面背景
+  ctx.fillStyle = "#d8c5b4";
+  ctx.fillRect(0, 0, 640, 360);
+  // 簡易的なゲーム要素
+  ctx.fillStyle = "rgba(0,0,0,0.1)";
+  ctx.fillText("[ ゲーム画面 1280x720 (50%縮小) ]", 200, 180);
+}
+
+function drawMinimap(ctx, config) {
+  var mx = config.x;
+  var my = config.y;
+  var mw = config.w;
+  var mh = config.h;
+  var scaleX = mw / MAP_W;
+  var scaleY = mh / MAP_H;
+
+  ctx.save();
+
+  // 角丸クリップ
+  if (config.rounded) {
+    ctx.beginPath();
+    ctx.roundRect(mx, my, mw, mh, config.rounded);
+    ctx.clip();
+  }
+
+  // 背景
+  ctx.fillStyle = config.bg;
+  ctx.fillRect(mx, my, mw, mh);
+
+  // 地形ブロック
+  for (var i = 0; i < sampleBlocks.length; i++) {
+    var bl = sampleBlocks[i];
+    var bx = mx + bl.x * scaleX;
+    var by = my + bl.y * scaleY;
+    var bw = bl.w * scaleX;
+    var bh = bl.h * scaleY;
+    var col = terrainColors[bl.type];
+    if (col) {
+      ctx.fillStyle = col;
+      ctx.fillRect(bx, by, bw, bh);
+    }
+    // ブロック境界（薄い線）
+    if (config.gridLines) {
+      ctx.strokeStyle = "rgba(255,255,255,0.08)";
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(bx, by, bw, bh);
+    }
+  }
+
+  // 川
+  ctx.fillStyle = "#3A6EA5";
+  ctx.fillRect(mx + riverX * scaleX, my, riverW * scaleX, mh);
+
+  // 橋
+  ctx.fillStyle = "rgba(160, 140, 100, 0.8)";
+  ctx.fillRect(mx + (riverX - 10) * scaleX, my + 400 * scaleY, (riverW + 20) * scaleX, 70 * scaleY);
+  ctx.fillRect(mx + (riverX - 10) * scaleX, my + 1400 * scaleY, (riverW + 20) * scaleX, 120 * scaleY);
+
+  // 村マーカー（白い小四角）
+  for (var vi = 0; vi < sampleBlocks.length; vi++) {
+    var vbl = sampleBlocks[vi];
+    if (vbl.type === "village") {
+      var vcx = mx + (vbl.x + vbl.w / 2) * scaleX;
+      var vcy = my + (vbl.y + vbl.h / 2) * scaleY;
+      ctx.fillStyle = "rgba(255,255,255,0.6)";
+      ctx.fillRect(vcx - 2, vcy - 2, 4, 4);
+    }
+    if (vbl.type === "castleTown") {
+      var ctcx = mx + (vbl.x + vbl.w / 2) * scaleX;
+      var ctcy = my + (vbl.y + vbl.h / 2) * scaleY;
+      // 菱形マーカー
+      ctx.fillStyle = "rgba(255,255,255,0.6)";
+      ctx.save();
+      ctx.translate(ctcx, ctcy);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillRect(-2.5, -2.5, 5, 5);
+      ctx.restore();
+    }
+  }
+
+  // 城マーカー
+  var ccx = mx + castlePos.x * scaleX;
+  var ccy = my + castlePos.y * scaleY;
+  ctx.fillStyle = "#e03030";
+  ctx.fillRect(ccx - 3, ccy - 3, 6, 6);
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 0.8;
+  ctx.strokeRect(ccx - 3, ccy - 3, 6, 6);
+
+  // 民間人（緑ドット）
+  ctx.fillStyle = "rgba(80, 200, 80, 0.5)";
+  for (var ci2 = 0; ci2 < civilians.length; ci2++) {
+    ctx.fillRect(mx + civilians[ci2].x * scaleX - 1, my + civilians[ci2].y * scaleY - 1, 2, 2);
+  }
+
+  // 敵（赤ドット）
+  ctx.fillStyle = "rgba(220, 80, 80, 0.6)";
+  for (var ei2 = 0; ei2 < enemies.length; ei2++) {
+    ctx.fillRect(mx + enemies[ei2].x * scaleX - 1, my + enemies[ei2].y * scaleY - 1, 2, 2);
+  }
+
+  // 仲間（青ドット）
+  ctx.fillStyle = "rgba(80, 120, 255, 0.7)";
+  for (var fi2 = 0; fi2 < followers.length; fi2++) {
+    ctx.fillRect(mx + followers[fi2].x * scaleX - 1, my + followers[fi2].y * scaleY - 1, 2, 2);
+  }
+
+  // カメラ範囲
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(mx + cameraX * scaleX, my + cameraY * scaleY, CANVAS_W * scaleX, CANVAS_H * scaleY);
+
+  // プレイヤー三角矢印
+  var ppx = mx + playerPos.x * scaleX;
+  var ppy = my + playerPos.y * scaleY;
+  var arrowSize = config.arrowSize;
+  var angle = playerFacingRight ? 0 : Math.PI;
+
+  // 視野扇形（A案のみ）
+  if (config.showFov) {
+    ctx.fillStyle = "rgba(255, 255, 255, 0.12)";
+    ctx.beginPath();
+    ctx.moveTo(ppx, ppy);
+    ctx.arc(ppx, ppy, arrowSize * 2.5, angle - Math.PI / 5, angle + Math.PI / 5);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // 三角矢印
+  ctx.fillStyle = "#ffffff";
+  ctx.strokeStyle = "#1a1a1a";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(ppx + Math.cos(angle) * arrowSize, ppy + Math.sin(angle) * arrowSize);
+  ctx.lineTo(ppx + Math.cos(angle + 2.4) * arrowSize * 0.7, ppy + Math.sin(angle + 2.4) * arrowSize * 0.7);
+  ctx.lineTo(ppx + Math.cos(angle - 2.4) * arrowSize * 0.7, ppy + Math.sin(angle - 2.4) * arrowSize * 0.7);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // 枠線
+  if (config.border) {
+    ctx.strokeStyle = config.border;
+    ctx.lineWidth = config.borderWidth;
+    ctx.beginPath();
+    ctx.roundRect(mx, my, mw, mh, config.rounded);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// === A案: 右下・200x150・和紙風 ===
+(function() {
+  var canvas = document.getElementById("canvasA");
+  var ctx = canvas.getContext("2d");
+  drawGameBg(ctx);
+  drawMinimap(ctx, {
+    x: 640 - 200 - 8, y: 360 - 150 - 8,
+    w: 200, h: 150,
+    bg: "rgba(245, 238, 225, 0.9)",
+    border: "rgba(160, 130, 90, 0.6)",
+    borderWidth: 1.5,
+    rounded: 10,
+    arrowSize: 5,
+    showFov: true,
+    gridLines: true
+  });
+})();
+
+// === B案: 左上・180x135・ダーク ===
+(function() {
+  var canvas = document.getElementById("canvasB");
+  var ctx = canvas.getContext("2d");
+  drawGameBg(ctx);
+  drawMinimap(ctx, {
+    x: 8, y: 8,
+    w: 180, h: 135,
+    bg: "rgba(20, 20, 30, 0.85)",
+    border: "rgba(255, 255, 255, 0.2)",
+    borderWidth: 1,
+    rounded: 6,
+    arrowSize: 5,
+    showFov: false,
+    gridLines: false
+  });
+})();
+
+// === C案: 右下・160x120・コンパクト ===
+(function() {
+  var canvas = document.getElementById("canvasC");
+  var ctx = canvas.getContext("2d");
+  drawGameBg(ctx);
+  drawMinimap(ctx, {
+    x: 640 - 160 - 8, y: 360 - 120 - 8,
+    w: 160, h: 120,
+    bg: "rgba(30, 30, 30, 0.6)",
+    border: null,
+    borderWidth: 0,
+    rounded: 4,
+    arrowSize: 4,
+    showFov: false,
+    gridLines: false
+  });
+})();
+</script>
+</body>
+</html>
+</content>
+</invoke>
