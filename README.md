@@ -83,3 +83,9 @@ QTE。失敗で即死だが大量石高獲得チャンス。栄えていると�
 - **バックエンド**: Firebase Functions (Node.js / TypeScript)
 - **データベース**: Cloud Firestore
 - **ホスティング**: Firebase Hosting
+
+---
+
+## Support
+
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-support-FF5E5B?style=flat&logo=ko-fi)](https://ko-fi.com/tsutushi0628)
