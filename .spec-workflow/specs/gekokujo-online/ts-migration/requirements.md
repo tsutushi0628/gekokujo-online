@@ -2,7 +2,7 @@
 
 ## Introduction
 
-gekokujo-online のフロントエンドコード（Canvas 2D ゲーム、バニラ ES5 JavaScript、約5,500行）を TypeScript に移行し、型安全性の確保・ビルドパイプライン導入・本番コードの難読化を実現する。
+gekokujo-online のフロントエンドコード（Canvas 2D ゲーム、バニラ ES5 JavaScript、約6,000行）を TypeScript に移行し、型安全性の確保・ビルドパイプライン導入・本番コードの難読化を実現する。
 
 バックエンド（`functions/`）は既に TypeScript で実装済みであり、フロントエンドのみが対象。
 
@@ -11,7 +11,7 @@ gekokujo-online のフロントエンドコード（Canvas 2D ゲーム、バニ
 - **品質向上**: 型チェックにより実行時バグを減らし、ゲーム体験の安定性を高める
 - **開発速度向上**: エディタ補完・型推論による開発効率の改善
 - **ソースコード保護**: 本番デプロイ時の minify + 難読化で、ゲームロジックの露出を防ぐ
-- **保守性**: モジュールシステム導入により、5,500行超のグローバル変数依存コードを構造化する
+- **保守性**: モジュールシステム導入により、6,000行超のグローバル変数依存コードを構造化する
 
 ---
 
@@ -36,31 +36,35 @@ gekokujo-online のフロントエンドコード（Canvas 2D ゲーム、バニ
 | `api.js` | 109 | スコアボードAPI通信（セッション作成、スコア送信、閾値取得） |
 | `sprites.js` | 26 | スプライト定義（画像キー・サイズ・キャラマッピング） |
 | `utils.js` | 66 | ユーティリティ（スプライト描画ヘルパー、スプライト一括読み込み） |
-| `input.js` | 72 | キーボード・マウス入力管理（InputManager） |
+| `input.js` | 88 | キーボード・マウス入力管理（InputManager） |
 | `camera.js` | 47 | カメラ制御（CameraController: 追従・座標変換・可視判定） |
 | `terrain.js` | 328 | マップ生成（MapGenerator）・地形管理（TerrainManager）・木配置（TreeManager） |
-| `entities.js` | 1,003 | プレイヤー・敵・民間人・弾丸・行列管理（PlayerController, EnemyManager, CivilianManager, ParadeController, ProjectileManager） |
-| `combat.js` | 733 | 戦闘システム（KokuReward, ParadePhysics, ParadeSplitter, IntimidationSystem, ParadeChargeSystem, CombatSystem, TsujigiriSystem, KobuSystem, BaishuSystem） |
+| `entities.js` | 1,114 | プレイヤー・敵・民間人・弾丸・行列管理（PlayerController, EnemyManager, CivilianManager, ParadeController, ProjectileManager） |
+| `combat.js` | 734 | 戦闘システム（KokuReward, ParadePhysics, ParadeSplitter, IntimidationSystem, ParadeChargeSystem, CombatSystem, TsujigiriSystem, KobuSystem, BaishuSystem） |
 | `economy.js` | 76 | 商人経済システム（ShoninSystem: 石高収入・支出・傭兵雇用） |
-| `ui.js` | 955 | UI描画（MinimapRenderer, RankingManager, EffectRenderer, AnnouncementSystem, ResultRenderer, ConcentrationLines, BuildingRenderer, FloatingScoreSystem, DamageVignette, OnboardingSystem） |
-| `main.js` | 1,945 | ゲーム状態管理・ゲームディレクター・ランクシステム・一揆/下克上システム・橋ボス・家屋管理・テレイン描画・シーン制御・HUD描画 |
-| **合計** | **5,466** | |
+| `ui.js` | 1,010 | UI描画（MinimapRenderer, RankingManager, EffectRenderer, AnnouncementSystem, ResultRenderer, ConcentrationLines, BuildingRenderer, FloatingScoreSystem, DamageVignette, OnboardingSystem） |
+| `main.js` | 2,273 | ゲーム状態管理・ゲームディレクター・ランクシステム・一揆/下克上システム・橋ボス・家屋管理・テレイン描画・シーン制御・HUD描画 |
+| `analytics.js` | 1 | Firebase Analytics 統合 |
+| `mobile-detect.js` | 20 | モバイルデバイス検出 |
+| **合計** | **5,998** | |
 
 ### 2.2 scriptタグ読み込み順序（index.html）
 
 ```
-1. constants.js    ← 定数定義（他の全ファイルが依存）
-2. api.js          ← ScoreboardApi オブジェクト
-3. sprites.js      ← SPRITE_DEFS, spriteImages, CHAR_SPRITE_MAP
-4. utils.js        ← drawSpriteCentered, loadAllSprites（sprites.js に依存）
-5. input.js        ← InputManager（canvas, CameraController に依存）
-6. camera.js       ← CameraController（constants.js に依存）
-7. terrain.js      ← MapGenerator, TerrainManager, TreeManager
-8. entities.js     ← PlayerController, EnemyManager, CivilianManager, ParadeController, ProjectileManager
-9. combat.js       ← CombatSystem, TsujigiriSystem, KobuSystem, BaishuSystem 等
-10. economy.js     ← ShoninSystem
-11. ui.js          ← MinimapRenderer, EffectRenderer, AnnouncementSystem 等
-12. main.js        ← gameState, GameDirector, GekokujoSystem 等（全システムの統合）
+0. mobile-detect.js ← モバイルデバイス検出（head内で最初に読み込み）
+1. analytics.js    ← Firebase Analytics 統合（Firebase SDK の後に読み込み）
+2. constants.js    ← 定数定義（他の全ファイルが依存）
+3. api.js          ← ScoreboardApi オブジェクト
+4. sprites.js      ← SPRITE_DEFS, spriteImages, CHAR_SPRITE_MAP
+5. utils.js        ← drawSpriteCentered, loadAllSprites（sprites.js に依存）
+6. input.js        ← InputManager（canvas, CameraController に依存）
+7. camera.js       ← CameraController（constants.js に依存）
+8. terrain.js      ← MapGenerator, TerrainManager, TreeManager
+9. entities.js     ← PlayerController, EnemyManager, CivilianManager, ParadeController, ProjectileManager
+10. combat.js      ← CombatSystem, TsujigiriSystem, KobuSystem, BaishuSystem 等
+11. economy.js     ← ShoninSystem
+12. ui.js          ← MinimapRenderer, EffectRenderer, AnnouncementSystem 等
+13. main.js        ← gameState, GameDirector, GekokujoSystem 等（全システムの統合）
 ```
 
 ### 2.3 ファイル間依存関係図
@@ -193,7 +197,7 @@ main.js ────────────────────────
 
 ### 3.1 段階的移行を採用
 
-**理由**: 5,500行・40以上のグローバルオブジェクトが相互依存する状態を一括移行するとリスクが高い。段階的に移行し、各フェーズで動作確認を挟む。
+**理由**: 6,000行・40以上のグローバルオブジェクトが相互依存する状態を一括移行するとリスクが高い。段階的に移行し、各フェーズで動作確認を挟む。
 
 ### 3.2 ビルドツール: Vite を採用
 
@@ -264,6 +268,8 @@ gekokujo-online/
     assets/             ← 画像・音声（変更なし）
     css/                ← スタイル（変更なし）
   src/                  ← TypeScript ソース（新規作成）
+    mobile-detect.ts
+    analytics.ts
     constants.ts
     api.ts
     sprites.ts
@@ -385,18 +391,20 @@ echo "[preflight] フロントエンドビルド OK"
 6. Canvas 2D 関連の型（`CanvasRenderingContext2D` 等）を明示
 
 **推奨リネーム順序**（依存の少ないファイルから）:
-1. `constants.ts`
-2. `sprites.ts`
-3. `camera.ts`
-4. `utils.ts`
-5. `api.ts`
-6. `input.ts`
-7. `terrain.ts`
-8. `economy.ts`
-9. `entities.ts`
-10. `combat.ts`
-11. `ui.ts`
-12. `main.ts`
+1. `mobile-detect.ts`
+2. `analytics.ts`
+3. `constants.ts`
+4. `sprites.ts`
+5. `camera.ts`
+6. `utils.ts`
+7. `api.ts`
+8. `input.ts`
+9. `terrain.ts`
+10. `economy.ts`
+11. `entities.ts`
+12. `combat.ts`
+13. `ui.ts`
+14. `main.ts`
 
 **完了基準**:
 - `tsc --noEmit` がエラーなしで通る（`strict: false` の状態）
@@ -485,7 +493,7 @@ echo "[preflight] フロントエンドビルド OK"
 
 **現在の CSP**（firebase.json より）:
 ```
-script-src 'self'
+script-src 'self' https://www.googletagmanager.com
 ```
 
 **影響**:
@@ -507,13 +515,13 @@ script-src 'self'
 ## Non-Functional Requirements
 
 ### Code Architecture and Modularity
-- **Single Responsibility Principle**: 各ファイルは単一のシステム/コンポーネントを管理する。main.ts の 1,945 行は Phase 5 で分割対象
+- **Single Responsibility Principle**: 各ファイルは単一のシステム/コンポーネントを管理する。main.ts の 2,273 行は Phase 5 で分割対象
 - **Modular Design**: ES Modules により、各システムが独立してテスト・再利用可能な状態にする
 - **Dependency Management**: 循環依存を排除し、依存グラフが DAG（有向非巡回グラフ）になること
 - **Clear Interfaces**: 全システム間のインターフェースを TypeScript の `interface` / `type` で明示化
 
 ### Performance
-- ビルド後のバンドルサイズが gzip 圧縮後 100KB 以下であること（現在の非圧縮合計は約 180KB）
+- ビルド後のバンドルサイズが gzip 圧縮後 100KB 以下であること（現在の非圧縮合計は約 196KB）
 - ゲームループが 60fps を維持すること（移行前後で Chrome DevTools の Performance タブで計測・比較）
 - 初期ロード時間が移行前と同等以下であること
 

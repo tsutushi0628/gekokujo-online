@@ -22,14 +22,17 @@
 functions/
 ├── src/
 │   ├── index.ts              # Express app エントリポイント
+│   ├── config/
+│   │   └── projectConfig.ts       # プロジェクト設定
 │   ├── handlers/
 │   │   └── scoreboardHandlers.ts  # HTTPハンドラー
+│   ├── middleware/
+│   │   └── rateLimiter.ts         # レートリミットミドルウェア
 │   ├── services/
 │   │   └── scoreboardService.ts   # ビジネスロジック（近似ランキング計算）
 │   └── types/
 │       └── scoreboard.ts          # 型定義
 ├── firebase-kit/              # サブモジュール（既存）
-├── project.config.ts
 ├── package.json
 └── tsconfig.json
 ```
@@ -85,9 +88,9 @@ functions/
 [Cloud Functions (Express app)]
     │
     ├── Handler層: scoreboardHandlers.ts
-    │     ├── createSession()  — セッション作成
-    │     ├── getThresholds()  — 閾値データ取得
-    │     └── submitScore()    — スコア送信 + playLogをsessionsに追記 + 近似順位応答
+    │     ├── createSessionHandler()  — セッション作成
+    │     ├── getThresholdsHandler()  — 閾値データ取得
+    │     └── submitScoreHandler()    — スコア送信 + playLogをsessionsに追記 + 近似順位応答
     │
     ├── Service層: scoreboardService.ts
     │     ├── createSession()          — セッションドキュメント作成
@@ -156,9 +159,9 @@ Scheduled Function (15分間隔)
 
 - **Purpose:** HTTPリクエストの受付・レスポンス返却のみ
 - **Interfaces:**
-  - `createSession(req, res)` — POST /api/scoreboard/sessions
-  - `getThresholds(req, res)` — GET /api/scoreboard/thresholds
-  - `submitScore(req, res)` — POST /api/scoreboard/scores
+  - `createSessionHandler(req, res)` — POST /api/scoreboard/sessions
+  - `getThresholdsHandler(req, res)` — GET /api/scoreboard/thresholds
+  - `submitScoreHandler(req, res)` — POST /api/scoreboard/scores
 - **Dependencies:** scoreboardService, firebase-kit (withExpressValidation, createUnifiedResponse, createErrorResponse)
 - **Reuses:** withExpressValidation（入力検証、playLog 5KBチェックはcustomバリデーター）, createUnifiedResponse（レスポンス統一）
 
@@ -591,7 +594,8 @@ Firebase Analytics SDKは `/__/firebase/` 予約URLから読み込み（`script-
       "firebase.json",
       "**/.*",
       "**/node_modules/**",
-      "public/archive/**"
+      "public/archive/**",
+      "public/tools/**"
     ],
     "rewrites": [
       {
@@ -601,11 +605,29 @@ Firebase Analytics SDKは `/__/firebase/` 予約URLから読み込み（`script-
     ],
     "headers": [
       {
-        "source": "**",
+        "source": "{sitemap.xml,sitemap2.xml}",
+        "headers": [
+          { "key": "Content-Type", "value": "application/xml; charset=UTF-8" }
+        ]
+      },
+      {
+        "source": "robots.txt",
+        "headers": [
+          { "key": "Content-Type", "value": "text/plain; charset=UTF-8" }
+        ]
+      },
+      {
+        "source": "assets/*.{ttf,woff2}",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        ]
+      },
+      {
+        "source": "**/*.html",
         "headers": [
           { "key": "X-Frame-Options", "value": "DENY" },
           { "key": "X-Content-Type-Options", "value": "nosniff" },
-          { "key": "Content-Security-Policy", "value": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; media-src 'self'; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'" }
+          { "key": "Content-Security-Policy", "value": "default-src 'none'; script-src 'self' https://www.googletagmanager.com; style-src 'self'; img-src 'self'; font-src 'self'; media-src 'self'; connect-src 'self' https://www.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net https://firebaseinstallations.googleapis.com https://firebase.googleapis.com; frame-src https://www.youtube.com; object-src 'none'; base-uri 'self'; form-action 'none'; manifest-src 'self'" }
         ]
       }
     ]
@@ -631,9 +653,10 @@ Firebase Analytics SDKは `/__/firebase/` 予約URLから読み込み（`script-
 }
 ```
 
-**変更点:**
+**変更点（実装済み）:**
 - `hosting.rewrites` 追加（`/api/**` → `api` Function）
-- `connect-src 'none'` → `connect-src 'self'`（Hosting経由なのでselfで十分）
+- `connect-src` に `'self'` 追加（Hosting経由のAPI呼び出し用）
+- セキュリティヘッダーの適用範囲を `**` → `**/*.html` に変更（XML・静的リソースへの誤適用を防止）
 - `functions` セクション追加
 - `firestore` セクション追加
 
