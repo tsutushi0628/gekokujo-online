@@ -24,10 +24,14 @@ const mockWhereGet = jest.fn().mockResolvedValue({ docs: [] });
 const mockWhereFn = jest.fn().mockReturnValue({ get: mockWhereGet });
 const mockCountGet = jest.fn().mockResolvedValue({ data: () => ({ count: 0 }) });
 const mockCountFn = jest.fn().mockReturnValue({ get: mockCountGet });
+// rankSnapshots/latest は updateDocument ではなく doc('latest').set() で書く
+const mockSet = jest.fn();
+const mockDocFn = jest.fn().mockReturnValue({ set: mockSet });
 const mockCollection = jest.fn().mockReturnValue({
   orderBy: mockOrderByFn,
   where: mockWhereFn,
   count: mockCountFn,
+  doc: mockDocFn,
 });
 const mockDb = {
   collection: mockCollection,
@@ -36,14 +40,10 @@ const mockDb = {
 
 jest.mock('firebase-kit/backend', () => ({
   getDb: () => mockDb,
+  createDocument: jest.fn(),
   updateDocument: jest.fn(),
   getLogger: () => mockLogger,
 }));
-
-const { updateDocument: mockUpdateDocument } =
-  require('firebase-kit/backend') as {
-    updateDocument: jest.Mock;
-  };
 
 describe('scoreboardService.regenerateSnapshot', () => {
   beforeEach(() => {
@@ -55,6 +55,15 @@ describe('scoreboardService.regenerateSnapshot', () => {
     mockOrderByFn.mockReturnValue({ limit: mockLimitFn });
     mockCountGet.mockResolvedValue({ data: () => ({ count: 0 }) });
     mockWhereGet.mockResolvedValue({ docs: [] });
+    mockSet.mockResolvedValue(undefined);
+    mockDocFn.mockReturnValue({ set: mockSet });
+    mockCollection.mockReturnValue({
+      orderBy: mockOrderByFn,
+      where: mockWhereFn,
+      count: mockCountFn,
+      doc: mockDocFn,
+    });
+    mockDb.batch.mockReturnValue(mockBatch);
   });
 
   function createScoreDoc(score: number): { data: () => { score: number }; ref: object } {
@@ -69,9 +78,9 @@ describe('scoreboardService.regenerateSnapshot', () => {
 
     await regenerateSnapshot();
 
-    expect(mockUpdateDocument).toHaveBeenCalledWith(
-      'rankSnapshots',
-      'latest',
+    expect(mockCollection).toHaveBeenCalledWith('rankSnapshots');
+    expect(mockDocFn).toHaveBeenCalledWith('latest');
+    expect(mockSet).toHaveBeenCalledWith(
       expect.objectContaining({
         thresholds: [],
         totalPlayers: 0,
@@ -89,8 +98,7 @@ describe('scoreboardService.regenerateSnapshot', () => {
 
     await regenerateSnapshot();
 
-    const updateCall = mockUpdateDocument.mock.calls[0];
-    const snapshotData = updateCall[2] as { thresholds: Array<{ rank: number; score: number }>; totalPlayers: number };
+    const snapshotData = mockSet.mock.calls[0][0] as { thresholds: Array<{ rank: number; score: number }>; totalPlayers: number };
     expect(snapshotData.thresholds).toEqual([
       { rank: 1, score: 500 },
       { rank: 2, score: 400 },
@@ -110,8 +118,7 @@ describe('scoreboardService.regenerateSnapshot', () => {
 
     await regenerateSnapshot();
 
-    const updateCall = mockUpdateDocument.mock.calls[0];
-    const snapshotData = updateCall[2] as { thresholds: Array<{ rank: number; score: number }>; totalPlayers: number };
+    const snapshotData = mockSet.mock.calls[0][0] as { thresholds: Array<{ rank: number; score: number }>; totalPlayers: number };
 
     // 1〜10位は1刻み
     expect(snapshotData.thresholds[0]).toEqual({ rank: 1, score: 10000 });
@@ -146,11 +153,10 @@ describe('scoreboardService.regenerateSnapshot', () => {
     expect(mockBatchCommit).toHaveBeenCalled();
   });
 
-  it('updateDocumentにgeneratedAtフィールドが含まれる', async () => {
+  it('書き込むスナップショットに generatedAt フィールドが含まれる', async () => {
     await regenerateSnapshot();
 
-    const updateCall = mockUpdateDocument.mock.calls[0];
-    const snapshotData = updateCall[2] as Record<string, unknown>;
+    const snapshotData = mockSet.mock.calls[0][0] as Record<string, unknown>;
     expect(snapshotData).toHaveProperty('generatedAt');
   });
 });

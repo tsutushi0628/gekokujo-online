@@ -1,17 +1,24 @@
 import { calculateApproxRank } from '../scoreboardService';
 
-jest.mock('firebase-kit/backend', () => ({
-  getDocument: jest.fn(),
-}));
+// scoreboardService は getDb().collection('rankSnapshots').doc('latest').get() で
+// スナップショットを直接読む。
+const mockDocGet = jest.fn();
+const mockDoc = jest.fn().mockReturnValue({ get: mockDocGet });
+const mockCollection = jest.fn().mockReturnValue({ doc: mockDoc });
+const mockDb = { collection: mockCollection };
 
-const { getDocument: mockGetDocument } =
-  require('firebase-kit/backend') as {
-    getDocument: jest.Mock;
-  };
+jest.mock('firebase-kit/backend', () => ({
+  getDb: () => mockDb,
+  createDocument: jest.fn(),
+  updateDocument: jest.fn(),
+  getLogger: () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn() }),
+}));
 
 describe('scoreboardService.calculateApproxRank', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockDoc.mockReturnValue({ get: mockDocGet });
+    mockCollection.mockReturnValue({ doc: mockDoc });
   });
 
   const sampleThresholds = [
@@ -36,15 +43,17 @@ describe('scoreboardService.calculateApproxRank', () => {
 
   const snapshotDoc = {
     exists: true,
-    data: {
+    data: () => ({
       thresholds: sampleThresholds,
       totalPlayers: 8523,
       generatedAt: '2026-03-15T09:55:00.000Z',
-    },
+    }),
   };
 
+  const emptyDoc = { exists: false, data: () => undefined };
+
   it('1位のスコア以上 → rank=1, isApprox=false', async () => {
-    mockGetDocument.mockResolvedValue(snapshotDoc);
+    mockDocGet.mockResolvedValue(snapshotDoc);
 
     const result = await calculateApproxRank(55000);
 
@@ -53,7 +62,7 @@ describe('scoreboardService.calculateApproxRank', () => {
   });
 
   it('1位と同じスコア → rank=1, isApprox=false', async () => {
-    mockGetDocument.mockResolvedValue(snapshotDoc);
+    mockDocGet.mockResolvedValue(snapshotDoc);
 
     const result = await calculateApproxRank(50000);
 
@@ -62,7 +71,7 @@ describe('scoreboardService.calculateApproxRank', () => {
   });
 
   it('1〜10位間のスコア → 正確な順位（ジッターが丸めで消える）', async () => {
-    mockGetDocument.mockResolvedValue(snapshotDoc);
+    mockDocGet.mockResolvedValue(snapshotDoc);
 
     // 2位のスコア(48000)以上、1位のスコア(50000)未満
     const result = await calculateApproxRank(48000);
@@ -72,7 +81,7 @@ describe('scoreboardService.calculateApproxRank', () => {
   });
 
   it('閾値間のスコア → 線形補間+ジッターが範囲内', async () => {
-    mockGetDocument.mockResolvedValue(snapshotDoc);
+    mockDocGet.mockResolvedValue(snapshotDoc);
 
     // 20位(25000)と30位(22000)の間
     const result = await calculateApproxRank(23000);
@@ -85,7 +94,7 @@ describe('scoreboardService.calculateApproxRank', () => {
   });
 
   it('全閾値以下 → 圏外(rank=null)', async () => {
-    mockGetDocument.mockResolvedValue(snapshotDoc);
+    mockDocGet.mockResolvedValue(snapshotDoc);
 
     // 10000位(500)未満のスコア
     const result = await calculateApproxRank(100);
@@ -95,7 +104,7 @@ describe('scoreboardService.calculateApproxRank', () => {
   });
 
   it('スナップショット未生成時 → rank=null, isApprox=false', async () => {
-    mockGetDocument.mockResolvedValue(null);
+    mockDocGet.mockResolvedValue(emptyDoc);
 
     const result = await calculateApproxRank(5000);
 
@@ -105,7 +114,7 @@ describe('scoreboardService.calculateApproxRank', () => {
   });
 
   it('閾値が最後のエントリと同じスコア → その順位', async () => {
-    mockGetDocument.mockResolvedValue(snapshotDoc);
+    mockDocGet.mockResolvedValue(snapshotDoc);
 
     // 10000位のスコア(500)と同じ
     const result = await calculateApproxRank(500);
@@ -114,18 +123,19 @@ describe('scoreboardService.calculateApproxRank', () => {
   });
 
   it('totalPlayersがスナップショットから取得される', async () => {
-    mockGetDocument.mockResolvedValue(snapshotDoc);
+    mockDocGet.mockResolvedValue(snapshotDoc);
 
     const result = await calculateApproxRank(5000);
 
     expect(result.totalPlayers).toBe(8523);
   });
 
-  it('getDocumentに正しいコレクションとドキュメントIDを渡す', async () => {
-    mockGetDocument.mockResolvedValue(snapshotDoc);
+  it('正しいコレクションとドキュメントIDを読む', async () => {
+    mockDocGet.mockResolvedValue(snapshotDoc);
 
     await calculateApproxRank(5000);
 
-    expect(mockGetDocument).toHaveBeenCalledWith('rankSnapshots', 'latest');
+    expect(mockCollection).toHaveBeenCalledWith('rankSnapshots');
+    expect(mockDoc).toHaveBeenCalledWith('latest');
   });
 });
