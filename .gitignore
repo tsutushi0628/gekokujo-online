@@ -19,3 +19,4 @@ docs/findings/
 # Service account keys
 *serviceAccount*.json
 .wasurenagusa/
+.mcp.json
